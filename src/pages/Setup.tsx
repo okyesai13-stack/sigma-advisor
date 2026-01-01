@@ -6,13 +6,15 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { 
   Target, BookOpen, Rocket, Check, ArrowRight, ArrowLeft, 
-  Plus, X, GraduationCap, Briefcase, Award 
+  Plus, X, GraduationCap, Briefcase, Award, LogOut 
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/hooks/useAuth";
 
 const Setup = () => {
   const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const [step, setStep] = useState(1);
   const [goal, setGoal] = useState("");
   const [goalDescription, setGoalDescription] = useState("");
@@ -96,6 +98,16 @@ const Setup = () => {
     }
   };
 
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast.error("Failed to sign out");
+    } else {
+      toast.success("Signed out successfully");
+      navigate("/");
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-subtle">
       {/* Header */}
@@ -105,8 +117,19 @@ const Setup = () => {
             <Target className="w-5 h-5 text-primary" />
             Complete Your Profile
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            Step {step} of 3
+          <div className="flex items-center gap-4">
+            <div className="text-sm text-muted-foreground">
+              Step {step} of 3
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSignOut}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
           </div>
         </div>
       </div>

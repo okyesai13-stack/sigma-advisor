@@ -10,444 +10,77 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.1"
+    PostgrestVersion: "12.2.3 (519615d)"
   }
   public: {
     Tables: {
-      advisor_conversations: {
+      profiles: {
         Row: {
-          context: Json | null
-          created_at: string | null
+          about: string | null
+          avatar_url: string | null
+          bio: string | null
+          created_at: string
+          date_of_birth: string | null
+          first_name: string | null
+          full_name: string | null
+          gender: string | null
+          goal: string | null
+          goal_set: string | null
+          hobbies: string | null
           id: string
-          message: string
-          role: string
-          user_id: string
+          interest: string | null
+          last_name: string | null
+          location: string | null
+          personal_links: Json | null
+          updated_at: string
+          user_type: string | null
+          username: string | null
         }
         Insert: {
-          context?: Json | null
-          created_at?: string | null
-          id?: string
-          message: string
-          role: string
-          user_id: string
+          about?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          first_name?: string | null
+          full_name?: string | null
+          gender?: string | null
+          goal?: string | null
+          goal_set?: string | null
+          hobbies?: string | null
+          id: string
+          interest?: string | null
+          last_name?: string | null
+          location?: string | null
+          personal_links?: Json | null
+          updated_at?: string
+          user_type?: string | null
+          username?: string | null
         }
         Update: {
-          context?: Json | null
-          created_at?: string | null
+          about?: string | null
+          avatar_url?: string | null
+          bio?: string | null
+          created_at?: string
+          date_of_birth?: string | null
+          first_name?: string | null
+          full_name?: string | null
+          gender?: string | null
+          goal?: string | null
+          goal_set?: string | null
+          hobbies?: string | null
           id?: string
-          message?: string
-          role?: string
-          user_id?: string
+          interest?: string | null
+          last_name?: string | null
+          location?: string | null
+          personal_links?: Json | null
+          updated_at?: string
+          user_type?: string | null
+          username?: string | null
         }
         Relationships: []
       }
-      ai_interviews: {
-        Row: {
-          created_at: string | null
-          feedback: string | null
-          id: string
-          interview_type: string | null
-          score: number | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          feedback?: string | null
-          id?: string
-          interview_type?: string | null
-          score?: number | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          feedback?: string | null
-          id?: string
-          interview_type?: string | null
-          score?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      career_recommendations: {
-        Row: {
-          career_title: string
-          confidence_score: number | null
-          created_at: string | null
-          id: string
-          rationale: string | null
-          user_id: string
-        }
-        Insert: {
-          career_title: string
-          confidence_score?: number | null
-          created_at?: string | null
-          id?: string
-          rationale?: string | null
-          user_id: string
-        }
-        Update: {
-          career_title?: string
-          confidence_score?: number | null
-          created_at?: string | null
-          id?: string
-          rationale?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      certifications: {
-        Row: {
-          created_at: string | null
-          id: string
-          issuer: string | null
-          title: string | null
-          user_id: string
-          year: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          issuer?: string | null
-          title?: string | null
-          user_id: string
-          year?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          issuer?: string | null
-          title?: string | null
-          user_id?: string
-          year?: number | null
-        }
-        Relationships: []
-      }
-      education_details: {
-        Row: {
-          created_at: string | null
-          degree: string | null
-          field: string | null
-          graduation_year: number | null
-          id: string
-          institution: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          degree?: string | null
-          field?: string | null
-          graduation_year?: number | null
-          id?: string
-          institution?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          degree?: string | null
-          field?: string | null
-          graduation_year?: number | null
-          id?: string
-          institution?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      experience_details: {
-        Row: {
-          company: string | null
-          created_at: string | null
-          end_year: number | null
-          id: string
-          role: string | null
-          skills: string[] | null
-          start_year: number | null
-          user_id: string
-        }
-        Insert: {
-          company?: string | null
-          created_at?: string | null
-          end_year?: number | null
-          id?: string
-          role?: string | null
-          skills?: string[] | null
-          start_year?: number | null
-          user_id: string
-        }
-        Update: {
-          company?: string | null
-          created_at?: string | null
-          end_year?: number | null
-          id?: string
-          role?: string | null
-          skills?: string[] | null
-          start_year?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      job_readiness: {
-        Row: {
-          confidence_level: number | null
-          id: string
-          portfolio_ready: boolean | null
-          resume_ready: boolean | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          confidence_level?: number | null
-          id?: string
-          portfolio_ready?: boolean | null
-          resume_ready?: boolean | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          confidence_level?: number | null
-          id?: string
-          portfolio_ready?: boolean | null
-          resume_ready?: boolean | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      learning_plan: {
-        Row: {
-          created_at: string | null
-          id: string
-          priority: number | null
-          skill_name: string
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          priority?: number | null
-          skill_name: string
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          priority?: number | null
-          skill_name?: string
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      projects: {
-        Row: {
-          career_title: string
-          description: string | null
-          difficulty: string | null
-          id: string
-          project_title: string
-          skills_covered: string[] | null
-        }
-        Insert: {
-          career_title: string
-          description?: string | null
-          difficulty?: string | null
-          id?: string
-          project_title: string
-          skills_covered?: string[] | null
-        }
-        Update: {
-          career_title?: string
-          description?: string | null
-          difficulty?: string | null
-          id?: string
-          project_title?: string
-          skills_covered?: string[] | null
-        }
-        Relationships: []
-      }
-      selected_career: {
-        Row: {
-          career_title: string
-          id: string
-          industry: string | null
-          selected_at: string | null
-          user_id: string
-        }
-        Insert: {
-          career_title: string
-          id?: string
-          industry?: string | null
-          selected_at?: string | null
-          user_id: string
-        }
-        Update: {
-          career_title?: string
-          id?: string
-          industry?: string | null
-          selected_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      skill_catalog: {
-        Row: {
-          category: string | null
-          description: string | null
-          id: string
-          skill_name: string
-        }
-        Insert: {
-          category?: string | null
-          description?: string | null
-          id?: string
-          skill_name: string
-        }
-        Update: {
-          category?: string | null
-          description?: string | null
-          id?: string
-          skill_name?: string
-        }
-        Relationships: []
-      }
-      user_journey_state: {
-        Row: {
-          career_recommended: boolean | null
-          career_selected: boolean | null
-          interview_completed: boolean | null
-          job_ready: boolean | null
-          learning_completed: boolean | null
-          profile_completed: boolean | null
-          projects_completed: boolean | null
-          skill_validated: boolean | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          career_recommended?: boolean | null
-          career_selected?: boolean | null
-          interview_completed?: boolean | null
-          job_ready?: boolean | null
-          learning_completed?: boolean | null
-          profile_completed?: boolean | null
-          projects_completed?: boolean | null
-          skill_validated?: boolean | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          career_recommended?: boolean | null
-          career_selected?: boolean | null
-          interview_completed?: boolean | null
-          job_ready?: boolean | null
-          learning_completed?: boolean | null
-          profile_completed?: boolean | null
-          projects_completed?: boolean | null
-          skill_validated?: boolean | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_projects: {
-        Row: {
-          created_at: string | null
-          id: string
-          project_id: string
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          project_id: string
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          project_id?: string
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_projects_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_skill_validation: {
-        Row: {
-          career_title: string
-          created_at: string | null
-          current_level: string | null
-          id: string
-          required_level: string | null
-          skill_name: string
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          career_title: string
-          created_at?: string | null
-          current_level?: string | null
-          id?: string
-          required_level?: string | null
-          skill_name: string
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          career_title?: string
-          created_at?: string | null
-          current_level?: string | null
-          id?: string
-          required_level?: string | null
-          skill_name?: string
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      users_profile: {
-        Row: {
-          activities: string[] | null
-          created_at: string | null
-          goal_description: string | null
-          goal_type: string | null
-          hobbies: string[] | null
-          id: string
-          interests: string[] | null
-          updated_at: string | null
-        }
-        Insert: {
-          activities?: string[] | null
-          created_at?: string | null
-          goal_description?: string | null
-          goal_type?: string | null
-          hobbies?: string[] | null
-          id: string
-          interests?: string[] | null
-          updated_at?: string | null
-        }
-        Update: {
-          activities?: string[] | null
-          created_at?: string | null
-          goal_description?: string | null
-          goal_type?: string | null
-          hobbies?: string[] | null
-          id?: string
-          interests?: string[] | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+      // Add other tables as needed
     }
     Views: {
       [_ in never]: never

@@ -1,34 +1,81 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, Mail, Lock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const { user, loading: authLoading, signUp, signIn, signInWithGoogle } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  // Redirect if user is already authenticated
+  useEffect(() => {
+    if (user && !authLoading) {
+      navigate("/setup");
+    }
+  }, [user, authLoading, navigate]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsLoading(true);
-
-    // Simulate authentication
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    if (email && password) {
-      toast.success(isLogin ? "Welcome back!" : "Account created successfully!");
-      navigate("/setup");
-    } else {
+    
+    if (!email || !password) {
       toast.error("Please fill in all fields");
+      return;
     }
 
-    setIsLoading(false);
+    setIsLoading(true);
+
+    try {
+      let result;
+      if (isLogin) {
+        result = await signIn(email, password);
+        if (!result.error) {
+          toast.success("Welcome back!");
+          navigate("/setup");
+        }
+      } else {
+        result = await signUp(email, password);
+        if (!result.error) {
+          toast.success("Account created! Please check your email to verify your account.");
+        }
+      }
+
+      if (result.error) {
+        toast.error(result.error.message);
+      }
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await signInWithGoogle();
+      if (error) {
+        toast.error(error.message);
+      }
+    } catch (error) {
+      toast.error("Failed to sign in with Google");
+    }
+  };
+
+  // Show loading spinner while checking auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex items-center justify-center p-6">
@@ -125,9 +172,7 @@ const Auth = () => {
             variant="outline"
             size="lg"
             className="w-full"
-            onClick={() => {
-              toast.info("Google sign-in would be implemented with Supabase");
-            }}
+            onClick={handleGoogleSignIn}
           >
             <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path

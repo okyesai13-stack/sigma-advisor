@@ -1,9 +1,21 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ArrowRight, Target, BookOpen, Briefcase, TrendingUp } from "lucide-react";
+import { Sparkles, ArrowRight, Target, BookOpen, Briefcase, TrendingUp, LogOut } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 const Landing = () => {
   const navigate = useNavigate();
+  const { user, signOut, loading } = useAuth();
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast.error("Failed to sign out");
+    } else {
+      toast.success("Signed out successfully");
+    }
+  };
 
   const features = [
     {
@@ -34,9 +46,26 @@ const Landing = () => {
             </div>
             <span className="font-semibold text-lg text-foreground">AI Career Advisor</span>
           </div>
-          <Button variant="outline" onClick={() => navigate("/auth")}>
-            Sign In
-          </Button>
+          {loading ? (
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+          ) : user ? (
+            <div className="flex items-center gap-4">
+              <span className="text-sm text-muted-foreground">
+                Welcome, {user.email}
+              </span>
+              <Button variant="outline" onClick={() => navigate("/setup")}>
+                Dashboard
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={() => navigate("/auth")}>
+              Sign In
+            </Button>
+          )}
         </div>
       </nav>
 
@@ -149,10 +178,10 @@ const Landing = () => {
               <Button 
                 variant="hero" 
                 size="lg" 
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate(user ? "/setup" : "/auth")}
                 className="group"
               >
-                Get Started Free
+                {user ? "Go to Dashboard" : "Get Started Free"}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>

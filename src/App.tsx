@@ -3,6 +3,7 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
@@ -25,13 +26,41 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
-          <Route path="/setup" element={<Setup />} />
-          <Route path="/advisor" element={<Advisor />} />
-          <Route path="/learn" element={<Learn />} />
-          <Route path="/projects" element={<Projects />} />
-          <Route path="/job-readiness" element={<JobReadiness />} />
-          <Route path="/interview" element={<Interview />} />
-          <Route path="/apply" element={<Apply />} />
+          <Route path="/setup" element={
+            <ProtectedRoute>
+              <Setup />
+            </ProtectedRoute>
+          } />
+          <Route path="/advisor" element={
+            <ProtectedRoute>
+              <Advisor />
+            </ProtectedRoute>
+          } />
+          <Route path="/learn" element={
+            <ProtectedRoute>
+              <Learn />
+            </ProtectedRoute>
+          } />
+          <Route path="/projects" element={
+            <ProtectedRoute>
+              <Projects />
+            </ProtectedRoute>
+          } />
+          <Route path="/job-readiness" element={
+            <ProtectedRoute>
+              <JobReadiness />
+            </ProtectedRoute>
+          } />
+          <Route path="/interview" element={
+            <ProtectedRoute>
+              <Interview />
+            </ProtectedRoute>
+          } />
+          <Route path="/apply" element={
+            <ProtectedRoute>
+              <Apply />
+            </ProtectedRoute>
+          } />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
