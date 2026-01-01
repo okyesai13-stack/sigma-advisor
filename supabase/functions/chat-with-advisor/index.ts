@@ -70,78 +70,87 @@ serve(async (req) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
-    }
+    const GEMINI_API_KEY = "AIzaSyA7seyM9dUmtiQnmij7PyjMylnXZvdcZXs";
+    const actualModel = "gemini-3-pro-preview"; // Using the model specified by the user.
 
     // Build context for AI
     const currentStep = !journeyState?.career_recommended ? "career_recommendation"
       : !journeyState?.career_selected ? "career_selection"
-      : !journeyState?.skill_validated ? "skill_validation"
-      : !journeyState?.learning_completed ? "learning"
-      : !journeyState?.projects_completed ? "projects"
-      : !journeyState?.job_ready ? "job_readiness"
-      : !journeyState?.interview_completed ? "interview"
-      : "apply";
+        : !journeyState?.skill_validated ? "skill_validation"
+          : !journeyState?.learning_completed ? "learning"
+            : !journeyState?.projects_completed ? "projects"
+              : !journeyState?.job_ready ? "job_readiness"
+                : !journeyState?.interview_completed ? "interview"
+                  : "apply";
 
-    const systemPrompt = `You are an AI Career Advisor helping a user on their career journey.
+    const systemPromptContent = `You are an AI Career Advisor Agent.
+
+You are NOT a chatbot.
+You are a state-aware career orchestrator.
+
+Your mission is to guide users step by step toward their career goal
+using their profile, interests, education, experience, and progress state.
+
+Core Responsibilities:
+- Analyze user goals and background
+- Recommend suitable career paths with reasoning
+- Guide skill validation and gap identification
+- Generate learning plans only when gaps exist
+- Recommend real-world projects
+- Assess job readiness
+- Conduct mock interviews with structured feedback
+
+Strict Rules:
+- Never skip steps
+- Never repeat completed steps
+- Always respect the provided journey state
+- Do not provide generic advice
+- Be concise, practical, and goal-oriented
+- Act as a professional career advisor
+
+Output Rules:
+- Always respond in valid JSON if the prompt asks for it, otherwise conversational text but structured.
+- No conversational fillers
+- Structured responses
 
 User Context:
 - Goal: ${profile?.goal_type || "Not set"} - ${profile?.goal_description || ""}
 - Selected Career: ${selectedCareer?.career_title || "Not yet selected"}
 - Current Journey Step: ${currentStep}
 - Journey Progress: ${JSON.stringify(journeyState || {})}
+`;
 
-Your role is to:
-1. Guide the user through their career journey step by step
-2. Answer questions about careers, skills, and job preparation
-3. Provide encouragement and actionable advice
-4. Help them understand what to do next
-
-Keep responses concise, friendly, and actionable. If they need to take a specific action (like selecting a career or starting learning), remind them to use the relevant buttons in the interface.`;
-
-    const conversationHistory = (recentMessages || []).reverse().map(msg => ({
-      role: msg.role === "user" ? "user" : "assistant",
-      content: msg.message,
+    const contents = (recentMessages || []).reverse().map(msg => ({
+      role: msg.role === "advisor" ? "model" : "user", // Gemini uses 'model' not 'assistant'
+      parts: [{ text: msg.message }]
     }));
+    contents.push({ role: "user", parts: [{ text: message }] });
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${actualModel}:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...conversationHistory.slice(-8), // Last 8 messages for context
-          { role: "user", content: message },
-        ],
+        contents: contents,
+        systemInstruction: {
+          parts: [{ text: systemPromptContent }]
+        },
+        generationConfig: {
+          temperature: 0.7, // optional
+          // thinkingConfig is only for specific models
+        }
       }),
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI gateway error");
+    if (!response.ok) {
+      const errText = await response.text();
+      console.error("Gemini API Error:", response.status, errText);
+      throw new Error(`Gemini API Error: ${response.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const advisorResponse = aiData.choices?.[0]?.message?.content || "I apologize, I couldn't process that. Could you try rephrasing?";
+    const aiData = await response.json();
+    const advisorResponse = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "I apologize, I couldn't process that.";
 
     // Store advisor response
     await supabaseClient.from("advisor_conversations").insert({
@@ -153,7 +162,7 @@ Keep responses concise, friendly, and actionable. If they need to take a specifi
 
     console.log("Successfully responded to chat");
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       response: advisorResponse,
       currentStep,
     }), {

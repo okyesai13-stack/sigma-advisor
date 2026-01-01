@@ -21,6 +21,8 @@ import {
   Award,
   FileText,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "user" | "assistant";
@@ -45,6 +47,7 @@ const Advisor = () => {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const steps = [
     { id: 1, label: "Career Recommendation", icon: Target },
@@ -87,21 +90,50 @@ const Advisor = () => {
     { name: "HTML/CSS", required: 3, current: 4, status: "ready" },
   ];
 
-  const handleSendMessage = () => {
+
+
+  // ... (inside component) ...
+
+  const handleSendMessage = async () => {
     if (!inputValue.trim()) return;
 
     const userMessage: Message = { role: "user", content: inputValue };
-    setMessages([...messages, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
+    setIsLoading(true);
 
-    // Simulate AI response
-    setTimeout(() => {
-      const aiResponse: Message = {
+    try {
+      const { data, error } = await supabase.functions.invoke("chat-with-advisor", {
+        body: { message: inputValue },
+      });
+
+      if (error) {
+        console.error("Error calling advisor:", error);
+        throw error;
+      }
+
+      if (data?.response) {
+        const aiResponse: Message = {
+          role: "assistant", // Maintain 'assistant' for frontend compatibility
+          content: data.response,
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+
+        // Update current step if returned
+        if (data.currentStep) {
+          // Optional: Update step logic if needed, or rely on internal logic
+        }
+      }
+    } catch (error) {
+      console.error("Failed to get response:", error);
+      const fallbackResponse: Message = {
         role: "assistant",
-        content: "I understand your question. Based on your profile and the career options I've analyzed, I recommend focusing on Full-Stack Development as it aligns well with your technical interests and goal of finding a job. Would you like to proceed with this career path?",
+        content: "I'm having trouble connecting right now. Please try again."
       };
-      setMessages((prev) => [...prev, aiResponse]);
-    }, 1000);
+      setMessages((prev) => [...prev, fallbackResponse]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const selectCareer = (title: string) => {
@@ -172,21 +204,19 @@ const Advisor = () => {
             {steps.map((step) => (
               <div
                 key={step.id}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                  step.id === currentStep
-                    ? "bg-accent text-accent-foreground"
-                    : step.id < currentStep
+                className={`flex items-center gap-3 p-3 rounded-xl transition-all ${step.id === currentStep
+                  ? "bg-accent text-accent-foreground"
+                  : step.id < currentStep
                     ? "text-success"
                     : "text-muted-foreground"
-                }`}
+                  }`}
               >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                  step.id < currentStep
-                    ? "bg-success"
-                    : step.id === currentStep
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${step.id < currentStep
+                  ? "bg-success"
+                  : step.id === currentStep
                     ? "bg-gradient-hero"
                     : "bg-muted"
-                }`}>
+                  }`}>
                   {step.id < currentStep ? (
                     <CheckCircle2 className="w-4 h-4 text-success-foreground" />
                   ) : step.id === currentStep ? (
@@ -226,11 +256,10 @@ const Advisor = () => {
                 className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 <div
-                  className={`max-w-[80%] p-4 rounded-2xl ${
-                    message.role === "user"
-                      ? "bg-gradient-hero text-primary-foreground"
-                      : "bg-card border border-border text-foreground"
-                  }`}
+                  className={`max-w-[80%] p-4 rounded-2xl ${message.role === "user"
+                    ? "bg-gradient-hero text-primary-foreground"
+                    : "bg-card border border-border text-foreground"
+                    }`}
                 >
                   {message.role === "assistant" && (
                     <div className="flex items-center gap-2 mb-2">
@@ -291,11 +320,12 @@ const Advisor = () => {
               placeholder="Ask your advisor..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
               className="flex-1 h-12"
+              disabled={isLoading}
             />
-            <Button variant="hero" size="lg" onClick={handleSendMessage}>
-              <Send className="w-5 h-5" />
+            <Button variant="hero" size="lg" onClick={handleSendMessage} disabled={isLoading}>
+              {isLoading ? <div className="animate-spin w-5 h-5 border-2 border-current border-t-transparent rounded-full" /> : <Send className="w-5 h-5" />}
             </Button>
           </div>
         </div>
