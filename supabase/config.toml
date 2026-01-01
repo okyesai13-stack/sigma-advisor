@@ -1,1 +1,25 @@
 project_id = "chxelpkvtnlduzlkauep"
+
+[functions.generate-career-recommendation]
+verify_jwt = true
+
+[functions.select-career-path]
+verify_jwt = true
+
+[functions.validate-skills]
+verify_jwt = true
+
+[functions.generate-learning-plan]
+verify_jwt = true
+
+[functions.assign-projects]
+verify_jwt = true
+
+[functions.update-job-readiness]
+verify_jwt = true
+
+[functions.run-ai-interview]
+verify_jwt = true
+
+[functions.chat-with-advisor]
+verify_jwt = true
