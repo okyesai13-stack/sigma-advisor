@@ -2,11 +2,25 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Sparkles, ArrowRight, Target, BookOpen, Briefcase, TrendingUp, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useJourneyState } from "@/hooks/useJourneyState";
 import { toast } from "sonner";
 
 const Landing = () => {
   const navigate = useNavigate();
   const { user, signOut, loading } = useAuth();
+  const { journeyState, loading: journeyLoading } = useJourneyState();
+
+  const getNextRoute = () => {
+    if (!journeyState) return "/setup";
+    if (!journeyState.profile_completed) return "/setup";
+    if (!journeyState.career_selected) return "/advisor";
+    if (!journeyState.skill_validated) return "/advisor";
+    if (!journeyState.learning_completed) return "/learn";
+    if (!journeyState.projects_completed) return "/projects";
+    if (!journeyState.job_ready) return "/job-readiness";
+    if (!journeyState.interview_completed) return "/interview";
+    return "/apply";
+  };
 
   const handleSignOut = async () => {
     const { error } = await signOut();
@@ -46,15 +60,15 @@ const Landing = () => {
             </div>
             <span className="font-semibold text-lg text-foreground">AI Career Advisor</span>
           </div>
-          {loading ? (
+          {loading || journeyLoading ? (
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
           ) : user ? (
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">
                 Welcome, {user.email}
               </span>
-              <Button variant="outline" onClick={() => navigate("/setup")}>
-                Dashboard
+              <Button variant="outline" onClick={() => navigate(getNextRoute())}>
+                Continue Journey
               </Button>
               <Button variant="ghost" size="sm" onClick={handleSignOut}>
                 <LogOut className="w-4 h-4 mr-2" />
@@ -103,10 +117,10 @@ const Landing = () => {
             <Button 
               variant="hero" 
               size="xl" 
-              onClick={() => navigate("/auth")}
+              onClick={() => navigate(user ? getNextRoute() : "/auth")}
               className="group"
             >
-              Ask Advisor
+              {user ? "Continue Journey" : "Ask Advisor"}
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
           </div>
@@ -178,10 +192,10 @@ const Landing = () => {
               <Button 
                 variant="hero" 
                 size="lg" 
-                onClick={() => navigate(user ? "/setup" : "/auth")}
+                onClick={() => navigate(user ? getNextRoute() : "/auth")}
                 className="group"
               >
-                {user ? "Go to Dashboard" : "Get Started Free"}
+                {user ? "Continue Journey" : "Get Started Free"}
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
