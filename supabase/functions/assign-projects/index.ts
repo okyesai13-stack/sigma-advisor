@@ -69,6 +69,14 @@ serve(async (req) => {
       });
     }
 
+    // Get user's skill gaps to personalize projects
+    const { data: skillGaps } = await supabaseClient
+      .from("user_skill_validation")
+      .select("skill_name, status")
+      .eq("user_id", user.id);
+
+    const skillsToFocus = skillGaps?.filter(s => s.status === "gap").map(s => s.skill_name) || [];
+
     // Get available projects for this career using admin client
     const { data: availableProjects, error: projectsError } = await supabaseAdmin
       .from("projects")
@@ -79,55 +87,115 @@ serve(async (req) => {
       console.error("Error fetching projects:", projectsError);
     }
 
-    // If no projects for this career, get general projects
     let projectsToAssign = availableProjects;
+    
+    // If no projects exist, generate AI-powered personalized projects
     if (!projectsToAssign || projectsToAssign.length === 0) {
-      console.log("No specific projects found, checking for any projects");
-      const { data: generalProjects } = await supabaseAdmin
-        .from("projects")
-        .select("*")
-        .limit(3);
-      projectsToAssign = generalProjects;
-    }
+      console.log("No specific projects found, generating AI-powered projects for:", selectedCareer.career_title);
+      
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      
+      let generatedProjects = null;
+      
+      if (LOVABLE_API_KEY) {
+        const systemPrompt = `You are a career project advisor. Generate 3 portfolio projects for a candidate targeting a specific career.
 
-    if (!projectsToAssign || projectsToAssign.length === 0) {
-      console.log("No projects found, creating default projects for career:", selectedCareer.career_title);
-      // Create default projects for the career using admin client (bypasses RLS)
-      const defaultProjects = [
-        {
-          career_title: selectedCareer.career_title,
-          project_title: "Portfolio Website",
-          description: "Build a responsive portfolio to showcase your work and skills",
-          difficulty: "beginner",
-          skills_covered: ["HTML/CSS", "JavaScript", "Responsive Design"],
-        },
-        {
-          career_title: selectedCareer.career_title,
-          project_title: "Task Management App",
-          description: "Full-stack CRUD application with user authentication and data persistence",
-          difficulty: "intermediate",
-          skills_covered: ["React", "Node.js", "Database", "Authentication"],
-        },
-        {
-          career_title: selectedCareer.career_title,
-          project_title: "E-commerce Platform",
-          description: "Complex application with payment integration and inventory management",
-          difficulty: "advanced",
-          skills_covered: ["React", "Node.js", "Stripe", "Database", "API Design"],
-        },
-      ];
+Return a JSON array with exactly 3 projects:
+[
+  {
+    "project_title": "string",
+    "description": "string (2-3 sentences describing what they'll build)",
+    "difficulty": "beginner" | "intermediate" | "advanced",
+    "skills_covered": ["array", "of", "skills"]
+  }
+]
+
+Projects should:
+- Progress from beginner to advanced
+- Be practical and impressive to employers
+- Cover key skills for the target career
+- Be achievable in 1-4 weeks each`;
+
+        const userPrompt = `Target Career: ${selectedCareer.career_title}
+Skills to Focus On: ${skillsToFocus.length > 0 ? skillsToFocus.join(", ") : "General skills for this career"}
+
+Generate 3 portfolio projects as a JSON array.`;
+
+        try {
+          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${LOVABLE_API_KEY}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              model: "google/gemini-3-pro-preview",
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: userPrompt },
+              ],
+            }),
+          });
+
+          if (aiResponse.ok) {
+            const aiData = await aiResponse.json();
+            const content = aiData.choices?.[0]?.message?.content || "";
+            
+            const jsonMatch = content.match(/\[[\s\S]*\]/);
+            if (jsonMatch) {
+              const parsed = JSON.parse(jsonMatch[0]);
+              generatedProjects = parsed.map((p: any) => ({
+                career_title: selectedCareer.career_title,
+                project_title: p.project_title,
+                description: p.description,
+                difficulty: p.difficulty,
+                skills_covered: p.skills_covered,
+              }));
+            }
+          }
+        } catch (e) {
+          console.error("AI project generation failed:", e);
+        }
+      }
+
+      // Fallback to default projects if AI fails
+      if (!generatedProjects) {
+        generatedProjects = [
+          {
+            career_title: selectedCareer.career_title,
+            project_title: "Portfolio Website",
+            description: "Build a responsive portfolio to showcase your work and skills",
+            difficulty: "beginner",
+            skills_covered: ["HTML/CSS", "JavaScript", "Responsive Design"],
+          },
+          {
+            career_title: selectedCareer.career_title,
+            project_title: "Task Management App",
+            description: "Full-stack CRUD application with user authentication and data persistence",
+            difficulty: "intermediate",
+            skills_covered: ["React", "Node.js", "Database", "Authentication"],
+          },
+          {
+            career_title: selectedCareer.career_title,
+            project_title: "E-commerce Platform",
+            description: "Complex application with payment integration and inventory management",
+            difficulty: "advanced",
+            skills_covered: ["React", "Node.js", "Stripe", "Database", "API Design"],
+          },
+        ];
+      }
 
       const { data: createdProjects, error: createError } = await supabaseAdmin
         .from("projects")
-        .insert(defaultProjects)
+        .insert(generatedProjects)
         .select();
 
       if (createError) {
-        console.error("Error creating default projects:", createError);
+        console.error("Error creating projects:", createError);
         throw new Error("Failed to create projects: " + createError.message);
       }
 
-      console.log("Created", createdProjects?.length, "default projects");
+      console.log("Created", createdProjects?.length, "AI-generated projects");
       projectsToAssign = createdProjects;
     }
 
@@ -156,8 +224,8 @@ serve(async (req) => {
     await supabaseClient.from("advisor_conversations").insert([
       {
         user_id: user.id,
-        role: "assistant",
-        message: `I've assigned ${assignedProjects.length} portfolio projects for you. These will help you demonstrate your skills to employers. Start with the beginner project and work your way up.`,
+        role: "advisor",
+        message: `I've assigned ${assignedProjects.length} personalized portfolio projects for your ${selectedCareer.career_title} journey. These projects are designed by AI to help you build practical skills and create an impressive portfolio. Start with the beginner project and work your way up!`,
         context: { action: "projects_assigned", projectCount: assignedProjects.length },
       },
     ]);

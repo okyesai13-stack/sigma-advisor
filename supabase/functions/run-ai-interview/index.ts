@@ -59,8 +59,8 @@ Be professional but friendly.`;
           Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+      body: JSON.stringify({
+          model: "google/gemini-3-pro-preview",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: "Start the interview with your first question." },
@@ -119,7 +119,7 @@ Otherwise, just respond naturally as an interviewer.`;
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-3-pro-preview",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: `Candidate's response: "${message}"` },

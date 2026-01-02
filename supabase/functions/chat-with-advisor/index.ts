@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
 
 declare const Deno: any;
 
@@ -20,7 +19,7 @@ serve(async (req: Request) => {
       throw new Error("No authorization header");
     }
 
-    const { message, thoughtSignature } = await req.json();
+    const { message } = await req.json();
     if (!message) {
       throw new Error("Message is required");
     }
@@ -43,7 +42,7 @@ serve(async (req: Request) => {
       user_id: user.id,
       role: "user",
       message,
-      context: null, // User message doesn't need context usually, or maybe previous thought signature if relevant
+      context: null,
     });
 
     // Get user context
@@ -65,28 +64,30 @@ serve(async (req: Request) => {
       .eq("user_id", user.id)
       .single();
 
-    // Get recent conversation history
+    // Get skill validations if available
+    const { data: skillValidations } = await supabaseClient
+      .from("user_skill_validation")
+      .select("*")
+      .eq("user_id", user.id);
+
+    // Get learning plan if available
+    const { data: learningPlan } = await supabaseClient
+      .from("learning_plan")
+      .select("*")
+      .eq("user_id", user.id);
+
+    // Get recent conversation history (last 10 messages)
     const { data: recentMessages } = await supabaseClient
       .from("advisor_conversations")
-      .select("role, message, context")
+      .select("role, message")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10);
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyA7seyM9dUmtiQnmij7PyjMylnXZvdcZXs";
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-
-    const model = genAI.getGenerativeModel({
-      model: "gemini-3-pro-preview",
-    });
-
-    const thinkingConfig = {
-      thinkingConfig: {
-        includeThoughts: true,
-        thinkingLevel: "high",
-      },
-      temperature: 1.0,
-    };
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
+    }
 
     // Build context for AI
     const currentStep = !journeyState?.career_recommended ? "career_recommendation"
@@ -98,106 +99,114 @@ serve(async (req: Request) => {
                 : !journeyState?.interview_completed ? "interview"
                   : "apply";
 
-    const systemPromptContent = `You are an AI Career Advisor Agent.
-You are NOT a chatbot.
-You are a state-aware career orchestrator.
+    const skillsContext = skillValidations && skillValidations.length > 0 
+      ? `\nSkill Validations: ${skillValidations.map(s => `${s.skill_name}: ${s.status} (${s.current_level}/${s.required_level})`).join(", ")}`
+      : "";
 
-Your mission is to guide users step by step toward their career goal
-using their profile, interests, education, experience, and progress state.
+    const learningContext = learningPlan && learningPlan.length > 0
+      ? `\nLearning Plan: ${learningPlan.map(l => `${l.skill_name}: ${l.status}`).join(", ")}`
+      : "";
+
+    const systemPrompt = `You are an AI Career Advisor Agent powered by Gemini 3.0.
+You are NOT a chatbot. You are a state-aware career orchestrator.
+
+Your mission is to guide users step by step toward their career goal using their profile, interests, education, experience, and progress state.
 
 Core Responsibilities:
 - Analyze user goals and background
 - Recommend suitable career paths with reasoning
 - Guide skill validation and gap identification
-- Generate learning plans only when gaps exist
+- Generate personalized learning plans
 - Recommend real-world projects
 - Assess job readiness
 - Conduct mock interviews with structured feedback
+- Help with job applications
 
 Strict Rules:
 - Never skip steps
 - Never repeat steps
 - Always respect the provided journey state
-- Do not provide generic advice
+- Do not provide generic advice - be specific and actionable
 - Be concise, practical, and goal-oriented
 - Act as a professional career advisor
-
-Output Rules:
-- Always respond in valid JSON if the prompt asks for it, otherwise conversational text but structured.
-- No conversational fillers
-- Structured responses
+- Use the user's actual data to personalize responses
 
 User Context:
 - Goal: ${profile?.goal_type || "Not set"} - ${profile?.goal_description || ""}
+- Interests: ${profile?.interests?.join(", ") || "Not specified"}
+- Hobbies: ${profile?.hobbies?.join(", ") || "Not specified"}
 - Selected Career: ${selectedCareer?.career_title || "Not yet selected"}
 - Current Journey Step: ${currentStep}
-- Journey Progress: ${JSON.stringify(journeyState || {})}
-`;
+- Journey Progress: ${JSON.stringify(journeyState || {})}${skillsContext}${learningContext}
 
-    // Construct history for SDK
-    const history = (recentMessages || []).reverse().map((msg: any) => {
-      const parts = [{ text: msg.message }];
-      // If it's a model message and has a thought signature stored in context, attach it
-      if (msg.role === "advisor" && msg.context?.thoughtSignature) {
-        // Note: The SDK expects thoughtSignature in the part for 'model' role
-        // However, standard history usually just takes text. 
-        // For Gemini 3, if we want to pass back the signature, we might need to conform to specific SDK structure.
-        // Assuming the user's snippet where params imply passing it back.
-        // For now, we will try to attach it if the SDK allows, or relying on the fact that startChat maintains state if we were in a continuous session.
-        // But here we are stateless between requests. 
-        // We will attempt to pass it in parts if the SDK supports it (custom property), or as a separate part type if applicable.
-        // Based on user snippet: parts: { text?: string; thoughtSignature?: string }[]
-        (parts[0] as any).thoughtSignature = msg.context.thoughtSignature;
+Based on the current step "${currentStep}", focus your response accordingly:
+- If career_recommendation: Help user understand their options or refine recommendations
+- If career_selection: Guide them in choosing and confirming their career path
+- If skill_validation: Explain their skill gaps and how to address them
+- If learning: Motivate and guide their learning journey
+- If projects: Help them plan and complete portfolio projects
+- If job_readiness: Review their preparation for job applications
+- If interview: Prepare them for interviews with tips and practice
+- If apply: Help with job search strategies and applications`;
+
+    // Build conversation history for context
+    const conversationHistory = (recentMessages || []).reverse().map((msg: any) => ({
+      role: msg.role === "advisor" ? "assistant" : "user",
+      content: msg.message,
+    }));
+
+    // Make API call to Lovable AI Gateway with Gemini 3.0
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-pro-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...conversationHistory,
+          { role: "user", content: message },
+        ],
+      }),
+    });
+
+    if (!aiResponse.ok) {
+      const errorText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errorText);
+      
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      return {
-        role: msg.role === "advisor" ? "model" : "user",
-        parts: parts,
-      };
-    });
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("AI gateway error");
+    }
 
-    // Start chat
-    const chat = model.startChat({
-      history: [
-        {
-          role: "user",
-          parts: [{ text: "System Context: " + systemPromptContent }],
-        },
-        {
-          role: "model",
-          parts: [{ text: "Understood. I am ready to act as the AI Career Advisor." }],
-        },
-        ...history
-      ],
-      // @ts-ignore - thinkingConfig types might not be fully updated in the SDK version on esm.sh yet
-      generationConfig: thinkingConfig,
-    });
+    const aiData = await aiResponse.json();
+    const responseText = aiData.choices?.[0]?.message?.content || "I'm having trouble responding right now. Please try again.";
 
-    const result = await chat.sendMessage(message);
-    const response = await result.response;
-    const text = response.text();
-
-    // Extract thought signature
-    // The user's snippet: const thoughtSig = modelPart?.thoughtSignature;
-    const modelPart = response.candidates?.[0].content.parts[0];
-    const thoughtSig = (modelPart as any)?.thoughtSignature;
-
-    // Store advisor response with thought signature
+    // Store advisor response
     await supabaseClient.from("advisor_conversations").insert({
       user_id: user.id,
       role: "advisor",
-      message: text,
-      context: {
-        currentStep,
-        thoughtSignature: thoughtSig
-      },
+      message: responseText,
+      context: { currentStep },
     });
 
     console.log("Successfully responded to chat");
 
     return new Response(JSON.stringify({
-      response: text,
+      response: responseText,
       currentStep,
-      thoughtSignature: thoughtSig,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
