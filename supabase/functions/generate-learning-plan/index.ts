@@ -113,42 +113,44 @@ Output format:
   ]
 }`;
 
-    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("Gemini API error:", aiResponse.status, errorText);
-      throw new Error("Failed to generate learning content");
-    }
-
-    const aiData = await aiResponse.json();
-    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    let learningContent = null;
     
-    console.log("AI response:", content);
-
-    let learningContent;
     try {
-      // Try to parse JSON from response
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        learningContent = JSON.parse(jsonMatch[0]);
+      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 2048,
+          },
+        }),
+      });
+
+      if (aiResponse.ok) {
+        const aiData = await aiResponse.json();
+        const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        console.log("AI response:", content);
+
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          learningContent = JSON.parse(jsonMatch[0]);
+        }
       } else {
-        throw new Error("No JSON found in response");
+        const errorText = await aiResponse.text();
+        console.error("Gemini API error:", aiResponse.status, errorText);
+        // Will use fallback content below
       }
     } catch (e) {
-      console.error("Failed to parse AI response:", e);
+      console.error("AI call failed, using fallback:", e);
+    }
+
+    // Use fallback content if AI failed
+    if (!learningContent) {
+      console.log("Using fallback learning content for:", skill_name);
       // Fallback content
       learningContent = {
         learning_steps: [
