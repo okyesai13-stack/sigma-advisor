@@ -66,13 +66,13 @@ serve(async (req) => {
     const currentLevel = skillValidation?.current_level || "beginner";
     const requiredLevel = skillValidation?.required_level || "intermediate";
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // Use AI to generate personalized learning content
-    const userPrompt = `You are acting as a professional AI Career Advisor.
+    const prompt = `You are acting as a professional AI Career Advisor.
 
 Task: Generate a structured learning plan.
 
@@ -90,7 +90,7 @@ Instructions:
 3. Recommend exactly 3 YouTube videos.
    - Include real creators and direct links.
 4. Ensure content is beginner-to-intermediate friendly.
-5. Output must be valid JSON only.
+5. Output must be valid JSON only, no markdown.
 
 Output format:
 {
@@ -113,32 +113,28 @@ Output format:
   ]
 }`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
-        messages: [
-          { 
-            role: "system", 
-            content: "You are an expert AI Career Advisor. Return only valid JSON, no markdown or extra text." 
-          },
-          { role: "user", content: userPrompt },
-        ],
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
+      console.error("Gemini API error:", aiResponse.status, errorText);
       throw new Error("Failed to generate learning content");
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     
     console.log("AI response:", content);
 

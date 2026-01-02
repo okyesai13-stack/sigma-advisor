@@ -72,21 +72,19 @@ serve(async (req) => {
       certifications: certifications || [],
     };
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are an expert career advisor AI. Based on the user's profile, generate exactly 3 career recommendations.
+    const prompt = `You are an expert career advisor AI. Based on the user's profile, generate exactly 3 career recommendations.
     
 For each career, provide:
 1. career_title: A specific job title
 2. rationale: A brief explanation (2-3 sentences) of why this career suits them
 3. confidence_score: A number between 0.70 and 0.99 representing how well this career matches their profile
 
-Return ONLY a JSON array with these 3 careers, no additional text.`;
-
-    const userPrompt = `User Profile:
+User Profile:
 - Goal: ${userContext.goal} - ${userContext.goalDescription}
 - Interests: ${userContext.interests.join(", ")}
 - Hobbies: ${userContext.hobbies.join(", ")}
@@ -95,43 +93,36 @@ Return ONLY a JSON array with these 3 careers, no additional text.`;
 - Experience: ${userContext.experience.map(e => `${e.role} at ${e.company}`).join(", ")}
 - Certifications: ${userContext.certifications.map(c => c.title).join(", ")}
 
-Generate 3 career recommendations as a JSON array.`;
+Return ONLY a JSON array with these 3 careers, no additional text.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
+      console.error("Gemini API error:", aiResponse.status, errorText);
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI gateway error");
+      throw new Error("Gemini API error");
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     
     console.log("AI response content:", content);
 

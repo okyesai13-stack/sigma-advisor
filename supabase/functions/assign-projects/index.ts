@@ -93,12 +93,12 @@ serve(async (req) => {
     if (!projectsToAssign || projectsToAssign.length === 0) {
       console.log("No specific projects found, generating AI-powered projects for:", selectedCareer.career_title);
       
-      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
       
       let generatedProjects = null;
       
-      if (LOVABLE_API_KEY) {
-        const systemPrompt = `You are a career project advisor. Generate 3 portfolio projects for a candidate targeting a specific career.
+      if (GEMINI_API_KEY) {
+        const prompt = `You are a career project advisor. Generate 3 portfolio projects for a candidate targeting a specific career.
 
 Return a JSON array with exactly 3 projects:
 [
@@ -114,32 +114,31 @@ Projects should:
 - Progress from beginner to advanced
 - Be practical and impressive to employers
 - Cover key skills for the target career
-- Be achievable in 1-4 weeks each`;
+- Be achievable in 1-4 weeks each
 
-        const userPrompt = `Target Career: ${selectedCareer.career_title}
+Target Career: ${selectedCareer.career_title}
 Skills to Focus On: ${skillsToFocus.length > 0 ? skillsToFocus.join(", ") : "General skills for this career"}
 
-Generate 3 portfolio projects as a JSON array.`;
+Generate 3 portfolio projects as a JSON array only.`;
 
         try {
-          const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
             method: "POST",
             headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
               "Content-Type": "application/json",
             },
             body: JSON.stringify({
-              model: "google/gemini-3-pro-preview",
-              messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: userPrompt },
-              ],
+              contents: [{ role: "user", parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.7,
+                maxOutputTokens: 1024,
+              },
             }),
           });
 
           if (aiResponse.ok) {
             const aiData = await aiResponse.json();
-            const content = aiData.choices?.[0]?.message?.content || "";
+            const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             
             const jsonMatch = content.match(/\[[\s\S]*\]/);
             if (jsonMatch) {
