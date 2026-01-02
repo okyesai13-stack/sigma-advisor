@@ -19,7 +19,10 @@ const Auth = () => {
 
   // Redirect if user is already authenticated based on journey state
   useEffect(() => {
-    if (user && !authLoading && !journeyLoading) {
+    if (user && !authLoading) {
+      // User is logged in, check journey state
+      if (journeyLoading) return; // Wait for journey state to load
+      
       if (!journeyState?.profile_completed) {
         navigate("/setup");
       } else {
@@ -74,8 +77,8 @@ const Auth = () => {
     }
   };
 
-  // Show loading spinner while checking auth state
-  if (authLoading || journeyLoading) {
+  // Show loading spinner only while checking auth state (not journey state for non-logged-in users)
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
