@@ -277,24 +277,54 @@ const Learn = () => {
   };
 
   const checkAllLearningComplete = async () => {
-    // All skills that need learning
-    const skillsNeeded = skillsToLearn.map(s => s.skill_name);
+    if (!user) return;
     
-    // Check if all skills have completed journeys
-    const completedSkills = learningJourneys.filter(j => 
-      j.status === 'completed' && 
-      j.steps_completed.every(s => s === true) && 
-      j.certification_links.length > 0
-    ).map(j => j.skill_name);
+    try {
+      // Fetch fresh data from database to ensure we have the latest state
+      const { data: skillGaps } = await supabase
+        .from('user_skill_validation')
+        .select('skill_name')
+        .eq('user_id', user.id)
+        .eq('status', 'gap');
+      
+      const { data: journeys } = await supabase
+        .from('user_learning_journey')
+        .select('skill_name, status, steps_completed, certification_links')
+        .eq('user_id', user.id);
+      
+      if (!skillGaps || skillGaps.length === 0) return;
+      
+      // All skills that need learning
+      const skillsNeeded = skillGaps.map(s => s.skill_name);
+      
+      // Check if all skills have completed journeys
+      const completedSkills = (journeys || []).filter(j => {
+        const stepsCompleted = (j.steps_completed as boolean[]) || [];
+        const certLinks = (j.certification_links as string[]) || [];
+        return j.status === 'completed' && 
+          stepsCompleted.every(s => s === true) && 
+          certLinks.length > 0;
+      }).map(j => j.skill_name);
 
-    const allComplete = skillsNeeded.every(skill => completedSkills.includes(skill));
+      const allComplete = skillsNeeded.every(skill => completedSkills.includes(skill));
 
-    if (allComplete && skillsNeeded.length > 0) {
-      await updateState({ learning_completed: true });
-      toast({
-        title: "Congratulations! 🎉",
-        description: "You've completed all learning! Ready for projects!",
-      });
+      console.log('Learning check:', { skillsNeeded, completedSkills, allComplete });
+
+      if (allComplete) {
+        const { error } = await supabase
+          .from('user_journey_state')
+          .update({ learning_completed: true, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+        
+        toast({
+          title: "Congratulations! 🎉",
+          description: "You've completed all learning! Ready for projects!",
+        });
+      }
+    } catch (error) {
+      console.error('Error checking learning completion:', error);
     }
   };
 
