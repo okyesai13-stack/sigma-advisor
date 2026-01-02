@@ -20,6 +20,7 @@ import {
   Zap,
   Award,
   FileText,
+  User,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -426,9 +427,20 @@ const Advisor = () => {
             <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
             <span className="text-foreground font-medium">AI Advisor Active</span>
           </div>
-          <Badge variant="secondary" className="bg-accent text-accent-foreground">
-            Step {currentStep}: {steps[currentStep - 1].label}
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/profile")}
+              className="flex items-center gap-2"
+            >
+              <User className="w-4 h-4" />
+              Profile
+            </Button>
+            <Badge variant="secondary" className="bg-accent text-accent-foreground">
+              Step {currentStep}: {steps[currentStep - 1].label}
+            </Badge>
+          </div>
         </div>
 
         {/* Messages */}

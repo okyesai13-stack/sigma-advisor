@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +8,7 @@ import {
   Target, BookOpen, Rocket, Check, ArrowRight, ArrowLeft, 
   Plus, X, GraduationCap, Briefcase, Award, LogOut, Loader2 
 } from "lucide-react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,8 +16,10 @@ import { supabase } from "@/integrations/supabase/client";
 const Setup = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
+  const { toast } = useToast();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [goal, setGoal] = useState("");
   const [goalDescription, setGoalDescription] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
@@ -31,6 +33,7 @@ const Setup = () => {
     institution: "",
   });
   const [experiences, setExperiences] = useState<{
+    id?: string;
     company: string;
     role: string;
     skills: string;
@@ -38,10 +41,102 @@ const Setup = () => {
     endYear: string;
   }[]>([]);
   const [certifications, setCertifications] = useState<{
+    id?: string;
     title: string;
     issuer: string;
     year: string;
   }[]>([]);
+
+  // Load existing data when component mounts
+  useEffect(() => {
+    if (user) {
+      loadExistingData();
+    }
+  }, [user]);
+
+  const loadExistingData = async () => {
+    if (!user) return;
+
+    try {
+      setIsLoading(true);
+
+      // Load profile data
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (profile) {
+        setGoal(profile.goal_type || "");
+        setGoalDescription(profile.goal_description || "");
+        setInterests(profile.interests || []);
+        setActivities((profile.activities || []).join(", "));
+        setHobbies((profile.hobbies || []).join(", "));
+      }
+
+      // Load education data
+      const { data: educationData } = await supabase
+        .from('education_details')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('graduation_year', { ascending: false })
+        .limit(1);
+
+      if (educationData && educationData.length > 0) {
+        const edu = educationData[0];
+        setEducation({
+          degree: edu.degree || "",
+          field: edu.field || "",
+          year: edu.graduation_year?.toString() || "",
+          institution: edu.institution || "",
+        });
+      }
+
+      // Load experience data
+      const { data: experienceData } = await supabase
+        .from('experience_details')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('start_year', { ascending: false });
+
+      if (experienceData && experienceData.length > 0) {
+        setExperiences(experienceData.map(exp => ({
+          id: exp.id,
+          company: exp.company || "",
+          role: exp.role || "",
+          skills: (exp.skills || []).join(", "),
+          startYear: exp.start_year?.toString() || "",
+          endYear: exp.end_year?.toString() || "",
+        })));
+      }
+
+      // Load certifications data
+      const { data: certificationData } = await supabase
+        .from('certifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('year', { ascending: false });
+
+      if (certificationData && certificationData.length > 0) {
+        setCertifications(certificationData.map(cert => ({
+          id: cert.id,
+          title: cert.title || "",
+          issuer: cert.issuer || "",
+          year: cert.year?.toString() || "",
+        })));
+      }
+
+    } catch (error) {
+      console.error('Error loading existing data:', error);
+      toast({
+        title: "Info",
+        description: "Starting with a fresh setup. You can enter your information below.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const goals = [
     { id: "learn", label: "Learn", icon: BookOpen, description: "Acquire new skills and knowledge" },
@@ -90,7 +185,11 @@ const Setup = () => {
 
   const saveProfileToSupabase = async () => {
     if (!user) {
-      toast.error("You must be logged in");
+      toast({
+        title: "Error",
+        description: "You must be logged in",
+        variant: "destructive"
+      });
       return false;
     }
 
@@ -116,8 +215,15 @@ const Setup = () => {
 
       if (profileError) throw profileError;
 
-      // 2. Insert education_details if provided
+      // 2. Handle education_details - delete existing and insert new if provided
       if (education.degree || education.field || education.institution) {
+        // Delete existing education records
+        await supabase
+          .from('education_details')
+          .delete()
+          .eq('user_id', user.id);
+
+        // Insert new education record
         const { error: eduError } = await supabase
           .from('education_details')
           .insert({
@@ -131,7 +237,14 @@ const Setup = () => {
         if (eduError) throw eduError;
       }
 
-      // 3. Insert experience_details
+      // 3. Handle experience_details - delete existing and insert new
+      // Delete existing experience records
+      await supabase
+        .from('experience_details')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Insert new experience records
       for (const exp of experiences) {
         if (exp.company || exp.role) {
           const skillsArray = exp.skills.split(',').map(s => s.trim()).filter(Boolean);
@@ -150,7 +263,14 @@ const Setup = () => {
         }
       }
 
-      // 4. Insert certifications
+      // 4. Handle certifications - delete existing and insert new
+      // Delete existing certification records
+      await supabase
+        .from('certifications')
+        .delete()
+        .eq('user_id', user.id);
+
+      // Insert new certification records
       for (const cert of certifications) {
         if (cert.title) {
           const { error: certError } = await supabase
@@ -180,7 +300,11 @@ const Setup = () => {
       return true;
     } catch (error: any) {
       console.error('Error saving profile:', error);
-      toast.error(error.message || "Failed to save profile");
+      toast({
+        title: "Error",
+        description: error.message || "Failed to save profile",
+        variant: "destructive"
+      });
       return false;
     } finally {
       setIsSubmitting(false);
@@ -189,7 +313,11 @@ const Setup = () => {
 
   const handleContinue = async () => {
     if (step === 1 && !goal) {
-      toast.error("Please select a goal");
+      toast({
+        title: "Error",
+        description: "Please select a goal",
+        variant: "destructive"
+      });
       return;
     }
     if (step < 3) {
@@ -197,7 +325,10 @@ const Setup = () => {
     } else {
       const success = await saveProfileToSupabase();
       if (success) {
-        toast.success("Profile setup complete!");
+        toast({
+          title: "Success",
+          description: "Profile setup complete!",
+        });
         navigate("/advisor");
       }
     }
@@ -206,15 +337,37 @@ const Setup = () => {
   const handleSignOut = async () => {
     const { error } = await signOut();
     if (error) {
-      toast.error("Failed to sign out");
+      toast({
+        title: "Error",
+        description: "Failed to sign out",
+        variant: "destructive"
+      });
     } else {
-      toast.success("Signed out successfully");
+      toast({
+        title: "Success",
+        description: "Signed out successfully",
+      });
       navigate("/");
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
+      {/* Loading State */}
+      {isLoading && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center">
+          <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
+            <div className="flex items-center gap-4">
+              <Loader2 className="w-6 h-6 animate-spin text-primary" />
+              <div>
+                <h3 className="font-semibold text-foreground">Loading your profile...</h3>
+                <p className="text-sm text-muted-foreground">Retrieving your existing information</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-10">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
@@ -272,7 +425,14 @@ const Setup = () => {
             <div className="space-y-8">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-foreground mb-2">What is your goal?</h2>
-                <p className="text-muted-foreground">Choose what you want to achieve with AI Career Advisor</p>
+                <p className="text-muted-foreground">
+                  Choose what you want to achieve with AI Career Advisor
+                  {(goal || goalDescription || interests.length > 0) && (
+                    <span className="block mt-2 text-sm text-primary">
+                      ✓ We've loaded your existing information
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="grid md:grid-cols-3 gap-4">
@@ -320,7 +480,14 @@ const Setup = () => {
             <div className="space-y-8">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-foreground mb-2">What are you interested in?</h2>
-                <p className="text-muted-foreground">Help us understand your passions and interests</p>
+                <p className="text-muted-foreground">
+                  Help us understand your passions and interests
+                  {(interests.length > 0 || hobbies || activities) && (
+                    <span className="block mt-2 text-sm text-primary">
+                      ✓ We've loaded your existing information
+                    </span>
+                  )}
+                </p>
               </div>
 
               <div className="space-y-4">
@@ -374,7 +541,14 @@ const Setup = () => {
             <div className="space-y-8">
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-foreground mb-2">Your Background</h2>
-                <p className="text-muted-foreground">Tell us about your education and experience</p>
+                <p className="text-muted-foreground">
+                  Tell us about your education and experience
+                  {(education.degree || education.field || education.institution || experiences.length > 0 || certifications.length > 0) && (
+                    <span className="block mt-2 text-sm text-primary">
+                      ✓ We've loaded your existing information
+                    </span>
+                  )}
+                </p>
               </div>
 
               {/* Education */}

@@ -14,6 +14,7 @@ import Projects from "./pages/Projects";
 import JobReadiness from "./pages/JobReadiness";
 import Interview from "./pages/Interview";
 import Apply from "./pages/Apply";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -61,6 +62,11 @@ const App = () => (
             <Route path="/apply" element={
               <ProtectedRoute>
                 <Apply />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <Profile />
               </ProtectedRoute>
             } />
             <Route path="*" element={<NotFound />} />
