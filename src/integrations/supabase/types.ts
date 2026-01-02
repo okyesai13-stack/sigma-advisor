@@ -350,6 +350,51 @@ export type Database = {
         }
         Relationships: []
       }
+      user_learning_journey: {
+        Row: {
+          career_title: string
+          certification_links: string[] | null
+          created_at: string | null
+          id: string
+          learning_steps: Json | null
+          recommended_courses: Json | null
+          recommended_videos: Json | null
+          skill_name: string
+          status: string | null
+          steps_completed: boolean[] | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          career_title: string
+          certification_links?: string[] | null
+          created_at?: string | null
+          id?: string
+          learning_steps?: Json | null
+          recommended_courses?: Json | null
+          recommended_videos?: Json | null
+          skill_name: string
+          status?: string | null
+          steps_completed?: boolean[] | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          career_title?: string
+          certification_links?: string[] | null
+          created_at?: string | null
+          id?: string
+          learning_steps?: Json | null
+          recommended_courses?: Json | null
+          recommended_videos?: Json | null
+          skill_name?: string
+          status?: string | null
+          steps_completed?: boolean[] | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_projects: {
         Row: {
           created_at: string | null
