@@ -49,12 +49,12 @@ serve(async (req) => {
 
     const userSkills = experience?.flatMap((e) => e.skills || []) || [];
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const systemPrompt = `You are a career skills analyst. Given a career title and a user's existing skills, identify the required skills for that career and assess the user's current level.
+    const prompt = `You are a career skills analyst. Given a career title and a user's existing skills, identify the required skills for that career and assess the user's current level.
 
 Return a JSON array of skill assessments with this structure:
 [
@@ -66,42 +66,41 @@ Return a JSON array of skill assessments with this structure:
   }
 ]
 
-Include 5-8 key skills for the career. Status is "ready" if current_level >= required_level, otherwise "gap".`;
+Include 5-8 key skills for the career. Status is "ready" if current_level >= required_level, otherwise "gap".
 
-    const userPrompt = `Career: ${selectedCareer.career_title}
+Career: ${selectedCareer.career_title}
 User's existing skills: ${userSkills.length > 0 ? userSkills.join(", ") : "None specified"}
 
-Analyze and return the skill assessment as a JSON array.`;
+Analyze and return the skill assessment as a JSON array only.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.5,
+          maxOutputTokens: 1024,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
+      console.error("Gemini API error:", aiResponse.status, errorText);
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error("AI gateway error");
+      throw new Error("Gemini API error");
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
     
     console.log("AI skill validation response:", content);
 

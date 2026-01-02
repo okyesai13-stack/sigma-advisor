@@ -84,9 +84,9 @@ serve(async (req: Request) => {
       .order("created_at", { ascending: false })
       .limit(10);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // Build context for AI
@@ -107,7 +107,7 @@ serve(async (req: Request) => {
       ? `\nLearning Plan: ${learningPlan.map(l => `${l.skill_name}: ${l.status}`).join(", ")}`
       : "";
 
-    const systemPrompt = `You are an AI Career Advisor Agent powered by Gemini 3.0.
+    const systemPrompt = `You are an AI Career Advisor Agent powered by Gemini.
 You are NOT a chatbot. You are a state-aware career orchestrator.
 
 Your mission is to guide users step by step toward their career goal using their profile, interests, education, experience, and progress state.
@@ -151,30 +151,33 @@ Based on the current step "${currentStep}", focus your response accordingly:
 
     // Build conversation history for context
     const conversationHistory = (recentMessages || []).reverse().map((msg: any) => ({
-      role: msg.role === "advisor" ? "assistant" : "user",
-      content: msg.message,
+      role: msg.role === "advisor" ? "model" : "user",
+      parts: [{ text: msg.message }],
     }));
 
-    // Make API call to Lovable AI Gateway with Gemini 3.0
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    // Make API call to Google Gemini API directly
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
+        contents: [
+          { role: "user", parts: [{ text: systemPrompt }] },
+          { role: "model", parts: [{ text: "I understand. I am now your AI Career Advisor and will guide you through your career journey step by step." }] },
           ...conversationHistory,
-          { role: "user", content: message },
+          { role: "user", parts: [{ text: message }] },
         ],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errorText);
+      console.error("Gemini API error:", aiResponse.status, errorText);
       
       if (aiResponse.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
@@ -182,17 +185,11 @@ Based on the current step "${currentStep}", focus your response accordingly:
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("AI gateway error");
+      throw new Error("Gemini API error: " + errorText);
     }
 
     const aiData = await aiResponse.json();
-    const responseText = aiData.choices?.[0]?.message?.content || "I'm having trouble responding right now. Please try again.";
+    const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having trouble responding right now. Please try again.";
 
     // Store advisor response
     await supabaseClient.from("advisor_conversations").insert({

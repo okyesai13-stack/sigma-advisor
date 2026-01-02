@@ -41,30 +41,31 @@ serve(async (req) => {
 
     const careerTitle = selectedCareer?.career_title || "Full-Stack Developer";
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
+    if (!GEMINI_API_KEY) {
+      throw new Error("GEMINI_API_KEY is not configured");
     }
 
     // If this is a new interview or just getting a question
     if (!message) {
-      const systemPrompt = `You are an experienced technical interviewer conducting a ${interview_type || "technical"} interview for a ${careerTitle} position.
+      const prompt = `You are an experienced technical interviewer conducting a ${interview_type || "technical"} interview for a ${careerTitle} position.
       
 Ask one focused interview question. Keep it realistic and appropriate for entry to mid-level candidates.
-Be professional but friendly.`;
+Be professional but friendly.
 
-      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+Start the interview with your first question.`;
+
+      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
-      body: JSON.stringify({
-          model: "google/gemini-3-pro-preview",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: "Start the interview with your first question." },
-          ],
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.8,
+            maxOutputTokens: 512,
+          },
         }),
       });
 
@@ -75,11 +76,11 @@ Be professional but friendly.`;
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        throw new Error("AI gateway error");
+        throw new Error("Gemini API error");
       }
 
       const aiData = await aiResponse.json();
-      const question = aiData.choices?.[0]?.message?.content || "Tell me about yourself and your experience.";
+      const question = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Tell me about yourself and your experience.";
 
       return new Response(JSON.stringify({ 
         question,
@@ -90,7 +91,7 @@ Be professional but friendly.`;
     }
 
     // If user is responding, evaluate and continue or finish
-    const systemPrompt = `You are an experienced technical interviewer for a ${careerTitle} position.
+    const prompt = `You are an experienced technical interviewer for a ${careerTitle} position.
     
 The candidate has answered a question. Evaluate their response and either:
 1. Ask a follow-up question (if more probing is needed)
@@ -110,29 +111,30 @@ If providing final feedback, structure it as JSON:
   "summary": "<2-3 sentence overall feedback>"
 }
 
-Otherwise, just respond naturally as an interviewer.`;
+Otherwise, just respond naturally as an interviewer.
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+Candidate's response: "${message}"`;
+
+    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-pro-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: `Candidate's response: "${message}"` },
-        ],
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1024,
+        },
       }),
     });
 
     if (!aiResponse.ok) {
-      throw new Error("AI gateway error");
+      throw new Error("Gemini API error");
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
     // Check if this is final feedback
     if (content.includes('"type": "feedback"') || content.includes('"overall_score"')) {
