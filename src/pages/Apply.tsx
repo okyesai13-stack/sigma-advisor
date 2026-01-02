@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -18,6 +18,9 @@ import {
   Building,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageGuard } from "@/hooks/useJourneyState";
 
 interface Job {
   id: string;
@@ -28,46 +31,56 @@ interface Job {
   type: string;
   match: number;
   status: "not_applied" | "applied" | "interviewing" | "offer";
-  logo?: string;
 }
 
 const Apply = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { loading: guardLoading } = usePageGuard('interview_completed', '/interview');
+
+  const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
+  const [jobReadiness, setJobReadiness] = useState<{
+    resume_ready: boolean;
+    portfolio_ready: boolean;
+    confidence_level: number;
+  } | null>(null);
+  const [interviewScore, setInterviewScore] = useState<number | null>(null);
+
   const [jobs, setJobs] = useState<Job[]>([
     {
       id: "1",
       company: "TechCorp",
-      role: "Junior Full-Stack Developer",
+      role: "Junior Developer",
       location: "Remote",
       salary: "$80K - $100K",
       type: "Full-time",
       match: 95,
-      status: "offer",
+      status: "not_applied",
     },
     {
       id: "2",
       company: "StartupXYZ",
-      role: "Full-Stack Engineer",
+      role: "Software Engineer",
       location: "San Francisco, CA",
       salary: "$90K - $120K",
       type: "Full-time",
       match: 88,
-      status: "interviewing",
+      status: "not_applied",
     },
     {
       id: "3",
       company: "InnovateLabs",
-      role: "React Developer",
+      role: "Frontend Developer",
       location: "New York, NY",
       salary: "$85K - $110K",
       type: "Full-time",
       match: 82,
-      status: "applied",
+      status: "not_applied",
     },
     {
       id: "4",
       company: "DataFlow Inc",
-      role: "Software Developer",
+      role: "Full-Stack Developer",
       location: "Remote",
       salary: "$75K - $95K",
       type: "Full-time",
@@ -77,7 +90,7 @@ const Apply = () => {
     {
       id: "5",
       company: "CloudTech",
-      role: "Frontend Developer",
+      role: "React Developer",
       location: "Austin, TX",
       salary: "$70K - $90K",
       type: "Full-time",
@@ -87,12 +100,78 @@ const Apply = () => {
   ]);
 
   const [applicationChecklist, setApplicationChecklist] = useState([
-    { id: "c1", label: "Resume tailored for each application", completed: true },
-    { id: "c2", label: "Cover letter prepared", completed: true },
-    { id: "c3", label: "Portfolio link ready", completed: true },
+    { id: "c1", label: "Resume tailored for each application", completed: false },
+    { id: "c2", label: "Cover letter prepared", completed: false },
+    { id: "c3", label: "Portfolio link ready", completed: false },
     { id: "c4", label: "LinkedIn profile optimized", completed: false },
     { id: "c5", label: "References available", completed: false },
   ]);
+
+  useEffect(() => {
+    if (user) {
+      loadApplyData();
+    }
+  }, [user]);
+
+  const loadApplyData = async () => {
+    if (!user) return;
+
+    try {
+      // Load selected career
+      const { data: career } = await supabase
+        .from('selected_career')
+        .select('career_title')
+        .eq('user_id', user.id)
+        .single();
+
+      if (career) {
+        setSelectedCareer(career.career_title);
+        // Update job roles based on career
+        setJobs(jobs.map(job => ({
+          ...job,
+          role: career.career_title.includes('Full-Stack') ? job.role : career.career_title
+        })));
+      }
+
+      // Load job readiness
+      const { data: readiness } = await supabase
+        .from('job_readiness')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (readiness) {
+        setJobReadiness({
+          resume_ready: readiness.resume_ready || false,
+          portfolio_ready: readiness.portfolio_ready || false,
+          confidence_level: readiness.confidence_level || 0
+        });
+
+        // Update checklist based on readiness
+        setApplicationChecklist(prev => prev.map(item => {
+          if (item.id === 'c1' && readiness.resume_ready) return { ...item, completed: true };
+          if (item.id === 'c3' && readiness.portfolio_ready) return { ...item, completed: true };
+          return item;
+        }));
+      }
+
+      // Load interview score
+      const { data: interview } = await supabase
+        .from('ai_interviews')
+        .select('score')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (interview) {
+        setInterviewScore(interview.score);
+      }
+
+    } catch (error) {
+      console.error('Error loading apply data:', error);
+    }
+  };
 
   const toggleChecklist = (id: string) => {
     setApplicationChecklist(
@@ -141,6 +220,14 @@ const Apply = () => {
   const checklistProgress = Math.round(
     (applicationChecklist.filter((i) => i.completed).length / applicationChecklist.length) * 100
   );
+
+  if (guardLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -193,9 +280,9 @@ const Apply = () => {
               </div>
               <div>
                 <div className="text-2xl font-bold text-foreground">
-                  {jobs.filter((j) => j.status === "offer").length}
+                  {interviewScore || 0}%
                 </div>
-                <div className="text-sm text-muted-foreground">Offers Received</div>
+                <div className="text-sm text-muted-foreground">Interview Score</div>
               </div>
             </div>
           </div>
@@ -204,7 +291,9 @@ const Apply = () => {
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Jobs List */}
           <div className="lg:col-span-2 space-y-4">
-            <h2 className="text-xl font-semibold text-foreground mb-4">Recommended Jobs</h2>
+            <h2 className="text-xl font-semibold text-foreground mb-4">
+              Recommended Jobs for {selectedCareer || 'Your Career'}
+            </h2>
             {jobs.map((job) => (
               <div
                 key={job.id}

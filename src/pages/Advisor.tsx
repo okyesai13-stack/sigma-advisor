@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
+import { useJourneyState, usePageGuard } from "@/hooks/useJourneyState";
 
 interface Message {
   role: "user" | "assistant";
@@ -36,18 +38,28 @@ interface CareerOption {
   skills: string[];
 }
 
+interface SkillValidation {
+  name: string;
+  required: number;
+  current: number;
+  status: string;
+}
+
 const Advisor = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { loading: guardLoading } = usePageGuard('profile_completed', '/setup');
+  const { journeyState, refreshState, updateState } = useJourneyState();
+
   const [currentStep, setCurrentStep] = useState(1);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Welcome! Based on your profile, I've analyzed your goals, interests, and background. I'm ready to recommend career paths that align perfectly with your aspirations. Let's find your ideal career direction.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [careerOptions, setCareerOptions] = useState<CareerOption[]>([]);
+  const [skills, setSkills] = useState<SkillValidation[]>([]);
+  const [userGoal, setUserGoal] = useState<{ type: string; description: string } | null>(null);
 
   const steps = [
     { id: 1, label: "Career Recommendation", icon: Target },
@@ -60,42 +72,146 @@ const Advisor = () => {
     { id: 8, label: "Apply", icon: Briefcase },
   ];
 
-  const careerOptions: CareerOption[] = [
-    {
-      title: "Full-Stack Developer",
-      match: 95,
-      description: "Build complete web applications from frontend to backend",
-      skills: ["React", "Node.js", "TypeScript", "PostgreSQL"],
-    },
-    {
-      title: "Product Manager",
-      match: 88,
-      description: "Lead product strategy and cross-functional teams",
-      skills: ["Strategy", "Analytics", "Communication", "Agile"],
-    },
-    {
-      title: "UX Designer",
-      match: 82,
-      description: "Create intuitive and beautiful user experiences",
-      skills: ["Figma", "User Research", "Prototyping", "Design Systems"],
-    },
-  ];
+  // Load initial data
+  useEffect(() => {
+    if (!user) return;
+    loadInitialData();
+  }, [user]);
 
-  const skills = [
-    { name: "JavaScript", required: 4, current: 3, status: "gap" },
-    { name: "React", required: 4, current: 2, status: "gap" },
-    { name: "TypeScript", required: 3, current: 1, status: "gap" },
-    { name: "Node.js", required: 3, current: 2, status: "gap" },
-    { name: "Git", required: 3, current: 3, status: "ready" },
-    { name: "HTML/CSS", required: 3, current: 4, status: "ready" },
-  ];
+  const loadInitialData = async () => {
+    if (!user) return;
 
+    try {
+      // Load user profile for goal
+      const { data: profile } = await supabase
+        .from('users_profile')
+        .select('goal_type, goal_description')
+        .eq('id', user.id)
+        .single();
 
+      if (profile) {
+        setUserGoal({
+          type: profile.goal_type || 'Find a Job',
+          description: profile.goal_description || 'Become a professional in your field'
+        });
+      }
 
-  // ... (inside component) ...
+      // Load selected career if exists
+      const { data: career } = await supabase
+        .from('selected_career')
+        .select('career_title')
+        .eq('user_id', user.id)
+        .single();
+
+      if (career) {
+        setSelectedCareer(career.career_title);
+      }
+
+      // Load conversation history
+      const { data: conversations } = await supabase
+        .from('advisor_conversations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+        .limit(50);
+
+      if (conversations && conversations.length > 0) {
+        setMessages(conversations.map(c => ({
+          role: c.role as 'user' | 'assistant',
+          content: c.message
+        })));
+      } else {
+        setMessages([{
+          role: "assistant",
+          content: "Welcome! Based on your profile, I've analyzed your goals, interests, and background. I'm ready to recommend career paths that align perfectly with your aspirations. Let's find your ideal career direction.",
+        }]);
+      }
+
+      // Load career recommendations if they exist
+      const { data: recommendations } = await supabase
+        .from('career_recommendations')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('confidence_score', { ascending: false });
+
+      if (recommendations && recommendations.length > 0) {
+        setCareerOptions(recommendations.map(r => ({
+          title: r.career_title,
+          match: r.confidence_score || 0,
+          description: r.rationale || '',
+          skills: []
+        })));
+      }
+
+      // Load skill validations
+      const { data: skillValidations } = await supabase
+        .from('user_skill_validation')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (skillValidations && skillValidations.length > 0) {
+        setSkills(skillValidations.map(s => ({
+          name: s.skill_name,
+          required: parseInt(s.required_level || '3'),
+          current: parseInt(s.current_level || '1'),
+          status: s.status || 'gap'
+        })));
+      }
+
+      // Update current step based on journey state
+      if (journeyState) {
+        if (!journeyState.career_recommended) setCurrentStep(1);
+        else if (!journeyState.career_selected) setCurrentStep(1);
+        else if (!journeyState.skill_validated) setCurrentStep(3);
+        else setCurrentStep(4);
+      }
+
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    }
+  };
+
+  // Generate career recommendations
+  const generateRecommendations = async () => {
+    if (!user) return;
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-career-recommendation', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      if (data?.recommendations) {
+        setCareerOptions(data.recommendations.map((r: any) => ({
+          title: r.career_title,
+          match: r.confidence_score,
+          description: r.rationale,
+          skills: []
+        })));
+
+        setMessages(prev => [...prev, {
+          role: "assistant",
+          content: "Based on your profile, I've generated personalized career recommendations for you. Select one that interests you to continue your journey!"
+        }]);
+
+        await refreshState();
+      }
+    } catch (error) {
+      console.error('Error generating recommendations:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't generate recommendations. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSendMessage = async () => {
-    if (!inputValue.trim()) return;
+    if (!inputValue.trim() || !user) return;
 
     const userMessage: Message = { role: "user", content: inputValue };
     setMessages((prev) => [...prev, userMessage]);
@@ -107,22 +223,14 @@ const Advisor = () => {
         body: { message: inputValue },
       });
 
-      if (error) {
-        console.error("Error calling advisor:", error);
-        throw error;
-      }
+      if (error) throw error;
 
       if (data?.response) {
         const aiResponse: Message = {
-          role: "assistant", // Maintain 'assistant' for frontend compatibility
+          role: "assistant",
           content: data.response,
         };
         setMessages((prev) => [...prev, aiResponse]);
-
-        // Update current step if returned
-        if (data.currentStep) {
-          // Optional: Update step logic if needed, or rely on internal logic
-        }
       }
     } catch (error) {
       console.error("Failed to get response:", error);
@@ -136,32 +244,108 @@ const Advisor = () => {
     }
   };
 
-  const selectCareer = (title: string) => {
-    setSelectedCareer(title);
-    setCurrentStep(2);
-    setMessages([
-      ...messages,
-      {
-        role: "assistant",
-        content: `Excellent choice! You've selected ${title} as your career path. This is a great match based on your profile. Let me now validate your current skills and identify any gaps we need to address.`,
-      },
-    ]);
+  const selectCareer = async (title: string) => {
+    if (!user) return;
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('select-career-path', {
+        body: { career_title: title }
+      });
+
+      if (error) throw error;
+
+      setSelectedCareer(title);
+      setCurrentStep(2);
+      setMessages([
+        ...messages,
+        {
+          role: "assistant",
+          content: `Excellent choice! You've selected ${title} as your career path. This is a great match based on your profile. Let me now validate your current skills and identify any gaps we need to address.`,
+        },
+      ]);
+
+      await refreshState();
+    } catch (error) {
+      console.error('Error selecting career:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't save your career selection. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const proceedToSkills = () => {
-    setCurrentStep(3);
-    setMessages([
-      ...messages,
-      {
-        role: "assistant",
-        content: "I've analyzed your skills against industry requirements. You have some gaps to close, but don't worry – I'll create a personalized learning path for you. Review your skill assessment on the right panel.",
-      },
-    ]);
+  const proceedToSkills = async () => {
+    if (!user) return;
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-skills', {
+        body: {}
+      });
+
+      if (error) throw error;
+
+      if (data?.skills) {
+        setSkills(data.skills.map((s: any) => ({
+          name: s.skill_name,
+          required: parseInt(s.required_level || '3'),
+          current: parseInt(s.current_level || '1'),
+          status: s.status || 'gap'
+        })));
+      }
+
+      setCurrentStep(3);
+      setMessages([
+        ...messages,
+        {
+          role: "assistant",
+          content: "I've analyzed your skills against industry requirements. You have some gaps to close, but don't worry – I'll create a personalized learning path for you. Review your skill assessment on the right panel.",
+        },
+      ]);
+
+      await refreshState();
+    } catch (error) {
+      console.error('Error validating skills:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't validate skills. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const proceedToLearn = () => {
-    navigate("/learn");
+  const proceedToLearn = async () => {
+    if (!user) return;
+    setIsLoading(true);
+
+    try {
+      // Generate learning plan
+      await supabase.functions.invoke('generate-learning-plan', {
+        body: {}
+      });
+
+      navigate("/learn");
+    } catch (error) {
+      console.error('Error generating learning plan:', error);
+      navigate("/learn");
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  if (guardLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -180,10 +364,10 @@ const Advisor = () => {
           <div className="p-4 rounded-xl bg-accent/50 border border-border">
             <div className="flex items-center gap-2 text-foreground font-medium mb-1">
               <Target className="w-4 h-4 text-primary" />
-              Find a Job
+              {userGoal?.type || 'Find a Job'}
             </div>
             <p className="text-sm text-muted-foreground">
-              Become a professional developer at a tech company
+              {userGoal?.description || 'Become a professional in your field'}
             </p>
           </div>
         </div>
@@ -273,7 +457,7 @@ const Advisor = () => {
             ))}
 
             {/* Career Options (Step 1) */}
-            {currentStep === 1 && !selectedCareer && (
+            {currentStep === 1 && !selectedCareer && careerOptions.length > 0 && (
               <div className="space-y-4">
                 <div className="text-center text-muted-foreground text-sm">
                   Select a career path that interests you
@@ -283,7 +467,8 @@ const Advisor = () => {
                     <button
                       key={career.title}
                       onClick={() => selectCareer(career.title)}
-                      className="p-5 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all text-left group"
+                      disabled={isLoading}
+                      className="p-5 rounded-xl border border-border bg-card hover:border-primary/50 hover:shadow-md transition-all text-left group disabled:opacity-50"
                     >
                       <div className="flex items-start justify-between mb-3">
                         <div>
@@ -298,16 +483,30 @@ const Advisor = () => {
                           {career.match}% Match
                         </Badge>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        {career.skills.map((skill) => (
-                          <Badge key={skill} variant="secondary" className="text-xs">
-                            {skill}
-                          </Badge>
-                        ))}
-                      </div>
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* Generate recommendations button */}
+            {currentStep === 1 && !selectedCareer && careerOptions.length === 0 && (
+              <div className="text-center py-8">
+                <Button
+                  variant="hero"
+                  size="lg"
+                  onClick={generateRecommendations}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current" />
+                  ) : (
+                    <>
+                      <Sparkles className="w-5 h-5 mr-2" />
+                      Generate Career Recommendations
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </div>
@@ -345,9 +544,13 @@ const Advisor = () => {
               </div>
               <p className="text-lg font-semibold text-primary">{selectedCareer}</p>
             </div>
-            <Button variant="hero" className="w-full" onClick={proceedToSkills}>
-              Validate My Skills
-              <ChevronRight className="w-4 h-4" />
+            <Button variant="hero" className="w-full" onClick={proceedToSkills} disabled={isLoading}>
+              {isLoading ? <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-current" /> : (
+                <>
+                  Validate My Skills
+                  <ChevronRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
           </div>
         )}
@@ -364,7 +567,7 @@ const Advisor = () => {
                 Proceeding to skill assessment phase
               </p>
             </div>
-            <Button variant="hero" className="w-full" onClick={proceedToSkills}>
+            <Button variant="hero" className="w-full" onClick={proceedToSkills} disabled={isLoading}>
               Continue to Skill Validation
               <ChevronRight className="w-4 h-4" />
             </Button>
@@ -404,7 +607,7 @@ const Advisor = () => {
             </div>
 
             <div className="mt-auto pt-6">
-              <Button variant="hero" className="w-full" onClick={proceedToLearn}>
+              <Button variant="hero" className="w-full" onClick={proceedToLearn} disabled={isLoading}>
                 Start Learning
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -415,7 +618,10 @@ const Advisor = () => {
         {currentStep === 1 && !selectedCareer && (
           <div className="text-center text-muted-foreground text-sm p-6 rounded-xl bg-muted/50 border border-border">
             <Target className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-            Select a career path from the chat to continue your journey
+            {careerOptions.length === 0 
+              ? "Click 'Generate Career Recommendations' to get personalized career paths"
+              : "Select a career path from the chat to continue your journey"
+            }
           </div>
         )}
       </div>

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -12,11 +12,14 @@ import {
   Sparkles,
   Send,
   CheckCircle2,
-  AlertCircle,
   Star,
   User,
   Bot,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageGuard, useJourneyState } from "@/hooks/useJourneyState";
+import { useToast } from "@/hooks/use-toast";
 
 interface Message {
   role: "interviewer" | "user";
@@ -31,63 +34,131 @@ interface Feedback {
 
 const Interview = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { loading: guardLoading } = usePageGuard('job_ready', '/job-readiness');
+  const { updateState } = useJourneyState();
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [inputValue, setInputValue] = useState("");
   const [interviewComplete, setInterviewComplete] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "interviewer",
-      content: "Hello! Welcome to your mock interview for the Full-Stack Developer position. I'm going to ask you a series of questions to assess your technical skills and problem-solving abilities. Let's start with an introduction. Can you tell me about yourself and your journey into software development?",
-    },
-  ]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [feedback, setFeedback] = useState<Feedback[]>([]);
+  const [overallScore, setOverallScore] = useState(0);
 
-  const questions = [
-    "Can you tell me about yourself and your journey into software development?",
-    "What's a challenging technical problem you've solved recently? Walk me through your approach.",
-    "How would you explain the difference between REST and GraphQL to a non-technical person?",
-    "Describe a project you're proud of. What was your role and what did you learn?",
-    "Where do you see yourself in 5 years as a developer?",
-  ];
+  useEffect(() => {
+    if (user) {
+      startInterview();
+    }
+  }, [user]);
 
-  const [feedback] = useState<Feedback[]>([
-    { category: "Communication", score: 85, comment: "Clear and structured responses. Good use of examples." },
-    { category: "Technical Knowledge", score: 78, comment: "Solid fundamentals. Could go deeper on advanced topics." },
-    { category: "Problem Solving", score: 82, comment: "Good analytical approach. Consider edge cases more." },
-    { category: "Enthusiasm", score: 90, comment: "Great passion for development. Positive attitude." },
-    { category: "Fit", score: 88, comment: "Strong alignment with team culture and values." },
-  ]);
+  const startInterview = async () => {
+    if (!user) return;
+    setIsLoading(true);
 
-  const handleSendMessage = () => {
-    if (!inputValue.trim()) return;
+    try {
+      const { data, error } = await supabase.functions.invoke('run-ai-interview', {
+        body: {}
+      });
 
-    const userMessage: Message = { role: "user", content: inputValue };
-    setMessages([...messages, userMessage]);
-    setInputValue("");
+      if (error) throw error;
 
-    // Simulate interviewer response
-    setTimeout(() => {
-      if (currentQuestion < questions.length - 1) {
-        const nextQuestion = currentQuestion + 1;
-        setCurrentQuestion(nextQuestion);
-        const interviewerMessage: Message = {
+      if (data?.question) {
+        setMessages([{
           role: "interviewer",
-          content: `Great answer! Let me ask you the next question: ${questions[nextQuestion]}`,
-        };
-        setMessages((prev) => [...prev, interviewerMessage]);
+          content: data.question
+        }]);
       } else {
-        const endMessage: Message = {
+        setMessages([{
           role: "interviewer",
-          content: "Thank you for completing the interview! I've prepared detailed feedback on your performance. Click 'View Feedback' to see your results.",
-        };
-        setMessages((prev) => [...prev, endMessage]);
-        setInterviewComplete(true);
+          content: "Hello! Welcome to your mock interview. I'm going to ask you a series of questions to assess your skills. Let's start with an introduction. Can you tell me about yourself and your journey?"
+        }]);
       }
-    }, 1500);
+    } catch (error) {
+      console.error('Error starting interview:', error);
+      setMessages([{
+        role: "interviewer",
+        content: "Hello! Welcome to your mock interview. I'm going to ask you a series of questions to assess your skills. Can you tell me about yourself?"
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const overallScore = Math.round(
-    feedback.reduce((acc, f) => acc + f.score, 0) / feedback.length
-  );
+  const handleSendMessage = async () => {
+    if (!inputValue.trim() || !user || isLoading) return;
+
+    const userMessage: Message = { role: "user", content: inputValue };
+    setMessages((prev) => [...prev, userMessage]);
+    setInputValue("");
+    setIsLoading(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('run-ai-interview', {
+        body: { message: inputValue }
+      });
+
+      if (error) throw error;
+
+      if (data?.feedback) {
+        // Interview is complete
+        const feedbackItems: Feedback[] = data.feedback.categories?.map((cat: any) => ({
+          category: cat.name,
+          score: cat.score,
+          comment: cat.comment
+        })) || [];
+
+        setFeedback(feedbackItems);
+        setOverallScore(data.feedback.overall_score || 0);
+
+        setMessages((prev) => [...prev, {
+          role: "interviewer",
+          content: "Thank you for completing the interview! I've prepared detailed feedback on your performance. Click 'View Feedback' to see your results."
+        }]);
+
+        setInterviewComplete(true);
+        await updateState({ interview_completed: true });
+
+        toast({
+          title: "Interview Complete",
+          description: "Great job! Your results are ready.",
+        });
+      } else if (data?.question) {
+        // More questions
+        setCurrentQuestion((prev) => prev + 1);
+        setMessages((prev) => [...prev, {
+          role: "interviewer",
+          content: data.question
+        }]);
+      }
+    } catch (error) {
+      console.error('Error during interview:', error);
+      setMessages((prev) => [...prev, {
+        role: "interviewer",
+        content: "I'm having trouble processing that. Could you try answering again?"
+      }]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetInterview = async () => {
+    setMessages([]);
+    setCurrentQuestion(0);
+    setInterviewComplete(false);
+    setFeedback([]);
+    setOverallScore(0);
+    await startInterview();
+  };
+
+  if (guardLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle flex flex-col">
@@ -116,10 +187,10 @@ const Interview = () => {
             <div className="flex items-center justify-between text-sm mb-2">
               <span className="text-muted-foreground">Interview Progress</span>
               <span className="text-foreground font-medium">
-                Question {currentQuestion + 1} of {questions.length}
+                Question {currentQuestion + 1}
               </span>
             </div>
-            <Progress value={((currentQuestion + 1) / questions.length) * 100} className="h-2" />
+            <Progress value={Math.min((currentQuestion + 1) * 20, 100)} className="h-2" />
           </div>
 
           {/* Messages */}
@@ -152,6 +223,20 @@ const Interview = () => {
                   </div>
                 </div>
               ))}
+              {isLoading && (
+                <div className="flex gap-4">
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-gradient-hero">
+                    <Bot className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1 p-4 rounded-2xl bg-card border border-border">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" />
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.1s' }} />
+                      <div className="w-2 h-2 rounded-full bg-primary animate-bounce" style={{ animationDelay: '0.2s' }} />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </ScrollArea>
 
@@ -161,10 +246,11 @@ const Interview = () => {
               placeholder="Type your response..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
+              onKeyDown={(e) => e.key === "Enter" && !isLoading && handleSendMessage()}
               className="flex-1 h-12"
+              disabled={isLoading}
             />
-            <Button variant="hero" size="lg" onClick={handleSendMessage}>
+            <Button variant="hero" size="lg" onClick={handleSendMessage} disabled={isLoading}>
               <Send className="w-5 h-5" />
             </Button>
           </div>
@@ -212,43 +298,38 @@ const Interview = () => {
             </div>
 
             {/* Detailed Feedback */}
-            <div className="p-8">
-              <h3 className="font-semibold text-foreground mb-6">Detailed Feedback</h3>
-              <div className="space-y-6">
-                {feedback.map((item) => (
-                  <div key={item.category} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-foreground">{item.category}</span>
-                      <Badge
-                        variant="secondary"
-                        className={
-                          item.score >= 85
-                            ? "bg-success/10 text-success"
-                            : item.score >= 70
-                            ? "bg-warning/10 text-warning"
-                            : "bg-destructive/10 text-destructive"
-                        }
-                      >
-                        {item.score}%
-                      </Badge>
+            {feedback.length > 0 && (
+              <div className="p-8">
+                <h3 className="font-semibold text-foreground mb-6">Detailed Feedback</h3>
+                <div className="space-y-6">
+                  {feedback.map((item) => (
+                    <div key={item.category} className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium text-foreground">{item.category}</span>
+                        <Badge
+                          variant="secondary"
+                          className={
+                            item.score >= 85
+                              ? "bg-success/10 text-success"
+                              : item.score >= 70
+                              ? "bg-warning/10 text-warning"
+                              : "bg-destructive/10 text-destructive"
+                          }
+                        >
+                          {item.score}%
+                        </Badge>
+                      </div>
+                      <Progress value={item.score} className="h-2" />
+                      <p className="text-sm text-muted-foreground">{item.comment}</p>
                     </div>
-                    <Progress value={item.score} className="h-2" />
-                    <p className="text-sm text-muted-foreground">{item.comment}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Actions */}
             <div className="p-8 border-t border-border flex gap-4 justify-center">
-              <Button variant="outline" onClick={() => {
-                setMessages([{
-                  role: "interviewer",
-                  content: "Hello! Welcome to your mock interview for the Full-Stack Developer position. I'm going to ask you a series of questions to assess your technical skills and problem-solving abilities. Let's start with an introduction. Can you tell me about yourself and your journey into software development?",
-                }]);
-                setCurrentQuestion(0);
-                setInterviewComplete(false);
-              }}>
+              <Button variant="outline" onClick={resetInterview}>
                 Try Again
               </Button>
               <Button
