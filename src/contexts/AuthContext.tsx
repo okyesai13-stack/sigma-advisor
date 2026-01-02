@@ -26,16 +26,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     // Get initial session
     const getInitialSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      // Create profile if user exists
-      if (session?.user) {
-        await createUserProfile(session.user);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        // Create profile if user exists (non-blocking)
+        if (session?.user) {
+          createUserProfile(session.user).catch(console.error);
+        }
+      } catch (error) {
+        console.error('Error getting session:', error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     getInitialSession();
@@ -46,9 +50,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        // Create profile for new users
+        // Create profile for new users (non-blocking)
         if (event === 'SIGNED_IN' && session?.user) {
-          await createUserProfile(session.user);
+          createUserProfile(session.user).catch(console.error);
         }
         
         setLoading(false);
