@@ -6,16 +6,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { 
   Target, BookOpen, Rocket, Check, ArrowRight, ArrowLeft, 
-  Plus, X, GraduationCap, Briefcase, Award, LogOut 
+  Plus, X, GraduationCap, Briefcase, Award, LogOut, Loader2 
 } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 const Setup = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const [step, setStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [goal, setGoal] = useState("");
   const [goalDescription, setGoalDescription] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
@@ -32,7 +34,8 @@ const Setup = () => {
     company: string;
     role: string;
     skills: string;
-    duration: string;
+    startYear: string;
+    endYear: string;
   }[]>([]);
   const [certifications, setCertifications] = useState<{
     title: string;
@@ -58,7 +61,7 @@ const Setup = () => {
   };
 
   const addExperience = () => {
-    setExperiences([...experiences, { company: "", role: "", skills: "", duration: "" }]);
+    setExperiences([...experiences, { company: "", role: "", skills: "", startYear: "", endYear: "" }]);
   };
 
   const updateExperience = (index: number, field: string, value: string) => {
@@ -85,7 +88,106 @@ const Setup = () => {
     setCertifications(certifications.filter((_, i) => i !== index));
   };
 
-  const handleContinue = () => {
+  const saveProfileToSupabase = async () => {
+    if (!user) {
+      toast.error("You must be logged in");
+      return false;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      // Parse hobbies and activities into arrays
+      const hobbiesArray = hobbies.split(',').map(h => h.trim()).filter(Boolean);
+      const activitiesArray = activities.split(',').map(a => a.trim()).filter(Boolean);
+
+      // 1. Upsert users_profile
+      const { error: profileError } = await supabase
+        .from('users_profile')
+        .upsert({
+          id: user.id,
+          goal_type: goal,
+          goal_description: goalDescription,
+          interests: interests,
+          hobbies: hobbiesArray,
+          activities: activitiesArray,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (profileError) throw profileError;
+
+      // 2. Insert education_details if provided
+      if (education.degree || education.field || education.institution) {
+        const { error: eduError } = await supabase
+          .from('education_details')
+          .insert({
+            user_id: user.id,
+            degree: education.degree || null,
+            field: education.field || null,
+            institution: education.institution || null,
+            graduation_year: education.year ? parseInt(education.year) : null,
+          });
+
+        if (eduError) throw eduError;
+      }
+
+      // 3. Insert experience_details
+      for (const exp of experiences) {
+        if (exp.company || exp.role) {
+          const skillsArray = exp.skills.split(',').map(s => s.trim()).filter(Boolean);
+          const { error: expError } = await supabase
+            .from('experience_details')
+            .insert({
+              user_id: user.id,
+              company: exp.company || null,
+              role: exp.role || null,
+              skills: skillsArray.length > 0 ? skillsArray : null,
+              start_year: exp.startYear ? parseInt(exp.startYear) : null,
+              end_year: exp.endYear ? parseInt(exp.endYear) : null,
+            });
+
+          if (expError) throw expError;
+        }
+      }
+
+      // 4. Insert certifications
+      for (const cert of certifications) {
+        if (cert.title) {
+          const { error: certError } = await supabase
+            .from('certifications')
+            .insert({
+              user_id: user.id,
+              title: cert.title || null,
+              issuer: cert.issuer || null,
+              year: cert.year ? parseInt(cert.year) : null,
+            });
+
+          if (certError) throw certError;
+        }
+      }
+
+      // 5. Update user_journey_state.profile_completed = true
+      const { error: journeyError } = await supabase
+        .from('user_journey_state')
+        .upsert({
+          user_id: user.id,
+          profile_completed: true,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (journeyError) throw journeyError;
+
+      return true;
+    } catch (error: any) {
+      console.error('Error saving profile:', error);
+      toast.error(error.message || "Failed to save profile");
+      return false;
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleContinue = async () => {
     if (step === 1 && !goal) {
       toast.error("Please select a goal");
       return;
@@ -93,8 +195,11 @@ const Setup = () => {
     if (step < 3) {
       setStep(step + 1);
     } else {
-      toast.success("Profile setup complete!");
-      navigate("/advisor");
+      const success = await saveProfileToSupabase();
+      if (success) {
+        toast.success("Profile setup complete!");
+        navigate("/advisor");
+      }
     }
   };
 
@@ -351,20 +456,28 @@ const Setup = () => {
                           onChange={(e) => updateExperience(index, "role", e.target.value)}
                         />
                       </div>
-                      <div className="space-y-2">
-                        <Label className="text-foreground">Skills</Label>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label className="text-foreground">Skills (comma separated)</Label>
                         <Input
-                          placeholder="Skills used"
+                          placeholder="e.g., JavaScript, React, Node.js"
                           value={exp.skills}
                           onChange={(e) => updateExperience(index, "skills", e.target.value)}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label className="text-foreground">Duration</Label>
+                        <Label className="text-foreground">Start Year</Label>
                         <Input
-                          placeholder="e.g., 2 years"
-                          value={exp.duration}
-                          onChange={(e) => updateExperience(index, "duration", e.target.value)}
+                          placeholder="e.g., 2020"
+                          value={exp.startYear}
+                          onChange={(e) => updateExperience(index, "startYear", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">End Year</Label>
+                        <Input
+                          placeholder="e.g., 2023 or Present"
+                          value={exp.endYear}
+                          onChange={(e) => updateExperience(index, "endYear", e.target.value)}
                         />
                       </div>
                     </div>
@@ -445,9 +558,18 @@ const Setup = () => {
               <ArrowLeft className="w-4 h-4" />
               Back
             </Button>
-            <Button variant="hero" onClick={handleContinue} className="gap-2">
-              {step === 3 ? "Continue to AI Advisor" : "Continue"}
-              <ArrowRight className="w-4 h-4" />
+            <Button variant="hero" onClick={handleContinue} className="gap-2" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  {step === 3 ? "Continue to AI Advisor" : "Continue"}
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </Button>
           </div>
         </div>
