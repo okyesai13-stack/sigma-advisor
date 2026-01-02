@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -13,109 +13,120 @@ import {
   ExternalLink,
   Sparkles,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageGuard, useJourneyState } from "@/hooks/useJourneyState";
+import { useToast } from "@/hooks/use-toast";
 
 interface Skill {
   id: string;
   name: string;
   progress: number;
   status: "not_started" | "in_progress" | "completed";
-  resources: Resource[];
-}
-
-interface Resource {
-  id: string;
-  title: string;
-  type: "course" | "article" | "video";
-  duration: string;
-  completed: boolean;
+  priority: number;
 }
 
 const Learn = () => {
   const navigate = useNavigate();
-  const [skills, setSkills] = useState<Skill[]>([
-    {
-      id: "1",
-      name: "JavaScript Fundamentals",
-      progress: 65,
-      status: "in_progress",
-      resources: [
-        { id: "1a", title: "JavaScript Basics", type: "course", duration: "4 hours", completed: true },
-        { id: "1b", title: "ES6+ Features", type: "video", duration: "1.5 hours", completed: true },
-        { id: "1c", title: "Async JavaScript", type: "article", duration: "30 min", completed: false },
-        { id: "1d", title: "Advanced Patterns", type: "course", duration: "3 hours", completed: false },
-      ],
-    },
-    {
-      id: "2",
-      name: "React Development",
-      progress: 30,
-      status: "in_progress",
-      resources: [
-        { id: "2a", title: "React Fundamentals", type: "course", duration: "5 hours", completed: true },
-        { id: "2b", title: "Hooks Deep Dive", type: "video", duration: "2 hours", completed: false },
-        { id: "2c", title: "State Management", type: "article", duration: "45 min", completed: false },
-        { id: "2d", title: "Building Real Apps", type: "course", duration: "8 hours", completed: false },
-      ],
-    },
-    {
-      id: "3",
-      name: "TypeScript",
-      progress: 0,
-      status: "not_started",
-      resources: [
-        { id: "3a", title: "TypeScript Basics", type: "course", duration: "3 hours", completed: false },
-        { id: "3b", title: "Types & Interfaces", type: "video", duration: "1 hour", completed: false },
-        { id: "3c", title: "Generics Guide", type: "article", duration: "20 min", completed: false },
-      ],
-    },
-    {
-      id: "4",
-      name: "Node.js Backend",
-      progress: 0,
-      status: "not_started",
-      resources: [
-        { id: "4a", title: "Node.js Fundamentals", type: "course", duration: "4 hours", completed: false },
-        { id: "4b", title: "Express.js", type: "video", duration: "2 hours", completed: false },
-        { id: "4c", title: "API Design", type: "article", duration: "35 min", completed: false },
-      ],
-    },
-  ]);
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { loading: guardLoading } = usePageGuard('skill_validated', '/advisor');
+  const { updateState } = useJourneyState();
 
-  const [expandedSkill, setExpandedSkill] = useState<string | null>("1");
+  const [skills, setSkills] = useState<Skill[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
 
-  const toggleResource = (skillId: string, resourceId: string) => {
-    setSkills(skills.map((skill) => {
-      if (skill.id === skillId) {
-        const updatedResources = skill.resources.map((r) =>
-          r.id === resourceId ? { ...r, completed: !r.completed } : r
-        );
-        const completedCount = updatedResources.filter((r) => r.completed).length;
-        const progress = Math.round((completedCount / updatedResources.length) * 100);
-        return {
-          ...skill,
-          resources: updatedResources,
-          progress,
-          status: progress === 100 ? "completed" : progress > 0 ? "in_progress" : "not_started",
-        } as Skill;
+  useEffect(() => {
+    if (user) {
+      loadLearningPlan();
+    }
+  }, [user]);
+
+  const loadLearningPlan = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('learning_plan')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('priority', { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        setSkills(data.map(item => ({
+          id: item.id,
+          name: item.skill_name,
+          progress: item.status === 'completed' ? 100 : item.status === 'in_progress' ? 50 : 0,
+          status: (item.status as 'not_started' | 'in_progress' | 'completed') || 'not_started',
+          priority: item.priority || 1
+        })));
+
+        if (data.length > 0) {
+          setExpandedSkill(data[0].id);
+        }
       }
-      return skill;
-    }));
-  };
-
-  const overallProgress = Math.round(
-    skills.reduce((acc, skill) => acc + skill.progress, 0) / skills.length
-  );
-
-  const getTypeIcon = (type: Resource["type"]) => {
-    switch (type) {
-      case "course":
-        return BookOpen;
-      case "video":
-        return Play;
-      case "article":
-        return ExternalLink;
+    } catch (error) {
+      console.error('Error loading learning plan:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't load your learning plan.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
+
+  const updateSkillStatus = async (skillId: string, newStatus: 'not_started' | 'in_progress' | 'completed') => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('learning_plan')
+        .update({ status: newStatus })
+        .eq('id', skillId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setSkills(skills.map(skill => {
+        if (skill.id === skillId) {
+          return {
+            ...skill,
+            status: newStatus,
+            progress: newStatus === 'completed' ? 100 : newStatus === 'in_progress' ? 50 : 0
+          };
+        }
+        return skill;
+      }));
+
+      // Check if all skills are completed
+      const updatedSkills = skills.map(s => s.id === skillId ? { ...s, status: newStatus } : s);
+      const allCompleted = updatedSkills.every(s => s.status === 'completed');
+
+      if (allCompleted) {
+        await updateState({ learning_completed: true });
+        toast({
+          title: "Congratulations!",
+          description: "You've completed all skills. Moving to projects!",
+        });
+      }
+    } catch (error) {
+      console.error('Error updating skill status:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't update skill status.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const overallProgress = skills.length > 0
+    ? Math.round(skills.reduce((acc, skill) => acc + skill.progress, 0) / skills.length)
+    : 0;
 
   const getStatusColor = (status: Skill["status"]) => {
     switch (status) {
@@ -127,6 +138,14 @@ const Learn = () => {
         return "bg-muted text-muted-foreground";
     }
   };
+
+  if (guardLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -154,7 +173,7 @@ const Learn = () => {
             <div>
               <h1 className="text-2xl font-bold text-foreground mb-2">Skill Development</h1>
               <p className="text-muted-foreground">
-                Complete these skills to become job-ready as a Full-Stack Developer
+                Complete these skills to become job-ready
               </p>
             </div>
             <div className="text-right">
@@ -168,123 +187,117 @@ const Learn = () => {
         </div>
 
         {/* Skills List */}
-        <div className="space-y-4">
-          {skills.map((skill) => (
-            <div
-              key={skill.id}
-              className="bg-card border border-border rounded-xl overflow-hidden shadow-sm transition-all hover:shadow-md"
-            >
-              {/* Skill Header */}
-              <button
-                onClick={() => setExpandedSkill(expandedSkill === skill.id ? null : skill.id)}
-                className="w-full p-5 flex items-center justify-between text-left"
+        {skills.length === 0 ? (
+          <div className="bg-card border border-border rounded-2xl p-8 text-center">
+            <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-foreground mb-2">No learning plan yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Go back to the advisor to generate your personalized learning plan.
+            </p>
+            <Button variant="hero" onClick={() => navigate('/advisor')}>
+              Go to Advisor
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {skills.map((skill) => (
+              <div
+                key={skill.id}
+                className="bg-card border border-border rounded-xl overflow-hidden shadow-sm transition-all hover:shadow-md"
               >
-                <div className="flex items-center gap-4">
-                  <div
-                    className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      skill.status === "completed"
-                        ? "bg-success"
-                        : skill.status === "in_progress"
-                        ? "bg-gradient-hero"
-                        : "bg-muted"
-                    }`}
-                  >
-                    {skill.status === "completed" ? (
-                      <CheckCircle2 className="w-6 h-6 text-success-foreground" />
-                    ) : (
-                      <BookOpen
-                        className={`w-6 h-6 ${
-                          skill.status === "in_progress"
-                            ? "text-primary-foreground"
-                            : "text-muted-foreground"
-                        }`}
-                      />
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{skill.name}</h3>
-                    <div className="flex items-center gap-3 mt-1">
-                      <Badge variant="secondary" className={getStatusColor(skill.status)}>
-                        {skill.status === "completed"
-                          ? "Completed"
+                {/* Skill Header */}
+                <button
+                  onClick={() => setExpandedSkill(expandedSkill === skill.id ? null : skill.id)}
+                  className="w-full p-5 flex items-center justify-between text-left"
+                >
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        skill.status === "completed"
+                          ? "bg-success"
                           : skill.status === "in_progress"
-                          ? "In Progress"
-                          : "Not Started"}
-                      </Badge>
-                      <span className="text-sm text-muted-foreground">
-                        {skill.resources.filter((r) => r.completed).length}/{skill.resources.length} resources
-                      </span>
+                          ? "bg-gradient-hero"
+                          : "bg-muted"
+                      }`}
+                    >
+                      {skill.status === "completed" ? (
+                        <CheckCircle2 className="w-6 h-6 text-success-foreground" />
+                      ) : (
+                        <BookOpen
+                          className={`w-6 h-6 ${
+                            skill.status === "in_progress"
+                              ? "text-primary-foreground"
+                              : "text-muted-foreground"
+                          }`}
+                        />
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{skill.name}</h3>
+                      <div className="flex items-center gap-3 mt-1">
+                        <Badge variant="secondary" className={getStatusColor(skill.status)}>
+                          {skill.status === "completed"
+                            ? "Completed"
+                            : skill.status === "in_progress"
+                            ? "In Progress"
+                            : "Not Started"}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">
+                          Priority: {skill.priority}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-4">
-                  <div className="w-32">
-                    <Progress value={skill.progress} className="h-2" />
+                  <div className="flex items-center gap-4">
+                    <div className="w-32">
+                      <Progress value={skill.progress} className="h-2" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground w-10">{skill.progress}%</span>
+                    <ChevronRight
+                      className={`w-5 h-5 text-muted-foreground transition-transform ${
+                        expandedSkill === skill.id ? "rotate-90" : ""
+                      }`}
+                    />
                   </div>
-                  <span className="text-sm font-medium text-foreground w-10">{skill.progress}%</span>
-                  <ChevronRight
-                    className={`w-5 h-5 text-muted-foreground transition-transform ${
-                      expandedSkill === skill.id ? "rotate-90" : ""
-                    }`}
-                  />
-                </div>
-              </button>
+                </button>
 
-              {/* Resources */}
-              {expandedSkill === skill.id && (
-                <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
-                  {skill.resources.map((resource) => {
-                    const TypeIcon = getTypeIcon(resource.type);
-                    return (
-                      <div
-                        key={resource.id}
-                        className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                          resource.completed
-                            ? "bg-success/5 border-success/20"
-                            : "bg-muted/30 border-border hover:border-primary/30"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <div
-                            className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                              resource.completed ? "bg-success/10" : "bg-muted"
-                            }`}
-                          >
-                            <TypeIcon
-                              className={`w-5 h-5 ${
-                                resource.completed ? "text-success" : "text-muted-foreground"
-                              }`}
-                            />
-                          </div>
-                          <div>
-                            <h4
-                              className={`font-medium ${
-                                resource.completed ? "text-muted-foreground line-through" : "text-foreground"
-                              }`}
-                            >
-                              {resource.title}
-                            </h4>
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              {resource.duration}
-                            </div>
-                          </div>
-                        </div>
+                {/* Actions */}
+                {expandedSkill === skill.id && (
+                  <div className="px-5 pb-5 space-y-3 border-t border-border pt-4">
+                    <div className="flex gap-3">
+                      {skill.status !== 'in_progress' && skill.status !== 'completed' && (
                         <Button
-                          variant={resource.completed ? "outline" : "default"}
-                          size="sm"
-                          onClick={() => toggleResource(skill.id, resource.id)}
+                          variant="default"
+                          onClick={() => updateSkillStatus(skill.id, 'in_progress')}
                         >
-                          {resource.completed ? "Undo" : "Mark Complete"}
+                          <Play className="w-4 h-4 mr-2" />
+                          Start Learning
                         </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+                      )}
+                      {skill.status === 'in_progress' && (
+                        <Button
+                          variant="success"
+                          onClick={() => updateSkillStatus(skill.id, 'completed')}
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-2" />
+                          Mark as Completed
+                        </Button>
+                      )}
+                      {skill.status === 'completed' && (
+                        <Button
+                          variant="outline"
+                          onClick={() => updateSkillStatus(skill.id, 'in_progress')}
+                        >
+                          Undo Completion
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Continue Button */}
         <div className="mt-8 flex justify-center">

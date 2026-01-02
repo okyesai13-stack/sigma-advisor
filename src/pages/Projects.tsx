@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -13,79 +13,167 @@ import {
   Target,
   Layers,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageGuard, useJourneyState } from "@/hooks/useJourneyState";
+import { useToast } from "@/hooks/use-toast";
 
 interface Project {
   id: string;
+  project_id: string;
   title: string;
   description: string;
   difficulty: "beginner" | "intermediate" | "advanced";
   skills: string[];
   status: "not_started" | "in_progress" | "completed";
-  estimatedTime: string;
-  problem: string;
-  outcome: string;
-  deliverables: string[];
 }
 
 const Projects = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { loading: guardLoading } = usePageGuard('learning_completed', '/learn');
+  const { updateState, journeyState } = useJourneyState();
+
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [projects, setProjects] = useState<Project[]>([
-    {
-      id: "1",
-      title: "Personal Portfolio Website",
-      description: "Build a responsive portfolio to showcase your work",
-      difficulty: "beginner",
-      skills: ["HTML/CSS", "JavaScript", "React"],
-      status: "completed",
-      estimatedTime: "8 hours",
-      problem: "Create a professional online presence to attract potential employers",
-      outcome: "A fully responsive portfolio website deployed and live",
-      deliverables: [
-        "Responsive design for all devices",
-        "About section with bio",
-        "Projects showcase grid",
-        "Contact form",
-        "Deployed to a live URL",
-      ],
-    },
-    {
-      id: "2",
-      title: "Task Management App",
-      description: "Full-stack CRUD application with authentication",
-      difficulty: "intermediate",
-      skills: ["React", "Node.js", "TypeScript", "PostgreSQL"],
-      status: "in_progress",
-      estimatedTime: "20 hours",
-      problem: "Build a production-ready application demonstrating full-stack capabilities",
-      outcome: "A functional task manager with user auth and data persistence",
-      deliverables: [
-        "User authentication system",
-        "CRUD operations for tasks",
-        "Task filtering and sorting",
-        "Database integration",
-        "REST API endpoints",
-      ],
-    },
-    {
-      id: "3",
-      title: "E-commerce Platform",
-      description: "Complex app with payment integration and admin panel",
-      difficulty: "advanced",
-      skills: ["React", "Node.js", "TypeScript", "PostgreSQL", "Stripe"],
-      status: "not_started",
-      estimatedTime: "40 hours",
-      problem: "Demonstrate ability to build production-grade commercial applications",
-      outcome: "A fully functional e-commerce platform with payments",
-      deliverables: [
-        "Product catalog with search",
-        "Shopping cart functionality",
-        "Checkout with Stripe",
-        "Admin dashboard",
-        "Order management system",
-      ],
-    },
-  ]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadProjects();
+    }
+  }, [user]);
+
+  const loadProjects = async () => {
+    if (!user) return;
+
+    try {
+      // First check if user has projects assigned
+      const { data: userProjects, error: upError } = await supabase
+        .from('user_projects')
+        .select(`
+          id,
+          project_id,
+          status,
+          projects (
+            id,
+            project_title,
+            description,
+            difficulty,
+            skills_covered
+          )
+        `)
+        .eq('user_id', user.id);
+
+      if (upError) throw upError;
+
+      if (!userProjects || userProjects.length === 0) {
+        // Call assign-projects edge function
+        const { data, error } = await supabase.functions.invoke('assign-projects', {
+          body: {}
+        });
+
+        if (error) {
+          console.error('Error assigning projects:', error);
+        }
+
+        // Reload after assignment
+        const { data: newProjects } = await supabase
+          .from('user_projects')
+          .select(`
+            id,
+            project_id,
+            status,
+            projects (
+              id,
+              project_title,
+              description,
+              difficulty,
+              skills_covered
+            )
+          `)
+          .eq('user_id', user.id);
+
+        if (newProjects) {
+          setProjects(newProjects.map(up => ({
+            id: up.id,
+            project_id: up.project_id,
+            title: (up.projects as any)?.project_title || 'Untitled Project',
+            description: (up.projects as any)?.description || '',
+            difficulty: ((up.projects as any)?.difficulty as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
+            skills: (up.projects as any)?.skills_covered || [],
+            status: (up.status as 'not_started' | 'in_progress' | 'completed') || 'not_started'
+          })));
+        }
+      } else {
+        setProjects(userProjects.map(up => ({
+          id: up.id,
+          project_id: up.project_id,
+          title: (up.projects as any)?.project_title || 'Untitled Project',
+          description: (up.projects as any)?.description || '',
+          difficulty: ((up.projects as any)?.difficulty as 'beginner' | 'intermediate' | 'advanced') || 'beginner',
+          skills: (up.projects as any)?.skills_covered || [],
+          status: (up.status as 'not_started' | 'in_progress' | 'completed') || 'not_started'
+        })));
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't load your projects.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateProjectStatus = async (projectId: string, newStatus: 'not_started' | 'in_progress' | 'completed') => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('user_projects')
+        .update({ status: newStatus })
+        .eq('id', projectId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setProjects(projects.map(p => {
+        if (p.id === projectId) {
+          return { ...p, status: newStatus };
+        }
+        return p;
+      }));
+
+      if (selectedProject && selectedProject.id === projectId) {
+        setSelectedProject({ ...selectedProject, status: newStatus });
+      }
+
+      // Check if all projects are completed
+      const updatedProjects = projects.map(p => p.id === projectId ? { ...p, status: newStatus } : p);
+      const allCompleted = updatedProjects.every(p => p.status === 'completed');
+
+      if (allCompleted) {
+        await updateState({ projects_completed: true });
+        toast({
+          title: "Congratulations!",
+          description: "You've completed all projects!",
+        });
+      }
+
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Error updating project status:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't update project status.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const getDifficultyColor = (difficulty: Project["difficulty"]) => {
     switch (difficulty) {
@@ -109,27 +197,16 @@ const Projects = () => {
     }
   };
 
-  const startProject = (projectId: string) => {
-    setProjects(
-      projects.map((p) =>
-        p.id === projectId && p.status === "not_started"
-          ? { ...p, status: "in_progress" }
-          : p
-      )
-    );
-  };
-
-  const completeProject = (projectId: string) => {
-    setProjects(
-      projects.map((p) =>
-        p.id === projectId ? { ...p, status: "completed" } : p
-      )
-    );
-    setSelectedProject(null);
-  };
-
   const completedCount = projects.filter((p) => p.status === "completed").length;
-  const overallProgress = Math.round((completedCount / projects.length) * 100);
+  const overallProgress = projects.length > 0 ? Math.round((completedCount / projects.length) * 100) : 0;
+
+  if (guardLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -192,10 +269,6 @@ const Projects = () => {
                   </h2>
                   <p className="text-muted-foreground mt-2">{selectedProject.description}</p>
                 </div>
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Clock className="w-4 h-4" />
-                  {selectedProject.estimatedTime}
-                </div>
               </div>
 
               <div className="flex flex-wrap gap-2 mt-4">
@@ -207,44 +280,13 @@ const Projects = () => {
               </div>
             </div>
 
-            <div className="p-8 space-y-8">
-              <div>
-                <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Target className="w-5 h-5 text-primary" />
-                  Problem
-                </h3>
-                <p className="text-muted-foreground">{selectedProject.problem}</p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <CheckCircle2 className="w-5 h-5 text-success" />
-                  Expected Outcome
-                </h3>
-                <p className="text-muted-foreground">{selectedProject.outcome}</p>
-              </div>
-
-              <div>
-                <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-primary" />
-                  Deliverables
-                </h3>
-                <ul className="space-y-2">
-                  {selectedProject.deliverables.map((item, index) => (
-                    <li key={index} className="flex items-center gap-3 text-muted-foreground">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary" />
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
+            <div className="p-8">
               <div className="pt-6 border-t border-border flex gap-4">
                 {selectedProject.status === "not_started" && (
                   <Button
                     variant="hero"
                     size="lg"
-                    onClick={() => startProject(selectedProject.id)}
+                    onClick={() => updateProjectStatus(selectedProject.id, 'in_progress')}
                     className="gap-2"
                   >
                     Start Project
@@ -255,7 +297,7 @@ const Projects = () => {
                   <Button
                     variant="success"
                     size="lg"
-                    onClick={() => completeProject(selectedProject.id)}
+                    onClick={() => updateProjectStatus(selectedProject.id, 'completed')}
                     className="gap-2"
                   >
                     Mark as Completed
@@ -273,70 +315,78 @@ const Projects = () => {
           </div>
         ) : (
           /* Projects List */
-          <div className="grid gap-6">
-            {projects.map((project) => (
-              <button
-                key={project.id}
-                onClick={() => setSelectedProject(project)}
-                className="bg-card border border-border rounded-xl p-6 text-left hover:border-primary/50 hover:shadow-md transition-all group"
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        project.status === "completed"
-                          ? "bg-success"
-                          : project.status === "in_progress"
-                          ? "bg-gradient-hero"
-                          : "bg-muted"
-                      }`}
-                    >
-                      <Code
-                        className={`w-6 h-6 ${
-                          project.status === "not_started"
-                            ? "text-muted-foreground"
-                            : "text-primary-foreground"
-                        }`}
-                      />
+          <>
+            {projects.length === 0 ? (
+              <div className="bg-card border border-border rounded-2xl p-8 text-center">
+                <Code className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-foreground mb-2">No projects assigned yet</h3>
+                <p className="text-muted-foreground">
+                  Projects will be assigned based on your selected career path.
+                </p>
+              </div>
+            ) : (
+              <div className="grid gap-6">
+                {projects.map((project) => (
+                  <button
+                    key={project.id}
+                    onClick={() => setSelectedProject(project)}
+                    className="bg-card border border-border rounded-xl p-6 text-left hover:border-primary/50 hover:shadow-md transition-all group"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center gap-4">
+                        <div
+                          className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            project.status === "completed"
+                              ? "bg-success"
+                              : project.status === "in_progress"
+                              ? "bg-gradient-hero"
+                              : "bg-muted"
+                          }`}
+                        >
+                          <Code
+                            className={`w-6 h-6 ${
+                              project.status === "not_started"
+                                ? "text-muted-foreground"
+                                : "text-primary-foreground"
+                            }`}
+                          />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                            {project.title}
+                          </h3>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {project.description}
+                          </p>
+                        </div>
+                      </div>
+                      {getStatusIcon(project.status)}
                     </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {project.title}
-                      </h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        {project.description}
-                      </p>
-                    </div>
-                  </div>
-                  {getStatusIcon(project.status)}
-                </div>
 
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <Badge variant="secondary" className={getDifficultyColor(project.difficulty)}>
-                      {project.difficulty}
-                    </Badge>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      {project.estimatedTime}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <Badge variant="secondary" className={getDifficultyColor(project.difficulty)}>
+                          {project.difficulty}
+                        </Badge>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {project.skills.slice(0, 3).map((skill) => (
+                          <Badge key={skill} variant="secondary" className="text-xs">
+                            {skill}
+                          </Badge>
+                        ))}
+                        {project.skills.length > 3 && (
+                          <Badge variant="secondary" className="text-xs">
+                            +{project.skills.length - 3}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {project.skills.slice(0, 3).map((skill) => (
-                      <Badge key={skill} variant="secondary" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {project.skills.length > 3 && (
-                      <Badge variant="secondary" className="text-xs">
-                        +{project.skills.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
         )}
 
         {/* Continue Button */}

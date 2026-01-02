@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,10 @@ import {
   Target,
   Gauge,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { usePageGuard, useJourneyState } from "@/hooks/useJourneyState";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChecklistItem {
   id: string;
@@ -24,49 +28,151 @@ interface ChecklistItem {
 
 const JobReadiness = () => {
   const navigate = useNavigate();
-  
+  const { toast } = useToast();
+  const { user } = useAuth();
+  const { loading: guardLoading } = usePageGuard('projects_completed', '/projects');
+  const { updateState } = useJourneyState();
+
+  const [resumeReady, setResumeReady] = useState(false);
+  const [portfolioReady, setPortfolioReady] = useState(false);
+  const [confidenceLevel, setConfidenceLevel] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [resumeChecklist, setResumeChecklist] = useState<ChecklistItem[]>([
-    { id: "r1", label: "Updated contact information", completed: true },
-    { id: "r2", label: "Professional summary written", completed: true },
-    { id: "r3", label: "Skills section includes all learned technologies", completed: true },
+    { id: "r1", label: "Updated contact information", completed: false },
+    { id: "r2", label: "Professional summary written", completed: false },
+    { id: "r3", label: "Skills section includes all learned technologies", completed: false },
     { id: "r4", label: "Work experience formatted properly", completed: false },
-    { id: "r5", label: "Education section complete", completed: true },
+    { id: "r5", label: "Education section complete", completed: false },
     { id: "r6", label: "Projects section with links", completed: false },
     { id: "r7", label: "Resume reviewed for typos", completed: false },
     { id: "r8", label: "PDF format ready to send", completed: false },
   ]);
 
   const [portfolioChecklist, setPortfolioChecklist] = useState<ChecklistItem[]>([
-    { id: "p1", label: "Portfolio website deployed", completed: true },
-    { id: "p2", label: "All projects have descriptions", completed: true },
-    { id: "p3", label: "Live demos available", completed: true },
+    { id: "p1", label: "Portfolio website deployed", completed: false },
+    { id: "p2", label: "All projects have descriptions", completed: false },
+    { id: "p3", label: "Live demos available", completed: false },
     { id: "p4", label: "GitHub links included", completed: false },
     { id: "p5", label: "Contact form working", completed: false },
-    { id: "p6", label: "Mobile responsive design", completed: true },
+    { id: "p6", label: "Mobile responsive design", completed: false },
   ]);
 
-  const [skillConfidence, setSkillConfidence] = useState([
-    { skill: "JavaScript", confidence: 85 },
-    { skill: "React", confidence: 75 },
-    { skill: "TypeScript", confidence: 60 },
-    { skill: "Node.js", confidence: 65 },
-    { skill: "Problem Solving", confidence: 80 },
-    { skill: "Communication", confidence: 70 },
-  ]);
+  const [skillConfidence, setSkillConfidence] = useState<{ skill: string; confidence: number }[]>([]);
 
-  const toggleItem = (list: "resume" | "portfolio", id: string) => {
+  useEffect(() => {
+    if (user) {
+      loadJobReadiness();
+    }
+  }, [user]);
+
+  const loadJobReadiness = async () => {
+    if (!user) return;
+
+    try {
+      // Load existing job readiness data
+      const { data: readiness } = await supabase
+        .from('job_readiness')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (readiness) {
+        setResumeReady(readiness.resume_ready || false);
+        setPortfolioReady(readiness.portfolio_ready || false);
+        setConfidenceLevel(readiness.confidence_level || 0);
+      }
+
+      // Load skill validations for confidence display
+      const { data: skills } = await supabase
+        .from('user_skill_validation')
+        .select('skill_name, current_level, required_level')
+        .eq('user_id', user.id);
+
+      if (skills) {
+        setSkillConfidence(skills.map(s => ({
+          skill: s.skill_name,
+          confidence: Math.round((parseInt(s.current_level || '1') / parseInt(s.required_level || '4')) * 100)
+        })));
+      }
+
+      // Call update-job-readiness to calculate current state
+      await supabase.functions.invoke('update-job-readiness', {
+        body: {
+          resume_ready: resumeReady,
+          portfolio_ready: portfolioReady,
+          confidence_level: confidenceLevel
+        }
+      });
+
+    } catch (error) {
+      console.error('Error loading job readiness:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleItem = async (list: "resume" | "portfolio", id: string) => {
     if (list === "resume") {
-      setResumeChecklist(
-        resumeChecklist.map((item) =>
-          item.id === id ? { ...item, completed: !item.completed } : item
-        )
+      const updated = resumeChecklist.map((item) =>
+        item.id === id ? { ...item, completed: !item.completed } : item
       );
+      setResumeChecklist(updated);
+
+      const allComplete = updated.every(i => i.completed);
+      setResumeReady(allComplete);
     } else {
-      setPortfolioChecklist(
-        portfolioChecklist.map((item) =>
-          item.id === id ? { ...item, completed: !item.completed } : item
-        )
+      const updated = portfolioChecklist.map((item) =>
+        item.id === id ? { ...item, completed: !item.completed } : item
       );
+      setPortfolioChecklist(updated);
+
+      const allComplete = updated.every(i => i.completed);
+      setPortfolioReady(allComplete);
+    }
+  };
+
+  const saveReadiness = async () => {
+    if (!user) return;
+
+    try {
+      const resumeProgress = Math.round(
+        (resumeChecklist.filter((i) => i.completed).length / resumeChecklist.length) * 100
+      );
+      const portfolioProgress = Math.round(
+        (portfolioChecklist.filter((i) => i.completed).length / portfolioChecklist.length) * 100
+      );
+      const avgConfidence = skillConfidence.length > 0
+        ? Math.round(skillConfidence.reduce((acc, s) => acc + s.confidence, 0) / skillConfidence.length)
+        : 0;
+
+      const { data, error } = await supabase.functions.invoke('update-job-readiness', {
+        body: {
+          resume_ready: resumeProgress === 100,
+          portfolio_ready: portfolioProgress === 100,
+          confidence_level: Math.round((resumeProgress + portfolioProgress + avgConfidence) / 3)
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Progress saved",
+        description: "Your job readiness has been updated.",
+      });
+
+      // If job ready, update journey state
+      if (data?.job_ready) {
+        await updateState({ job_ready: true });
+      }
+
+    } catch (error) {
+      console.error('Error saving job readiness:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't save your progress.",
+        variant: "destructive"
+      });
     }
   };
 
@@ -76,9 +182,9 @@ const JobReadiness = () => {
   const portfolioProgress = Math.round(
     (portfolioChecklist.filter((i) => i.completed).length / portfolioChecklist.length) * 100
   );
-  const avgConfidence = Math.round(
-    skillConfidence.reduce((acc, s) => acc + s.confidence, 0) / skillConfidence.length
-  );
+  const avgConfidence = skillConfidence.length > 0
+    ? Math.round(skillConfidence.reduce((acc, s) => acc + s.confidence, 0) / skillConfidence.length)
+    : 70;
   const overallProgress = Math.round((resumeProgress + portfolioProgress + avgConfidence) / 3);
 
   const getConfidenceColor = (value: number) => {
@@ -86,6 +192,14 @@ const JobReadiness = () => {
     if (value >= 60) return "text-warning";
     return "text-destructive";
   };
+
+  if (guardLoading || isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-subtle">
@@ -221,41 +335,49 @@ const JobReadiness = () => {
         </div>
 
         {/* Skill Confidence */}
-        <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm mb-8">
-          <div className="p-6 border-b border-border">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-hero flex items-center justify-center">
-                  <Gauge className="w-5 h-5 text-primary-foreground" />
+        {skillConfidence.length > 0 && (
+          <div className="bg-card border border-border rounded-xl overflow-hidden shadow-sm mb-8">
+            <div className="p-6 border-b border-border">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-hero flex items-center justify-center">
+                    <Gauge className="w-5 h-5 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground">Skill Confidence</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Your assessed skill levels
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Skill Confidence</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Your self-assessed readiness levels
-                  </p>
+                <div className={`text-2xl font-bold ${getConfidenceColor(avgConfidence)}`}>
+                  {avgConfidence}%
                 </div>
-              </div>
-              <div className={`text-2xl font-bold ${getConfidenceColor(avgConfidence)}`}>
-                {avgConfidence}%
               </div>
             </div>
-          </div>
-          <div className="p-6 grid md:grid-cols-2 gap-4">
-            {skillConfidence.map((skill) => (
-              <div key={skill.skill} className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-foreground">{skill.skill}</span>
-                  <span className={`text-sm font-medium ${getConfidenceColor(skill.confidence)}`}>
-                    {skill.confidence}%
-                  </span>
+            <div className="p-6 grid md:grid-cols-2 gap-4">
+              {skillConfidence.map((skill) => (
+                <div key={skill.skill} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-foreground">{skill.skill}</span>
+                    <span className={`text-sm font-medium ${getConfidenceColor(skill.confidence)}`}>
+                      {skill.confidence}%
+                    </span>
+                  </div>
+                  <Progress value={skill.confidence} className="h-2" />
                 </div>
-                <Progress value={skill.confidence} className="h-2" />
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* Save & Action Card */}
+        <div className="flex justify-center mb-8">
+          <Button variant="outline" onClick={saveReadiness}>
+            Save Progress
+          </Button>
         </div>
 
-        {/* Action Card */}
         <div className="bg-card border border-border rounded-2xl p-8 shadow-sm text-center">
           <div className="w-16 h-16 rounded-2xl bg-gradient-hero flex items-center justify-center mx-auto mb-6">
             <Briefcase className="w-8 h-8 text-primary-foreground" />
