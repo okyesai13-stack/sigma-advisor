@@ -6,21 +6,27 @@ import { useNavigate } from "react-router-dom";
 import { Sparkles, Mail, Lock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { useJourneyState } from "@/hooks/useJourneyState";
 
 const Auth = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, signUp, signIn, signInWithGoogle } = useAuth();
+  const { journeyState, loading: journeyLoading } = useJourneyState();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Redirect if user is already authenticated
+  // Redirect if user is already authenticated based on journey state
   useEffect(() => {
-    if (user && !authLoading) {
-      navigate("/setup");
+    if (user && !authLoading && !journeyLoading) {
+      if (!journeyState?.profile_completed) {
+        navigate("/setup");
+      } else {
+        navigate("/advisor");
+      }
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, journeyLoading, journeyState, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,7 +75,7 @@ const Auth = () => {
   };
 
   // Show loading spinner while checking auth state
-  if (authLoading) {
+  if (authLoading || journeyLoading) {
     return (
       <div className="min-h-screen bg-gradient-subtle flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
