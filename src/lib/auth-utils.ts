@@ -5,7 +5,7 @@ export const createUserProfile = async (user: User) => {
   try {
     // Check if profile already exists
     const { data: existingProfile } = await supabase
-      .from('profiles')
+      .from('users_profile')
       .select('id')
       .eq('id', user.id)
       .single();
@@ -14,13 +14,12 @@ export const createUserProfile = async (user: User) => {
       return { success: true, profile: existingProfile };
     }
 
-    // Create new profile
+    // Create new profile - trigger should auto-create on signup
+    // But if it doesn't exist, create it manually
     const { data: profile, error } = await supabase
-      .from('profiles')
+      .from('users_profile')
       .insert({
         id: user.id,
-        full_name: user.user_metadata?.full_name || '',
-        avatar_url: user.user_metadata?.avatar_url || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -42,7 +41,7 @@ export const createUserProfile = async (user: User) => {
 export const getUserProfile = async (userId: string) => {
   try {
     const { data: profile, error } = await supabase
-      .from('profiles')
+      .from('users_profile')
       .select('*')
       .eq('id', userId)
       .single();
