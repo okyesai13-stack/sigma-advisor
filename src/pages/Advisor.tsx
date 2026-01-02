@@ -83,88 +83,96 @@ const Advisor = () => {
     if (!user) return;
 
     try {
-      // Load user profile for goal
-      const { data: profile } = await supabase
-        .from('users_profile')
-        .select('goal_type, goal_description')
-        .eq('id', user.id)
-        .single();
+      const results = await Promise.allSettled([
+        // 0: Profile (Goal)
+        supabase.from('users_profile').select('goal_type, goal_description').eq('id', user.id).single(),
+        // 1: Selected Career
+        supabase.from('selected_career').select('career_title').eq('user_id', user.id).single(),
+        // 2: Conversations
+        supabase.from('advisor_conversations').select('*').eq('user_id', user.id).order('created_at', { ascending: true }).limit(50),
+        // 3: Recommendations
+        supabase.from('career_recommendations').select('*').eq('user_id', user.id).order('confidence_score', { ascending: false }),
+        // 4: Skill Validations
+        supabase.from('user_skill_validation').select('*').eq('user_id', user.id)
+      ]);
 
-      if (profile) {
-        setUserGoal({
-          type: profile.goal_type || 'Find a Job',
-          description: profile.goal_description || 'Become a professional in your field'
-        });
+      // Process results
+      // Default values
+      let loadedGoal = { type: 'Find a Job', description: 'Become a professional in your field' };
+      let loadedCareer = null;
+      let loadedMessages = [{
+        role: "assistant",
+        content: "Welcome! Based on your profile, I've analyzed your goals, interests, and background. I'm ready to recommend career paths that align perfectly with your aspirations. Let's find your ideal career direction.",
+      } as Message];
+      let loadedOptions: CareerOption[] = [];
+      let loadedSkills: SkillValidation[] = [];
+
+      // 0: Profile
+      if (results[0].status === 'fulfilled' && results[0].value.data) {
+        const p = results[0].value.data;
+        loadedGoal = {
+          type: p.goal_type || 'Find a Job',
+          description: p.goal_description || 'Become a professional in your field'
+        };
+      }
+      setUserGoal(loadedGoal);
+
+      // 1: Selected Career
+      if (results[1].status === 'fulfilled' && results[1].value.data) {
+        loadedCareer = results[1].value.data.career_title;
+        setSelectedCareer(loadedCareer);
       }
 
-      // Load selected career if exists
-      const { data: career } = await supabase
-        .from('selected_career')
-        .select('career_title')
-        .eq('user_id', user.id)
-        .single();
-
-      if (career) {
-        setSelectedCareer(career.career_title);
-      }
-
-      // Load conversation history
-      const { data: conversations } = await supabase
-        .from('advisor_conversations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
-        .limit(50);
-
-      if (conversations && conversations.length > 0) {
-        setMessages(conversations.map(c => ({
+      // 2: Conversations
+      if (results[2].status === 'fulfilled' && results[2].value.data && results[2].value.data.length > 0) {
+        loadedMessages = results[2].value.data.map(c => ({
           role: c.role as 'user' | 'assistant',
           content: c.message
-        })));
-      } else {
-        setMessages([{
-          role: "assistant",
-          content: "Welcome! Based on your profile, I've analyzed your goals, interests, and background. I'm ready to recommend career paths that align perfectly with your aspirations. Let's find your ideal career direction.",
-        }]);
+        }));
       }
+      setMessages(loadedMessages);
 
-      // Load career recommendations if they exist
-      const { data: recommendations } = await supabase
-        .from('career_recommendations')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('confidence_score', { ascending: false });
-
-      if (recommendations && recommendations.length > 0) {
-        setCareerOptions(recommendations.map(r => ({
+      // 3: Recommendations
+      if (results[3].status === 'fulfilled' && results[3].value.data && results[3].value.data.length > 0) {
+        loadedOptions = results[3].value.data.map(r => ({
           title: r.career_title,
           match: r.confidence_score || 0,
           description: r.rationale || '',
           skills: []
-        })));
+        }));
       }
+      setCareerOptions(loadedOptions);
 
-      // Load skill validations
-      const { data: skillValidations } = await supabase
-        .from('user_skill_validation')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (skillValidations && skillValidations.length > 0) {
-        setSkills(skillValidations.map(s => ({
+      // 4: Skills
+      if (results[4].status === 'fulfilled' && results[4].value.data && results[4].value.data.length > 0) {
+        loadedSkills = results[4].value.data.map(s => ({
           name: s.skill_name,
           required: parseInt(s.required_level || '3'),
           current: parseInt(s.current_level || '1'),
           status: s.status || 'gap'
-        })));
+        }));
+      }
+      setSkills(loadedSkills);
+
+      // Update current step based on journey state and URL params
+      const searchParams = new URLSearchParams(window.location.search);
+      const requestedStep = searchParams.get('step');
+
+      let targetStep = 1;
+      if (journeyState) {
+        if (!journeyState.career_recommended) targetStep = 1;
+        else if (!journeyState.career_selected) targetStep = 1;
+        else if (!journeyState.skill_validated) targetStep = 3;
+        else targetStep = 4;
       }
 
-      // Update current step based on journey state
-      if (journeyState) {
-        if (!journeyState.career_recommended) setCurrentStep(1);
-        else if (!journeyState.career_selected) setCurrentStep(1);
-        else if (!journeyState.skill_validated) setCurrentStep(3);
-        else setCurrentStep(4);
+      // Override with requested step if valid
+      if (requestedStep === 'career_path' && journeyState?.career_selected) {
+        setCurrentStep(2); // Review Career Path
+      } else if (requestedStep === 'skill_validation' && journeyState?.career_selected) { // Allow viewing skills if career selected
+        setCurrentStep(3);
+      } else {
+        setCurrentStep(targetStep);
       }
 
     } catch (error) {
@@ -281,6 +289,17 @@ const Advisor = () => {
 
   const proceedToSkills = async () => {
     if (!user) return;
+
+    // Check if already validated
+    if ((journeyState?.skill_validated || skills.length > 0)) {
+      setCurrentStep(3);
+      // Update URL without reloading to reflect the step
+      const url = new URL(window.location.href);
+      url.searchParams.set('step', 'skill_validation');
+      window.history.pushState({}, '', url);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -350,74 +369,7 @@ const Advisor = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Left Panel - Status */}
-      <div className="w-80 border-r border-border bg-card p-6 hidden lg:flex flex-col">
-        <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 rounded-lg bg-gradient-hero flex items-center justify-center">
-            <Sparkles className="w-5 h-5 text-primary-foreground" />
-          </div>
-          <span className="font-semibold text-foreground">AI Career Advisor</span>
-        </div>
 
-        {/* User Goal Summary */}
-        <div className="mb-8">
-          <div className="text-sm text-muted-foreground mb-2">Your Goal</div>
-          <div className="p-4 rounded-xl bg-accent/50 border border-border">
-            <div className="flex items-center gap-2 text-foreground font-medium mb-1">
-              <Target className="w-4 h-4 text-primary" />
-              {userGoal?.type || 'Find a Job'}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {userGoal?.description || 'Become a professional in your field'}
-            </p>
-          </div>
-        </div>
-
-        {/* Progress */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-muted-foreground">Overall Progress</span>
-            <span className="text-foreground font-medium">{Math.round((currentStep / steps.length) * 100)}%</span>
-          </div>
-          <Progress value={(currentStep / steps.length) * 100} className="h-2" />
-        </div>
-
-        {/* Steps */}
-        <div className="flex-1">
-          <div className="text-sm text-muted-foreground mb-4">Journey Steps</div>
-          <div className="space-y-2">
-            {steps.map((step) => (
-              <div
-                key={step.id}
-                className={`flex items-center gap-3 p-3 rounded-xl transition-all ${step.id === currentStep
-                  ? "bg-accent text-accent-foreground"
-                  : step.id < currentStep
-                    ? "text-success"
-                    : "text-muted-foreground"
-                  }`}
-              >
-                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${step.id < currentStep
-                  ? "bg-success"
-                  : step.id === currentStep
-                    ? "bg-gradient-hero"
-                    : "bg-muted"
-                  }`}>
-                  {step.id < currentStep ? (
-                    <CheckCircle2 className="w-4 h-4 text-success-foreground" />
-                  ) : step.id === currentStep ? (
-                    <step.icon className="w-3 h-3 text-primary-foreground" />
-                  ) : (
-                    <Circle className="w-3 h-3" />
-                  )}
-                </div>
-                <span className={`text-sm ${step.id === currentStep ? "font-medium" : ""}`}>
-                  {step.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
 
       {/* Center Panel - Chat */}
       <div className="flex-1 flex flex-col">
@@ -630,7 +582,7 @@ const Advisor = () => {
         {currentStep === 1 && !selectedCareer && (
           <div className="text-center text-muted-foreground text-sm p-6 rounded-xl bg-muted/50 border border-border">
             <Target className="w-8 h-8 mx-auto mb-3 text-muted-foreground" />
-            {careerOptions.length === 0 
+            {careerOptions.length === 0
               ? "Click 'Generate Career Recommendations' to get personalized career paths"
               : "Select a career path from the chat to continue your journey"
             }
