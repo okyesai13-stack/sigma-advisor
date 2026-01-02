@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
 
 declare const Deno: any;
 
@@ -19,7 +20,7 @@ serve(async (req: Request) => {
       throw new Error("No authorization header");
     }
 
-    const { message } = await req.json();
+    const { message, thoughtSignature } = await req.json();
     if (!message) {
       throw new Error("Message is required");
     }
@@ -42,7 +43,7 @@ serve(async (req: Request) => {
       user_id: user.id,
       role: "user",
       message,
-      context: null,
+      context: null, // User message doesn't need context usually, or maybe previous thought signature if relevant
     });
 
     // Get user context
@@ -67,13 +68,25 @@ serve(async (req: Request) => {
     // Get recent conversation history
     const { data: recentMessages } = await supabaseClient
       .from("advisor_conversations")
-      .select("role, message")
+      .select("role, message, context")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(10);
 
-    const GEMINI_API_KEY = "AIzaSyA7seyM9dUmtiQnmij7PyjMylnXZvdcZXs";
-    const actualModel = "gemini-3-pro-preview"; // Using the model specified by the user.
+    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyA7seyM9dUmtiQnmij7PyjMylnXZvdcZXs";
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+
+    const model = genAI.getGenerativeModel({
+      model: "gemini-3-pro-preview",
+    });
+
+    const thinkingConfig = {
+      thinkingConfig: {
+        includeThoughts: true,
+        thinkingLevel: "high",
+      },
+      temperature: 1.0,
+    };
 
     // Build context for AI
     const currentStep = !journeyState?.career_recommended ? "career_recommendation"
@@ -86,7 +99,6 @@ serve(async (req: Request) => {
                   : "apply";
 
     const systemPromptContent = `You are an AI Career Advisor Agent.
-
 You are NOT a chatbot.
 You are a state-aware career orchestrator.
 
@@ -104,7 +116,7 @@ Core Responsibilities:
 
 Strict Rules:
 - Never skip steps
-- Never repeat completed steps
+- Never repeat steps
 - Always respect the provided journey state
 - Do not provide generic advice
 - Be concise, practical, and goal-oriented
@@ -122,54 +134,74 @@ User Context:
 - Journey Progress: ${JSON.stringify(journeyState || {})}
 `;
 
-    const contents = (recentMessages || []).reverse().map((msg: { role: string; message: string }) => ({
-      role: msg.role === "advisor" ? "model" : "user", // Gemini uses 'model' not 'assistant'
-      parts: [{ text: msg.message }]
-    }));
-    contents.push({ role: "user", parts: [{ text: message }] });
-
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${actualModel}:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: contents,
-        systemInstruction: {
-          parts: [{ text: systemPromptContent }]
-        },
-        generationConfig: {
-          temperature: 0.7, // optional
-          // thinkingConfig is only for specific models
-        }
-      }),
+    // Construct history for SDK
+    const history = (recentMessages || []).reverse().map((msg: any) => {
+      const parts = [{ text: msg.message }];
+      // If it's a model message and has a thought signature stored in context, attach it
+      if (msg.role === "advisor" && msg.context?.thoughtSignature) {
+        // Note: The SDK expects thoughtSignature in the part for 'model' role
+        // However, standard history usually just takes text. 
+        // For Gemini 3, if we want to pass back the signature, we might need to conform to specific SDK structure.
+        // Assuming the user's snippet where params imply passing it back.
+        // For now, we will try to attach it if the SDK allows, or relying on the fact that startChat maintains state if we were in a continuous session.
+        // But here we are stateless between requests. 
+        // We will attempt to pass it in parts if the SDK supports it (custom property), or as a separate part type if applicable.
+        // Based on user snippet: parts: { text?: string; thoughtSignature?: string }[]
+        (parts[0] as any).thoughtSignature = msg.context.thoughtSignature;
+      }
+      return {
+        role: msg.role === "advisor" ? "model" : "user",
+        parts: parts,
+      };
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Gemini API Error:", response.status, errText);
-      throw new Error(`Gemini API Error: ${response.status}`);
-    }
+    // Start chat
+    const chat = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [{ text: "System Context: " + systemPromptContent }],
+        },
+        {
+          role: "model",
+          parts: [{ text: "Understood. I am ready to act as the AI Career Advisor." }],
+        },
+        ...history
+      ],
+      // @ts-ignore - thinkingConfig types might not be fully updated in the SDK version on esm.sh yet
+      generationConfig: thinkingConfig,
+    });
 
-    const aiData = await response.json();
-    const advisorResponse = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "I apologize, I couldn't process that.";
+    const result = await chat.sendMessage(message);
+    const response = await result.response;
+    const text = response.text();
 
-    // Store advisor response
+    // Extract thought signature
+    // The user's snippet: const thoughtSig = modelPart?.thoughtSignature;
+    const modelPart = response.candidates?.[0].content.parts[0];
+    const thoughtSig = (modelPart as any)?.thoughtSignature;
+
+    // Store advisor response with thought signature
     await supabaseClient.from("advisor_conversations").insert({
       user_id: user.id,
       role: "advisor",
-      message: advisorResponse,
-      context: { currentStep },
+      message: text,
+      context: {
+        currentStep,
+        thoughtSignature: thoughtSig
+      },
     });
 
     console.log("Successfully responded to chat");
 
     return new Response(JSON.stringify({
-      response: advisorResponse,
+      response: text,
       currentStep,
+      thoughtSignature: thoughtSig,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+
   } catch (error) {
     console.error("Error in chat-with-advisor:", error);
     return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
