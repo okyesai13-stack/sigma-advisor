@@ -77,6 +77,7 @@ const Learn = () => {
   const [expandedSkill, setExpandedSkill] = useState<string | null>(null);
   const [generatingSkill, setGeneratingSkill] = useState<string | null>(null);
   const [certInput, setCertInput] = useState<{ [key: string]: string }>({});
+  const [assigningProjects, setAssigningProjects] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -325,6 +326,35 @@ const Learn = () => {
       }
     } catch (error) {
       console.error('Error checking learning completion:', error);
+    }
+  };
+
+  const handleContinueToProjects = async () => {
+    if (!user) return;
+    
+    setAssigningProjects(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('assign-projects');
+      
+      if (error) throw error;
+      
+      console.log('Projects assigned:', data);
+      
+      toast({
+        title: "Projects Assigned!",
+        description: "Your personalized portfolio projects are ready.",
+      });
+      
+      navigate('/projects');
+    } catch (error) {
+      console.error('Error assigning projects:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't assign projects. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAssigningProjects(false);
     }
   };
 
@@ -698,11 +728,21 @@ const Learn = () => {
           <Button
             variant="hero"
             size="lg"
-            onClick={() => navigate("/projects")}
+            onClick={handleContinueToProjects}
+            disabled={assigningProjects}
             className="gap-2"
           >
-            Continue to Projects
-            <ChevronRight className="w-5 h-5" />
+            {assigningProjects ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Assigning Projects...
+              </>
+            ) : (
+              <>
+                Continue to Projects
+                <ChevronRight className="w-5 h-5" />
+              </>
+            )}
           </Button>
         </div>
       </div>
