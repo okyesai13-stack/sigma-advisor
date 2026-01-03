@@ -395,6 +395,53 @@ export type Database = {
         }
         Relationships: []
       }
+      user_project_steps: {
+        Row: {
+          ai_tools: Json
+          build_completed: boolean[] | null
+          build_steps: Json
+          created_at: string | null
+          id: string
+          plan_completed: boolean[] | null
+          plan_steps: Json
+          updated_at: string | null
+          user_id: string
+          user_project_id: string
+        }
+        Insert: {
+          ai_tools?: Json
+          build_completed?: boolean[] | null
+          build_steps?: Json
+          created_at?: string | null
+          id?: string
+          plan_completed?: boolean[] | null
+          plan_steps?: Json
+          updated_at?: string | null
+          user_id: string
+          user_project_id: string
+        }
+        Update: {
+          ai_tools?: Json
+          build_completed?: boolean[] | null
+          build_steps?: Json
+          created_at?: string | null
+          id?: string
+          plan_completed?: boolean[] | null
+          plan_steps?: Json
+          updated_at?: string | null
+          user_id?: string
+          user_project_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_project_steps_user_project_id_fkey"
+            columns: ["user_project_id"]
+            isOneToOne: false
+            referencedRelation: "user_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_projects: {
         Row: {
           created_at: string | null
