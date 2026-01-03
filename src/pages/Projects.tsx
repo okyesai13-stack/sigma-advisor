@@ -12,11 +12,17 @@ import {
   Clock,
   Target,
   Layers,
+  Loader2,
+  Lightbulb,
+  Hammer,
+  Bot,
+  ExternalLink,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { usePageGuard, useJourneyState } from "@/hooks/useJourneyState";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Project {
   id: string;
@@ -26,6 +32,15 @@ interface Project {
   difficulty: "beginner" | "intermediate" | "advanced";
   skills: string[];
   status: "not_started" | "in_progress" | "completed";
+}
+
+interface ProjectSteps {
+  id: string;
+  plan_steps: string[];
+  build_steps: string[];
+  ai_tools: { name: string; description: string; url?: string }[];
+  plan_completed: boolean[];
+  build_completed: boolean[];
 }
 
 const Projects = () => {
@@ -38,6 +53,8 @@ const Projects = () => {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [projectSteps, setProjectSteps] = useState<ProjectSteps | null>(null);
+  const [analyzingProject, setAnalyzingProject] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -164,7 +181,10 @@ const Projects = () => {
         });
       }
 
-      setSelectedProject(null);
+      if (newStatus === 'completed') {
+        setProjectSteps(null);
+        setSelectedProject(null);
+      }
     } catch (error) {
       console.error('Error updating project status:', error);
       toast({
@@ -174,6 +194,121 @@ const Projects = () => {
       });
     }
   };
+
+  const startProject = async () => {
+    if (!user || !selectedProject) return;
+
+    setAnalyzingProject(true);
+    try {
+      // First update status to in_progress
+      await supabase
+        .from('user_projects')
+        .update({ status: 'in_progress' })
+        .eq('id', selectedProject.id)
+        .eq('user_id', user.id);
+
+      setSelectedProject({ ...selectedProject, status: 'in_progress' });
+      setProjects(projects.map(p => 
+        p.id === selectedProject.id ? { ...p, status: 'in_progress' } : p
+      ));
+
+      // Call analyze-project edge function
+      const { data, error } = await supabase.functions.invoke('analyze-project', {
+        body: {
+          userProjectId: selectedProject.id,
+          projectTitle: selectedProject.title,
+          projectDescription: selectedProject.description,
+          skills: selectedProject.skills
+        }
+      });
+
+      if (error) throw error;
+
+      if (data?.steps) {
+        setProjectSteps({
+          id: data.steps.id,
+          plan_steps: data.steps.plan_steps || [],
+          build_steps: data.steps.build_steps || [],
+          ai_tools: data.steps.ai_tools || [],
+          plan_completed: data.steps.plan_completed || [],
+          build_completed: data.steps.build_completed || [],
+        });
+      }
+
+      toast({
+        title: "Project Analysis Complete!",
+        description: "Your personalized project steps are ready.",
+      });
+    } catch (error) {
+      console.error('Error starting project:', error);
+      toast({
+        title: "Error",
+        description: "Couldn't analyze project. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setAnalyzingProject(false);
+    }
+  };
+
+  const loadProjectSteps = async (userProjectId: string) => {
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from('user_project_steps')
+      .select('*')
+      .eq('user_project_id', userProjectId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!error && data) {
+      setProjectSteps({
+        id: data.id,
+        plan_steps: (data.plan_steps as string[]) || [],
+        build_steps: (data.build_steps as string[]) || [],
+        ai_tools: (data.ai_tools as { name: string; description: string; url?: string }[]) || [],
+        plan_completed: (data.plan_completed as boolean[]) || [],
+        build_completed: (data.build_completed as boolean[]) || [],
+      });
+    } else {
+      setProjectSteps(null);
+    }
+  };
+
+  const toggleStepComplete = async (type: 'plan' | 'build', index: number) => {
+    if (!user || !projectSteps) return;
+
+    const field = type === 'plan' ? 'plan_completed' : 'build_completed';
+    const currentArray = type === 'plan' ? projectSteps.plan_completed : projectSteps.build_completed;
+    const newArray = [...currentArray];
+    newArray[index] = !newArray[index];
+
+    try {
+      const { error } = await supabase
+        .from('user_project_steps')
+        .update({ [field]: newArray })
+        .eq('id', projectSteps.id)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setProjectSteps({
+        ...projectSteps,
+        [field === 'plan_completed' ? 'plan_completed' : 'build_completed']: newArray
+      });
+    } catch (error) {
+      console.error('Error updating step:', error);
+    }
+  };
+
+  // Load steps when selecting a project that's in progress
+  useEffect(() => {
+    if (selectedProject && selectedProject.status !== 'not_started') {
+      loadProjectSteps(selectedProject.id);
+    } else {
+      setProjectSteps(null);
+    }
+  }, [selectedProject?.id]);
 
   const getDifficultyColor = (difficulty: Project["difficulty"]) => {
     switch (difficulty) {
@@ -280,20 +415,97 @@ const Projects = () => {
               </div>
             </div>
 
-            <div className="p-8">
-              <div className="pt-6 border-t border-border flex gap-4">
-                {selectedProject.status === "not_started" && (
-                  <Button
-                    variant="hero"
-                    size="lg"
-                    onClick={() => updateProjectStatus(selectedProject.id, 'in_progress')}
-                    className="gap-2"
-                  >
-                    Start Project
-                    <ChevronRight className="w-5 h-5" />
-                  </Button>
-                )}
-                {selectedProject.status === "in_progress" && (
+            {/* Project Steps Section */}
+            {analyzingProject ? (
+              <div className="p-8 flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-muted-foreground">Analyzing project and generating steps...</p>
+              </div>
+            ) : projectSteps ? (
+              <div className="p-8 space-y-8">
+                {/* Plan Steps */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Lightbulb className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold text-foreground">Plan Steps</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {projectSteps.plan_steps.map((step, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"
+                      >
+                        <Checkbox
+                          checked={projectSteps.plan_completed[index] || false}
+                          onCheckedChange={() => toggleStepComplete('plan', index)}
+                          className="mt-0.5"
+                        />
+                        <span className={`text-sm ${projectSteps.plan_completed[index] ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {step}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Build Steps */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Hammer className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold text-foreground">Build Steps</h3>
+                  </div>
+                  <div className="space-y-3">
+                    {projectSteps.build_steps.map((step, index) => (
+                      <div 
+                        key={index} 
+                        className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg"
+                      >
+                        <Checkbox
+                          checked={projectSteps.build_completed[index] || false}
+                          onCheckedChange={() => toggleStepComplete('build', index)}
+                          className="mt-0.5"
+                        />
+                        <span className={`text-sm ${projectSteps.build_completed[index] ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+                          {step}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* AI Tools */}
+                <div>
+                  <div className="flex items-center gap-2 mb-4">
+                    <Bot className="w-5 h-5 text-primary" />
+                    <h3 className="text-lg font-semibold text-foreground">AI Tools to Help</h3>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    {projectSteps.ai_tools.map((tool, index) => (
+                      <div 
+                        key={index} 
+                        className="p-4 bg-muted/50 rounded-lg border border-border"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-foreground">{tool.name}</h4>
+                          {tool.url && (
+                            <a 
+                              href={tool.url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-primary hover:text-primary/80"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">{tool.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Mark Complete Button */}
+                <div className="pt-6 border-t border-border">
                   <Button
                     variant="success"
                     size="lg"
@@ -303,15 +515,32 @@ const Projects = () => {
                     Mark as Completed
                     <CheckCircle2 className="w-5 h-5" />
                   </Button>
-                )}
-                {selectedProject.status === "completed" && (
-                  <Badge className="bg-success/10 text-success text-lg px-4 py-2">
-                    <CheckCircle2 className="w-5 h-5 mr-2" />
-                    Completed
-                  </Badge>
-                )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-8">
+                <div className="pt-6 border-t border-border flex gap-4">
+                  {selectedProject.status === "not_started" && (
+                    <Button
+                      variant="hero"
+                      size="lg"
+                      onClick={startProject}
+                      disabled={analyzingProject}
+                      className="gap-2"
+                    >
+                      Start Project
+                      <ChevronRight className="w-5 h-5" />
+                    </Button>
+                  )}
+                  {selectedProject.status === "completed" && (
+                    <Badge className="bg-success/10 text-success text-lg px-4 py-2">
+                      <CheckCircle2 className="w-5 h-5 mr-2" />
+                      Completed
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           /* Projects List */
