@@ -45,51 +45,60 @@ serve(async (req: Request) => {
       context: null,
     });
 
-    // Get user context
-    const { data: profile } = await supabaseClient
-      .from("users_profile")
-      .select("*")
-      .eq("id", user.id)
-      .single();
+    // Fetch ALL user context from multiple tables in parallel
+    const [
+      profileResult,
+      selectedCareerResult,
+      journeyStateResult,
+      skillValidationsResult,
+      learningPlanResult,
+      learningJourneyResult,
+      educationResult,
+      experienceResult,
+      certificationsResult,
+      careerRecommendationsResult,
+      userProjectsResult,
+      jobReadinessResult,
+      interviewsResult,
+      recentMessagesResult
+    ] = await Promise.all([
+      supabaseClient.from("users_profile").select("*").eq("id", user.id).single(),
+      supabaseClient.from("selected_career").select("*").eq("user_id", user.id).single(),
+      supabaseClient.from("user_journey_state").select("*").eq("user_id", user.id).single(),
+      supabaseClient.from("user_skill_validation").select("*").eq("user_id", user.id),
+      supabaseClient.from("learning_plan").select("*").eq("user_id", user.id),
+      supabaseClient.from("user_learning_journey").select("*").eq("user_id", user.id),
+      supabaseClient.from("education_details").select("*").eq("user_id", user.id),
+      supabaseClient.from("experience_details").select("*").eq("user_id", user.id),
+      supabaseClient.from("certifications").select("*").eq("user_id", user.id),
+      supabaseClient.from("career_recommendations").select("*").eq("user_id", user.id).order("confidence_score", { ascending: false }),
+      supabaseClient.from("user_projects").select("*, projects(*)").eq("user_id", user.id),
+      supabaseClient.from("job_readiness").select("*").eq("user_id", user.id).single(),
+      supabaseClient.from("ai_interviews").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+      supabaseClient.from("advisor_conversations").select("role, message").eq("user_id", user.id).order("created_at", { ascending: false }).limit(15)
+    ]);
 
-    const { data: selectedCareer } = await supabaseClient
-      .from("selected_career")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
+    const profile = profileResult.data;
+    const selectedCareer = selectedCareerResult.data;
+    const journeyState = journeyStateResult.data;
+    const skillValidations = skillValidationsResult.data || [];
+    const learningPlan = learningPlanResult.data || [];
+    const learningJourney = learningJourneyResult.data || [];
+    const education = educationResult.data || [];
+    const experience = experienceResult.data || [];
+    const certifications = certificationsResult.data || [];
+    const careerRecommendations = careerRecommendationsResult.data || [];
+    const userProjects = userProjectsResult.data || [];
+    const jobReadiness = jobReadinessResult.data;
+    const interviews = interviewsResult.data || [];
+    const recentMessages = recentMessagesResult.data || [];
 
-    const { data: journeyState } = await supabaseClient
-      .from("user_journey_state")
-      .select("*")
-      .eq("user_id", user.id)
-      .single();
-
-    // Get skill validations if available
-    const { data: skillValidations } = await supabaseClient
-      .from("user_skill_validation")
-      .select("*")
-      .eq("user_id", user.id);
-
-    // Get learning plan if available
-    const { data: learningPlan } = await supabaseClient
-      .from("learning_plan")
-      .select("*")
-      .eq("user_id", user.id);
-
-    // Get recent conversation history (last 10 messages)
-    const { data: recentMessages } = await supabaseClient
-      .from("advisor_conversations")
-      .select("role, message")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build context for AI
+    // Determine current journey step
     const currentStep = !journeyState?.career_recommended ? "career_recommendation"
       : !journeyState?.career_selected ? "career_selection"
         : !journeyState?.skill_validated ? "skill_validation"
@@ -99,111 +108,159 @@ serve(async (req: Request) => {
                 : !journeyState?.interview_completed ? "interview"
                   : "apply";
 
-    const skillsContext = skillValidations && skillValidations.length > 0 
-      ? `\nSkill Validations: ${skillValidations.map(s => `${s.skill_name}: ${s.status} (${s.current_level}/${s.required_level})`).join(", ")}`
+    // Build comprehensive context strings
+    const educationContext = education.length > 0
+      ? `\n\n📚 EDUCATION:\n${education.map(e => `- ${e.degree || 'Degree'} in ${e.field || 'Field'} from ${e.institution || 'Institution'} (${e.graduation_year || 'Year N/A'})`).join("\n")}`
+      : "\n\n📚 EDUCATION: Not provided";
+
+    const experienceContext = experience.length > 0
+      ? `\n\n💼 WORK EXPERIENCE:\n${experience.map(e => `- ${e.role || 'Role'} at ${e.company || 'Company'} (${e.start_year || '?'} - ${e.end_year || 'Present'})${e.skills?.length ? ` | Skills: ${e.skills.join(", ")}` : ''}`).join("\n")}`
+      : "\n\n💼 WORK EXPERIENCE: No prior experience";
+
+    const certificationsContext = certifications.length > 0
+      ? `\n\n🏆 CERTIFICATIONS:\n${certifications.map(c => `- ${c.title} from ${c.issuer} (${c.year})`).join("\n")}`
       : "";
 
-    const learningContext = learningPlan && learningPlan.length > 0
-      ? `\nLearning Plan: ${learningPlan.map(l => `${l.skill_name}: ${l.status}`).join(", ")}`
+    const skillsContext = skillValidations.length > 0
+      ? `\n\n⚡ SKILL ASSESSMENT:\n${skillValidations.map(s => `- ${s.skill_name}: Current Level ${s.current_level}/5, Required ${s.required_level}/5 (${s.status})`).join("\n")}`
       : "";
 
-    const systemPrompt = `You are an AI Career Advisor Agent powered by Gemini.
-You are NOT a chatbot. You are a state-aware career orchestrator.
+    const learningContext = learningPlan.length > 0
+      ? `\n\n📖 LEARNING PLAN:\n${learningPlan.map(l => `- ${l.skill_name}: ${l.status} (Priority: ${l.priority})`).join("\n")}`
+      : "";
 
-Your mission is to guide users step by step toward their career goal using their profile, interests, education, experience, and progress state.
+    const learningJourneyContext = learningJourney.length > 0
+      ? `\n\n🎯 LEARNING PROGRESS:\n${learningJourney.map(l => `- ${l.skill_name}: ${l.status}`).join("\n")}`
+      : "";
 
-Core Responsibilities:
-- Analyze user goals and background
-- Recommend suitable career paths with reasoning
-- Guide skill validation and gap identification
-- Generate personalized learning plans
-- Recommend real-world projects
-- Assess job readiness
-- Conduct mock interviews with structured feedback
-- Help with job applications
+    const projectsContext = userProjects.length > 0
+      ? `\n\n🔨 PROJECTS:\n${userProjects.map((p: any) => `- ${p.projects?.project_title || 'Project'}: ${p.status}`).join("\n")}`
+      : "";
 
-Strict Rules:
-- Never skip steps
-- Never repeat steps
-- Always respect the provided journey state
-- Do not provide generic advice - be specific and actionable
-- Be concise, practical, and goal-oriented
-- Act as a professional career advisor
-- Use the user's actual data to personalize responses
+    const careerRecsContext = careerRecommendations.length > 0
+      ? `\n\n🎯 CAREER RECOMMENDATIONS:\n${careerRecommendations.map(r => `- ${r.career_title}: ${r.confidence_score}% match - ${r.rationale}`).join("\n")}`
+      : "";
 
-User Context:
-- Goal: ${profile?.goal_type || "Not set"} - ${profile?.goal_description || ""}
+    const jobReadinessContext = jobReadiness
+      ? `\n\n✅ JOB READINESS:\n- Resume Ready: ${jobReadiness.resume_ready ? 'Yes' : 'No'}\n- Portfolio Ready: ${jobReadiness.portfolio_ready ? 'Yes' : 'No'}\n- Confidence Level: ${jobReadiness.confidence_level || 0}%`
+      : "";
+
+    const interviewContext = interviews.length > 0
+      ? `\n\n🎤 INTERVIEW HISTORY:\n${interviews.map(i => `- ${i.interview_type}: Score ${i.score}/100`).join("\n")}`
+      : "";
+
+    // Build the comprehensive system prompt
+    const systemPrompt = `You are an elite AI Career Advisor - a personalized career strategist powered by advanced AI. You are NOT a generic chatbot. You are a state-aware career orchestrator with complete knowledge of this user's journey.
+
+🎯 YOUR MISSION:
+Guide this specific user step-by-step toward their career goal using their ACTUAL profile, education, experience, skills, and progress state. Every response must be personalized and actionable.
+
+👤 USER PROFILE:
+- Name/ID: ${user.id}
+- Career Goal: ${profile?.goal_type || "Not specified"} - ${profile?.goal_description || ""}
 - Interests: ${profile?.interests?.join(", ") || "Not specified"}
 - Hobbies: ${profile?.hobbies?.join(", ") || "Not specified"}
-- Selected Career: ${selectedCareer?.career_title || "Not yet selected"}
-- Current Journey Step: ${currentStep}
-- Journey Progress: ${JSON.stringify(journeyState || {})}${skillsContext}${learningContext}
+- Activities: ${profile?.activities?.join(", ") || "Not specified"}${educationContext}${experienceContext}${certificationsContext}
 
-Based on the current step "${currentStep}", focus your response accordingly:
-- If career_recommendation: Help user understand their options or refine recommendations
-- If career_selection: Guide them in choosing and confirming their career path
-- If skill_validation: Explain their skill gaps and how to address them
-- If learning: Motivate and guide their learning journey
-- If projects: Help them plan and complete portfolio projects
-- If job_readiness: Review their preparation for job applications
-- If interview: Prepare them for interviews with tips and practice
-- If apply: Help with job search strategies and applications`;
+🎯 SELECTED CAREER PATH: ${selectedCareer?.career_title || "Not yet selected"}
+${selectedCareer ? `Industry: ${selectedCareer.industry || "Tech"}` : ""}${careerRecsContext}${skillsContext}${learningContext}${learningJourneyContext}${projectsContext}${jobReadinessContext}${interviewContext}
 
-    // Build conversation history for context
+📍 CURRENT JOURNEY STEP: ${currentStep.toUpperCase()}
+📊 JOURNEY STATE: ${JSON.stringify(journeyState || { profile_completed: true })}
+
+🚦 STEP-SPECIFIC GUIDANCE:
+Based on current step "${currentStep}", respond accordingly:
+
+1. CAREER_RECOMMENDATION: Help user understand career options based on their profile. Suggest 2-3 specific careers with reasoning tied to their interests, education, and experience.
+
+2. CAREER_SELECTION: Guide them in evaluating and confirming their career choice. Discuss growth potential, required skills, and industry outlook.
+
+3. SKILL_VALIDATION: Explain their current skill gaps. Reference their actual skill levels. Provide specific recommendations for improvement.
+
+4. LEARNING: Motivate their learning journey. Reference their actual learning plan and progress. Suggest resources, study strategies, time management.
+
+5. PROJECTS: Help them plan portfolio projects. Reference their assigned projects. Discuss practical implementation and how to showcase work.
+
+6. JOB_READINESS: Review their preparation. Help with resume tips, portfolio presentation, professional branding. Reference their actual readiness status.
+
+7. INTERVIEW: Prepare them with specific tips based on their target career. Provide practice questions relevant to ${selectedCareer?.career_title || "their field"}.
+
+8. APPLY: Strategic job search guidance. Help with applications, networking, company research specific to their career path.
+
+📝 RESPONSE RULES:
+- BE SPECIFIC: Use actual data from their profile. Never give generic advice.
+- BE CONCISE: 2-4 paragraphs max. Action-oriented, not wordy.
+- BE PROFESSIONAL: You're a senior career advisor, not a chatbot.
+- NEVER SKIP STEPS: Respect the journey state.
+- PROVIDE ACTIONS: End with 1-2 concrete next steps they can take.
+- USE MARKDOWN: Format with **bold**, bullet points, and clear structure.
+
+Remember: You have COMPLETE knowledge of this user. Use it to give hyper-personalized career advice.`;
+
+    // Build conversation history
     const conversationHistory = (recentMessages || []).reverse().map((msg: any) => ({
-      role: msg.role === "advisor" ? "model" : "user",
-      parts: [{ text: msg.message }],
+      role: msg.role === "advisor" ? "assistant" : "user",
+      content: msg.message,
     }));
 
-    // Make API call to Google Gemini API directly
-    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    // Call Lovable AI Gateway
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        contents: [
-          { role: "user", parts: [{ text: systemPrompt }] },
-          { role: "model", parts: [{ text: "I understand. I am now your AI Career Advisor and will guide you through your career journey step by step." }] },
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
           ...conversationHistory,
-          { role: "user", parts: [{ text: message }] },
+          { role: "user", content: message },
         ],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 2048,
-        },
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("Gemini API error:", aiResponse.status, errorText);
-      
+      console.error("AI Gateway error:", aiResponse.status, errorText);
+
       if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error("Gemini API error: " + errorText);
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ error: "AI service credits depleted. Please contact support." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw new Error("AI Gateway error: " + errorText);
     }
 
     const aiData = await aiResponse.json();
-    const responseText = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "I'm having trouble responding right now. Please try again.";
+    const responseText = aiData.choices?.[0]?.message?.content || "I'm having trouble responding right now. Please try again.";
 
     // Store advisor response
     await supabaseClient.from("advisor_conversations").insert({
       user_id: user.id,
       role: "advisor",
       message: responseText,
-      context: { currentStep },
+      context: { currentStep, selectedCareer: selectedCareer?.career_title },
     });
 
-    console.log("Successfully responded to chat");
+    console.log("Successfully responded to career advisor chat");
 
     return new Response(JSON.stringify({
       response: responseText,
       currentStep,
+      userContext: {
+        selectedCareer: selectedCareer?.career_title,
+        journeyState: currentStep,
+        skillGaps: skillValidations.filter(s => s.status === 'gap').length,
+        projectsCompleted: userProjects.filter((p: any) => p.status === 'completed').length,
+      }
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
