@@ -14,6 +14,8 @@ import {
   FolderOpen,
   Target,
   Gauge,
+  BookOpen,
+  Code,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,6 +39,8 @@ const JobReadiness = () => {
   const [portfolioReady, setPortfolioReady] = useState(false);
   const [confidenceLevel, setConfidenceLevel] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [completedProjectsCount, setCompletedProjectsCount] = useState(0);
+  const [completedLearningCount, setCompletedLearningCount] = useState(0);
 
   const [resumeChecklist, setResumeChecklist] = useState<ChecklistItem[]>([
     { id: "r1", label: "Updated contact information", completed: false },
@@ -70,17 +74,24 @@ const JobReadiness = () => {
     if (!user) return;
 
     try {
-      // Load existing job readiness data
-      const { data: readiness } = await supabase
-        .from('job_readiness')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // Call update-job-readiness to get current state
+      const { data: readinessResponse, error: fnError } = await supabase.functions.invoke('update-job-readiness', {
+        body: {
+          resume_ready: false,
+          portfolio_ready: false,
+          confidence_level: 0
+        }
+      });
 
-      if (readiness) {
-        setResumeReady(readiness.resume_ready || false);
-        setPortfolioReady(readiness.portfolio_ready || false);
-        setConfidenceLevel(readiness.confidence_level || 0);
+      if (!fnError && readinessResponse) {
+        setCompletedProjectsCount(readinessResponse.completedProjectsCount || 0);
+        setCompletedLearningCount(readinessResponse.completedLearningCount || 0);
+        
+        if (readinessResponse.jobReadiness) {
+          setResumeReady(readinessResponse.jobReadiness.resume_ready || false);
+          setPortfolioReady(readinessResponse.jobReadiness.portfolio_ready || false);
+          setConfidenceLevel(readinessResponse.jobReadiness.confidence_level || 0);
+        }
       }
 
       // Load skill validations for confidence display
@@ -95,15 +106,6 @@ const JobReadiness = () => {
           confidence: Math.round((parseInt(s.current_level || '1') / parseInt(s.required_level || '4')) * 100)
         })));
       }
-
-      // Call update-job-readiness to calculate current state
-      await supabase.functions.invoke('update-job-readiness', {
-        body: {
-          resume_ready: resumeReady,
-          portfolio_ready: portfolioReady,
-          confidence_level: confidenceLevel
-        }
-      });
 
     } catch (error) {
       console.error('Error loading job readiness:', error);
@@ -238,6 +240,34 @@ const JobReadiness = () => {
             </div>
           </div>
           <Progress value={overallProgress} className="h-3" />
+        </div>
+
+        {/* Journey Summary Section */}
+        <div className="bg-card border border-border rounded-xl p-6 mb-8 shadow-sm">
+          <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" />
+            Your Journey Summary
+          </h2>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+                <Code className="w-6 h-6 text-success" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-foreground">{completedProjectsCount}</div>
+                <div className="text-sm text-muted-foreground">Projects Completed</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-4 p-4 bg-muted/50 rounded-lg">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <BookOpen className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-foreground">{completedLearningCount}</div>
+                <div className="text-sm text-muted-foreground">Learning Skills Completed</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6 mb-8">

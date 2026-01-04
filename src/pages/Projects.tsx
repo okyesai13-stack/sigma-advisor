@@ -55,6 +55,7 @@ const Projects = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [projectSteps, setProjectSteps] = useState<ProjectSteps | null>(null);
   const [analyzingProject, setAnalyzingProject] = useState(false);
+  const [updatingReadiness, setUpdatingReadiness] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -624,11 +625,48 @@ const Projects = () => {
             <Button
               variant="hero"
               size="lg"
-              onClick={() => navigate("/job-readiness")}
+              onClick={async () => {
+                setUpdatingReadiness(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke('update-job-readiness', {
+                    body: {
+                      resume_ready: false,
+                      portfolio_ready: false,
+                      confidence_level: 0
+                    }
+                  });
+                  
+                  if (error) {
+                    console.error('Error updating job readiness:', error);
+                    toast({
+                      title: "Warning",
+                      description: "Couldn't update job readiness data.",
+                      variant: "destructive"
+                    });
+                  } else {
+                    console.log('Job readiness updated:', data);
+                  }
+                } catch (err) {
+                  console.error('Error calling update-job-readiness:', err);
+                } finally {
+                  setUpdatingReadiness(false);
+                  navigate("/job-readiness");
+                }
+              }}
+              disabled={updatingReadiness}
               className="gap-2"
             >
-              Continue to Job Readiness
-              <ChevronRight className="w-5 h-5" />
+              {updatingReadiness ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  Continue to Job Readiness
+                  <ChevronRight className="w-5 h-5" />
+                </>
+              )}
             </Button>
           </div>
         )}
