@@ -6,6 +6,48 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function callGeminiWithRetry(apiKey: string, prompt: string, maxTokens: number, maxRetries = 3): Promise<any> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: maxTokens,
+          },
+        }),
+      });
+
+      if (response.status === 429) {
+        const waitTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        console.log(`Rate limited, waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+        continue;
+      }
+
+      if (!response.ok) {
+        throw new Error(`Gemini API error: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      if (attempt < maxRetries - 1) {
+        const waitTime = Math.pow(2, attempt) * 1000;
+        console.log(`Error occurred, waiting ${waitTime}ms before retry`);
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
+    }
+  }
+  
+  throw lastError || new Error("Failed after max retries");
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,7 +74,6 @@ serve(async (req) => {
 
     console.log("Running AI interview for user:", user.id);
 
-    // Get selected career for context
     const { data: selectedCareer } = await supabaseClient
       .from("selected_career")
       .select("career_title")
@@ -46,7 +87,6 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    // If this is a new interview or just getting a question
     if (!message) {
       const prompt = `You are an experienced technical interviewer conducting a ${interview_type || "technical"} interview for a ${careerTitle} position.
       
@@ -55,31 +95,7 @@ Be professional but friendly.
 
 Start the interview with your first question.`;
 
-      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.8,
-            maxOutputTokens: 512,
-          },
-        }),
-      });
-
-      if (!aiResponse.ok) {
-        if (aiResponse.status === 429) {
-          return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-            status: 429,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-        throw new Error("Gemini API error");
-      }
-
-      const aiData = await aiResponse.json();
+      const aiData = await callGeminiWithRetry(GEMINI_API_KEY, prompt, 512);
       const question = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Tell me about yourself and your experience.";
 
       return new Response(JSON.stringify({ 
@@ -90,7 +106,6 @@ Start the interview with your first question.`;
       });
     }
 
-    // If user is responding, evaluate and continue or finish
     const prompt = `You are an experienced technical interviewer for a ${careerTitle} position.
     
 The candidate has answered a question. Evaluate their response and either:
@@ -115,35 +130,15 @@ Otherwise, just respond naturally as an interviewer.
 
 Candidate's response: "${message}"`;
 
-    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 1024,
-        },
-      }),
-    });
-
-    if (!aiResponse.ok) {
-      throw new Error("Gemini API error");
-    }
-
-    const aiData = await aiResponse.json();
+    const aiData = await callGeminiWithRetry(GEMINI_API_KEY, prompt, 1024);
     const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
 
-    // Check if this is final feedback
     if (content.includes('"type": "feedback"') || content.includes('"overall_score"')) {
       try {
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const feedback = JSON.parse(jsonMatch[0]);
           
-          // Save interview results
           const { data: interview, error: interviewError } = await supabaseClient
             .from("ai_interviews")
             .insert({
@@ -159,7 +154,6 @@ Candidate's response: "${message}"`;
             console.error("Error saving interview:", interviewError);
           }
 
-          // Update journey state
           await supabaseClient
             .from("user_journey_state")
             .update({ interview_completed: true, updated_at: new Date().toISOString() })
@@ -178,7 +172,6 @@ Candidate's response: "${message}"`;
       }
     }
 
-    // Regular interview response
     return new Response(JSON.stringify({ 
       type: "question",
       question: content
