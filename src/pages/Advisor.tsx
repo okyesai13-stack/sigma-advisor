@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
 import {
   Target,
   Send,
@@ -412,10 +413,16 @@ const Advisor = () => {
                   {message.role === "assistant" && (
                     <div className="flex items-center gap-2 mb-2">
                       <Sparkles className="w-4 h-4 text-primary" />
-                      <span className="text-sm font-medium text-primary">AI Advisor</span>
+                      <span className="text-sm font-medium text-primary">AI Career Advisor</span>
                     </div>
                   )}
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  {message.role === "assistant" ? (
+                    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground [&>h2]:text-lg [&>h2]:font-bold [&>h2]:mt-2 [&>h2]:mb-2 [&>h3]:text-base [&>h3]:font-semibold [&>h3]:mt-3 [&>h3]:mb-1 [&>ul]:my-1 [&>ul]:pl-4 [&>ol]:my-1 [&>ol]:pl-4 [&>li]:my-0.5 [&>p]:my-1">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="text-sm leading-relaxed">{message.content}</p>
+                  )}
                 </div>
               </div>
             ))}
