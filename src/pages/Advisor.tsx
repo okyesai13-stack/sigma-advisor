@@ -417,8 +417,58 @@ const Advisor = () => {
                     </div>
                   )}
                   {message.role === "assistant" ? (
-                    <div className="prose prose-sm dark:prose-invert max-w-none text-foreground [&>h2]:text-lg [&>h2]:font-bold [&>h2]:mt-2 [&>h2]:mb-2 [&>h3]:text-base [&>h3]:font-semibold [&>h3]:mt-3 [&>h3]:mb-1 [&>ul]:my-1 [&>ul]:pl-4 [&>ol]:my-1 [&>ol]:pl-4 [&>li]:my-0.5 [&>p]:my-1">
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <div className="markdown-content text-sm">
+                      <ReactMarkdown
+                        components={{
+                          h2: ({ children }) => (
+                            <h2 className="text-lg font-bold text-foreground mt-4 mb-3 flex items-center gap-2">
+                              {children}
+                            </h2>
+                          ),
+                          h3: ({ children }) => (
+                            <h3 className="text-base font-semibold text-foreground mt-4 mb-2">
+                              {children}
+                            </h3>
+                          ),
+                          ul: ({ children }) => (
+                            <ul className="list-disc list-outside ml-5 my-2 space-y-1.5">
+                              {children}
+                            </ul>
+                          ),
+                          ol: ({ children }) => (
+                            <ol className="list-decimal list-outside ml-5 my-2 space-y-1.5">
+                              {children}
+                            </ol>
+                          ),
+                          li: ({ children }) => (
+                            <li className="text-foreground leading-relaxed pl-1">
+                              {children}
+                            </li>
+                          ),
+                          p: ({ children }) => (
+                            <p className="text-foreground leading-relaxed my-2">
+                              {children}
+                            </p>
+                          ),
+                          strong: ({ children }) => (
+                            <strong className="font-semibold text-foreground">
+                              {children}
+                            </strong>
+                          ),
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-4 border-primary/50 pl-4 my-3 italic text-muted-foreground bg-muted/30 py-2 rounded-r">
+                              {children}
+                            </blockquote>
+                          ),
+                          code: ({ children }) => (
+                            <code className="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">
+                              {children}
+                            </code>
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed">{message.content}</p>
