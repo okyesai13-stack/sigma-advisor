@@ -5,7 +5,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
-import ReactMarkdown from "react-markdown";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Target,
   Send,
@@ -418,7 +419,8 @@ const Advisor = () => {
                   )}
                   {message.role === "assistant" ? (
                     <div className="markdown-content text-sm">
-                      <ReactMarkdown
+                      <Markdown
+                        remarkPlugins={[remarkGfm]}
                         components={{
                           h2: ({ children }) => (
                             <h2 className="text-lg font-bold text-foreground mt-4 mb-3 flex items-center gap-2">
@@ -468,7 +470,7 @@ const Advisor = () => {
                         }}
                       >
                         {message.content}
-                      </ReactMarkdown>
+                      </Markdown>
                     </div>
                   ) : (
                     <p className="text-sm leading-relaxed">{message.content}</p>
