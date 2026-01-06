@@ -6,40 +6,52 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function callGeminiWithRetry(apiKey: string, prompt: string, maxTokens: number, maxRetries = 3): Promise<any> {
+async function callLovableAI(prompt: string, maxRetries = 3): Promise<string> {
+  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  if (!LOVABLE_API_KEY) {
+    throw new Error("LOVABLE_API_KEY is not configured");
+  }
+
   let lastError: Error | null = null;
   
   for (let attempt = 0; attempt < maxRetries; attempt++) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: maxTokens,
-          },
+          model: "google/gemini-2.5-flash",
+          messages: [{ role: "user", content: prompt }],
         }),
       });
 
       if (response.status === 429) {
-        const waitTime = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+        const waitTime = Math.pow(2, attempt) * 2000 + Math.random() * 1000;
         console.log(`Rate limited, waiting ${waitTime}ms before retry ${attempt + 1}/${maxRetries}`);
         await new Promise(resolve => setTimeout(resolve, waitTime));
         continue;
       }
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
+      if (response.status === 402) {
+        throw new Error("Payment required - please add credits to your Lovable workspace");
       }
 
-      return await response.json();
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("AI gateway error:", response.status, errorText);
+        throw new Error(`AI gateway error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      return data.choices?.[0]?.message?.content || "";
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
+      console.error(`Attempt ${attempt + 1} failed:`, lastError.message);
       if (attempt < maxRetries - 1) {
-        const waitTime = Math.pow(2, attempt) * 1000;
-        console.log(`Error occurred, waiting ${waitTime}ms before retry`);
+        const waitTime = Math.pow(2, attempt) * 2000;
         await new Promise(resolve => setTimeout(resolve, waitTime));
       }
     }
@@ -82,11 +94,6 @@ serve(async (req) => {
 
     const careerTitle = selectedCareer?.career_title || "Full-Stack Developer";
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
-    }
-
     if (!message) {
       const prompt = `You are an experienced technical interviewer conducting a ${interview_type || "technical"} interview for a ${careerTitle} position.
       
@@ -95,8 +102,7 @@ Be professional but friendly.
 
 Start the interview with your first question.`;
 
-      const aiData = await callGeminiWithRetry(GEMINI_API_KEY, prompt, 512);
-      const question = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "Tell me about yourself and your experience.";
+      const question = await callLovableAI(prompt) || "Tell me about yourself and your experience.";
 
       return new Response(JSON.stringify({ 
         question,
@@ -130,8 +136,7 @@ Otherwise, just respond naturally as an interviewer.
 
 Candidate's response: "${message}"`;
 
-    const aiData = await callGeminiWithRetry(GEMINI_API_KEY, prompt, 1024);
-    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const content = await callLovableAI(prompt);
 
     if (content.includes('"type": "feedback"') || content.includes('"overall_score"')) {
       try {
