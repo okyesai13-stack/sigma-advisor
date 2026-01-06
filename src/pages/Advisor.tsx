@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -42,6 +43,7 @@ const formatMessage = (content: string): string => {
 const Advisor = () => {
   const { toast } = useToast();
   const { user } = useAuth();
+  const location = useLocation();
   const { loading: guardLoading } = usePageGuard('profile_completed', '/setup');
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -57,6 +59,17 @@ const Advisor = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  // Handle prefill message from Dashboard
+  useEffect(() => {
+    const state = location.state as { prefillMessage?: string } | null;
+    if (state?.prefillMessage) {
+      setInputValue(state.prefillMessage);
+      textareaRef.current?.focus();
+      // Clear the state so it doesn't persist on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   // Load conversation history
   useEffect(() => {

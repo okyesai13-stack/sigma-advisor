@@ -329,7 +329,7 @@ const Setup = () => {
           title: "Success",
           description: "Profile setup complete!",
         });
-        navigate("/advisor");
+        navigate("/dashboard");
       }
     }
   };
