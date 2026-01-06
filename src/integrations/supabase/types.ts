@@ -41,33 +41,6 @@ export type Database = {
         }
         Relationships: []
       }
-      ai_interviews: {
-        Row: {
-          created_at: string | null
-          feedback: string | null
-          id: string
-          interview_type: string | null
-          score: number | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          feedback?: string | null
-          id?: string
-          interview_type?: string | null
-          score?: number | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          feedback?: string | null
-          id?: string
-          interview_type?: string | null
-          score?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       career_recommendations: {
         Row: {
           career_title: string

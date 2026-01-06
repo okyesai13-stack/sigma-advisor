@@ -10,11 +10,6 @@ import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
 import Advisor from "./pages/Advisor";
-import Learn from "./pages/Learn";
-import Projects from "./pages/Projects";
-import JobReadiness from "./pages/JobReadiness";
-import Interview from "./pages/Interview";
-import Apply from "./pages/Apply";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -30,7 +25,6 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/auth" element={<Auth />} />
 
             {/* Protected Routes with Sidebar Layout */}
             <Route element={
@@ -40,11 +34,6 @@ const App = () => (
             }>
               <Route path="/setup" element={<Setup />} />
               <Route path="/advisor" element={<Advisor />} />
-              <Route path="/learn" element={<Learn />} />
-              <Route path="/projects" element={<Projects />} />
-              <Route path="/job-readiness" element={<JobReadiness />} />
-              <Route path="/interview" element={<Interview />} />
-              <Route path="/apply" element={<Apply />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
 
