@@ -275,7 +275,22 @@ Remember: You have COMPLETE knowledge of this user. Use it for hyper-personalize
     }
 
     const aiData = await aiResponse.json();
-    const responseText = aiData.choices?.[0]?.message?.content || "I'm having trouble responding right now. Please try again.";
+    let responseText = aiData.choices?.[0]?.message?.content || "I'm having trouble responding right now. Please try again.";
+
+    // Clean markdown symbols from response
+    responseText = responseText
+      .replace(/#{1,6}\s*/g, '')           // Remove # headers
+      .replace(/\*\*([^*]+)\*\*/g, '$1')   // Remove **bold**
+      .replace(/\*([^*]+)\*/g, '$1')       // Remove *italic*
+      .replace(/^[-*]\s+/gm, '• ')         // Replace - or * bullets with •
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // Remove [text](link) → text
+      .replace(/`([^`]+)`/g, '$1')         // Remove inline code backticks
+      .replace(/```[\s\S]*?```/g, '')      // Remove code blocks
+      .replace(/^\s*>\s*/gm, '')           // Remove blockquotes
+      .replace(/\[\s*\]/g, '')             // Remove empty []
+      .replace(/\[\s*x\s*\]/gi, '✓')       // Replace [x] with ✓
+      .replace(/\n{3,}/g, '\n\n')          // Limit consecutive newlines
+      .trim();
 
     // Store advisor response
     await supabaseClient.from("advisor_conversations").insert({

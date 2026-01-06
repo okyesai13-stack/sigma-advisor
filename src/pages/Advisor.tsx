@@ -22,6 +22,23 @@ interface Message {
   content: string;
 }
 
+// Clean any remaining markdown/formatting from message
+const formatMessage = (content: string): string => {
+  return content
+    .replace(/#{1,6}\s*/g, '')           // Remove # headers
+    .replace(/\*\*([^*]+)\*\*/g, '$1')   // Remove **bold**
+    .replace(/\*([^*]+)\*/g, '$1')       // Remove *italic*
+    .replace(/^[-]\s+/gm, '• ')          // Replace - bullets with •
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')  // Remove links
+    .replace(/`([^`]+)`/g, '$1')         // Remove inline code
+    .replace(/```[\s\S]*?```/g, '')      // Remove code blocks
+    .replace(/^\s*>\s*/gm, '')           // Remove blockquotes
+    .replace(/\[\s*\]/g, '')             // Remove empty []
+    .replace(/\[\s*x\s*\]/gi, '✓')       // Replace [x] with ✓
+    .replace(/\n{3,}/g, '\n\n')          // Limit consecutive newlines
+    .trim();
+};
+
 const Advisor = () => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -265,7 +282,7 @@ const Advisor = () => {
                       )}
                     >
                       <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                        {message.content}
+                        {formatMessage(message.content)}
                       </p>
                     </div>
                   </div>
