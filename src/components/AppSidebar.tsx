@@ -15,11 +15,17 @@ import {
     Sparkles,
     Settings,
     LogOut,
+    LayoutDashboard,
 } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 const items = [
+    {
+        title: "Dashboard",
+        url: "/dashboard",
+        icon: LayoutDashboard,
+    },
     {
         title: "Advisor",
         url: "/advisor",
@@ -42,7 +48,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link to="/advisor">
+                            <Link to="/dashboard">
                                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/60 text-primary-foreground">
                                     <Sparkles className="size-4" />
                                 </div>

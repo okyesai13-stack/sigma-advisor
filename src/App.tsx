@@ -9,6 +9,7 @@ import SidebarLayout from "@/components/SidebarLayout";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
+import Dashboard from "./pages/Dashboard";
 import Advisor from "./pages/Advisor";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
@@ -33,6 +34,7 @@ const App = () => (
               </ProtectedRoute>
             }>
               <Route path="/setup" element={<Setup />} />
+              <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/advisor" element={<Advisor />} />
               <Route path="/profile" element={<Profile />} />
             </Route>
