@@ -22,6 +22,11 @@ import {
   CheckCircle2,
   Circle,
   MessageCircle,
+  MapPin,
+  DollarSign,
+  Building2,
+  ExternalLink,
+  Clock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -65,6 +70,18 @@ interface UserProject {
   };
 }
 
+interface RecommendedJob {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  salary: string;
+  type: string;
+  match: number;
+  posted: string;
+  skills: string[];
+}
+
 interface UserProfile {
   goal_type: string;
   goal_description: string;
@@ -84,6 +101,7 @@ const Dashboard = () => {
   const [skills, setSkills] = useState<SkillValidation[]>([]);
   const [learningJourneys, setLearningJourneys] = useState<LearningJourney[]>([]);
   const [projects, setProjects] = useState<UserProject[]>([]);
+  const [recommendedJobs, setRecommendedJobs] = useState<RecommendedJob[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -168,11 +186,49 @@ const Dashboard = () => {
         })));
       }
 
+      // Generate recommended jobs based on selected career
+      if (selectedCareerRes.data) {
+        const careerTitle = selectedCareerRes.data.career_title;
+        const industry = selectedCareerRes.data.industry || 'Technology';
+        const userSkills = skillsRes.data?.map(s => s.skill_name) || [];
+        
+        // Generate mock job recommendations based on career
+        const mockJobs: RecommendedJob[] = generateJobRecommendations(careerTitle, industry, userSkills);
+        setRecommendedJobs(mockJobs);
+      }
+
     } catch (error) {
       console.error('Error loading dashboard data:', error);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const generateJobRecommendations = (careerTitle: string, industry: string, userSkills: string[]): RecommendedJob[] => {
+    const companies = ['Google', 'Microsoft', 'Amazon', 'Meta', 'Apple', 'Netflix', 'Spotify', 'Stripe', 'Airbnb', 'Uber'];
+    const locations = ['Remote', 'San Francisco, CA', 'New York, NY', 'Seattle, WA', 'Austin, TX', 'London, UK'];
+    const types = ['Full-time', 'Contract', 'Remote', 'Hybrid'];
+    const salaryRanges = ['$80k - $120k', '$100k - $150k', '$120k - $180k', '$150k - $220k', '$180k - $250k'];
+    
+    const jobTitles = [
+      `Senior ${careerTitle}`,
+      `${careerTitle}`,
+      `Junior ${careerTitle}`,
+      `Lead ${careerTitle}`,
+      `${careerTitle} II`,
+    ];
+
+    return jobTitles.map((title, index) => ({
+      id: `job-${index}`,
+      title,
+      company: companies[Math.floor(Math.random() * companies.length)],
+      location: locations[Math.floor(Math.random() * locations.length)],
+      salary: salaryRanges[Math.min(index, salaryRanges.length - 1)],
+      type: types[Math.floor(Math.random() * types.length)],
+      match: Math.max(65, 95 - (index * 7)),
+      posted: ['Just now', '2 hours ago', '1 day ago', '3 days ago', '1 week ago'][index],
+      skills: userSkills.slice(0, 3 + Math.floor(Math.random() * 2)),
+    }));
   };
 
   const askAI = (topic: string, context: string) => {
@@ -307,6 +363,10 @@ const Dashboard = () => {
               <TabsTrigger value="projects" className="gap-2">
                 <FolderKanban className="w-4 h-4" />
                 Projects
+              </TabsTrigger>
+              <TabsTrigger value="jobs" className="gap-2">
+                <Briefcase className="w-4 h-4" />
+                Jobs
               </TabsTrigger>
             </TabsList>
 
@@ -526,6 +586,60 @@ const Dashboard = () => {
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Job Recommendations Preview */}
+              <Card className="group hover:border-primary/30 transition-colors">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-base font-medium flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-primary" />
+                    Recommended Jobs
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity rounded-full bg-primary/10 hover:bg-primary/20 text-primary h-8 w-8"
+                    onClick={() => askAI('job search', selectedCareer?.career_title || '')}
+                    title="Ask AI for advice"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {recommendedJobs.length > 0 ? (
+                    <div className="space-y-3">
+                      {recommendedJobs.slice(0, 3).map((job) => (
+                        <div key={job.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
+                          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <Building2 className="w-4 h-4 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-medium text-foreground text-sm truncate">{job.title}</h4>
+                            <p className="text-xs text-muted-foreground truncate">{job.company} • {job.location}</p>
+                          </div>
+                          <Badge className={cn(
+                            "text-xs shrink-0",
+                            job.match >= 85 ? "bg-success/10 text-success border-success/20" : "bg-primary/10 text-primary border-primary/20"
+                          )}>
+                            {job.match}% match
+                          </Badge>
+                        </div>
+                      ))}
+                      {recommendedJobs.length > 3 && (
+                        <Button variant="ghost" size="sm" className="w-full text-muted-foreground">
+                          View all {recommendedJobs.length} jobs <ChevronRight className="w-4 h-4 ml-1" />
+                        </Button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <p className="text-muted-foreground text-sm">Select a career to see job matches</p>
+                      <Button variant="link" size="sm" onClick={() => navigate('/advisor')} className="mt-2">
+                        Get Career Recommendations <ArrowUpRight className="w-3 h-3 ml-1" />
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
               {/* Interests Section */}
               {profile?.interests && profile.interests.length > 0 && (
@@ -757,6 +871,139 @@ const Dashboard = () => {
                       </Button>
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Jobs Tab */}
+            <TabsContent value="jobs" className="space-y-6">
+              <Card className="group">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="flex items-center gap-2">
+                    <Briefcase className="w-5 h-5 text-primary" />
+                    Recommended Jobs
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="gap-2 text-primary"
+                    onClick={() => askAI('job search strategy', `Career: ${selectedCareer?.career_title || 'Not selected'}, Skills: ${skills.map(s => s.skill_name).join(', ')}`)}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Get AI Advice
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  {recommendedJobs.length > 0 ? (
+                    <div className="space-y-4">
+                      {recommendedJobs.map((job) => (
+                        <div key={job.id} className="group/item p-4 rounded-lg bg-muted/30 border border-border hover:border-primary/30 transition-colors">
+                          <div className="flex items-start justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-3 mb-2">
+                                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                  <Building2 className="w-5 h-5 text-primary" />
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-foreground">{job.title}</h4>
+                                  <p className="text-sm text-muted-foreground">{job.company}</p>
+                                </div>
+                              </div>
+                              <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground mb-3">
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="w-3.5 h-3.5" />
+                                  {job.location}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <DollarSign className="w-3.5 h-3.5" />
+                                  {job.salary}
+                                </span>
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-3.5 h-3.5" />
+                                  {job.posted}
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-1.5">
+                                <Badge variant="outline" className="text-xs">{job.type}</Badge>
+                                {job.skills.slice(0, 3).map((skill) => (
+                                  <Badge key={skill} variant="secondary" className="text-xs">{skill}</Badge>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-sm font-semibold text-primary">{job.match}%</span>
+                                <span className="text-xs text-muted-foreground">match</span>
+                              </div>
+                              <Progress value={job.match} className="w-16 h-1.5" />
+                              <div className="flex gap-1 mt-2">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="opacity-0 group-hover/item:opacity-100 transition-opacity rounded-full bg-primary/10 hover:bg-primary/20 text-primary h-8 w-8"
+                                  onClick={() => askAI(`applying to ${job.title} at ${job.company}`, `Required skills: ${job.skills.join(', ')}`)}
+                                  title="Ask AI for advice"
+                                >
+                                  <Sparkles className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="rounded-full bg-muted hover:bg-muted/80 h-8 w-8"
+                                  title="View job details"
+                                >
+                                  <ExternalLink className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Briefcase className="w-12 h-12 text-muted-foreground/50 mx-auto mb-4" />
+                      <p className="text-muted-foreground">Select a career path to see job recommendations</p>
+                      <Button onClick={() => navigate('/advisor')} className="mt-4">
+                        Get Career Recommendations
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Job Search Tips Card */}
+              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-base font-medium flex items-center gap-2">
+                    <Zap className="w-5 h-5 text-primary" />
+                    Quick Tips
+                  </CardTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full bg-primary/10 hover:bg-primary/20 text-primary h-8 w-8"
+                    onClick={() => askAI('job application tips', selectedCareer?.career_title || '')}
+                    title="Ask AI for advice"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                  </Button>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid md:grid-cols-3 gap-4">
+                    <div className="p-3 rounded-lg bg-background/50 border border-border">
+                      <h4 className="font-medium text-foreground text-sm mb-1">Tailor Your Resume</h4>
+                      <p className="text-xs text-muted-foreground">Customize for each application with relevant keywords</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background/50 border border-border">
+                      <h4 className="font-medium text-foreground text-sm mb-1">Network Actively</h4>
+                      <p className="text-xs text-muted-foreground">Connect with professionals in your target industry</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-background/50 border border-border">
+                      <h4 className="font-medium text-foreground text-sm mb-1">Practice Interviews</h4>
+                      <p className="text-xs text-muted-foreground">Prepare for behavioral and technical questions</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
