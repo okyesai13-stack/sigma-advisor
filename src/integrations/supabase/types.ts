@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      advisor_chat_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          title: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          title?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       advisor_conversations: {
         Row: {
           context: Json | null
@@ -21,6 +45,7 @@ export type Database = {
           id: string
           message: string
           role: string
+          session_id: string | null
           user_id: string
         }
         Insert: {
@@ -29,6 +54,7 @@ export type Database = {
           id?: string
           message: string
           role: string
+          session_id?: string | null
           user_id: string
         }
         Update: {
@@ -37,9 +63,18 @@ export type Database = {
           id?: string
           message?: string
           role?: string
+          session_id?: string | null
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "advisor_conversations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "advisor_chat_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       career_recommendations: {
         Row: {

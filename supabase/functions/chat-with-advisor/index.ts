@@ -19,7 +19,7 @@ serve(async (req: Request) => {
       throw new Error("No authorization header");
     }
 
-    const { message } = await req.json();
+    const { message, sessionId } = await req.json();
     if (!message) {
       throw new Error("Message is required");
     }
@@ -35,14 +35,15 @@ serve(async (req: Request) => {
       throw new Error("User not authenticated");
     }
 
-    console.log("Chat with advisor for user:", user.id);
+    console.log("Chat with advisor for user:", user.id, "session:", sessionId);
 
-    // Store user message
+    // Store user message with session_id
     await supabaseClient.from("advisor_conversations").insert({
       user_id: user.id,
       role: "user",
       message,
       context: null,
+      session_id: sessionId || null,
     });
 
     // Fetch ALL user context from multiple tables in parallel
@@ -75,7 +76,9 @@ serve(async (req: Request) => {
       supabaseClient.from("user_projects").select("*, projects(*)").eq("user_id", user.id),
       supabaseClient.from("job_readiness").select("*").eq("user_id", user.id).single(),
       supabaseClient.from("ai_interviews").select("*").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
-      supabaseClient.from("advisor_conversations").select("role, message").eq("user_id", user.id).order("created_at", { ascending: false }).limit(15)
+      sessionId 
+        ? supabaseClient.from("advisor_conversations").select("role, message").eq("user_id", user.id).eq("session_id", sessionId).order("created_at", { ascending: false }).limit(15)
+        : supabaseClient.from("advisor_conversations").select("role, message").eq("user_id", user.id).order("created_at", { ascending: false }).limit(15)
     ]);
 
     const profile = profileResult.data;
@@ -292,12 +295,13 @@ Remember: You have COMPLETE knowledge of this user. Use it for hyper-personalize
       .replace(/\n{3,}/g, '\n\n')          // Limit consecutive newlines
       .trim();
 
-    // Store advisor response
+    // Store advisor response with session_id
     await supabaseClient.from("advisor_conversations").insert({
       user_id: user.id,
       role: "advisor",
       message: responseText,
       context: { currentStep, selectedCareer: selectedCareer?.career_title },
+      session_id: sessionId || null,
     });
 
     console.log("Successfully responded to career advisor chat");
