@@ -120,16 +120,14 @@ const Dashboard = () => {
         profileRes,
         careerRes,
         selectedCareerRes,
-        skillsRes,
         learningRes,
-        projectsRes,
+        projectIdeasRes,
       ] = await Promise.all([
         supabase.from('users_profile').select('*').eq('id', user.id).single(),
         supabase.from('career_recommendations').select('*').eq('user_id', user.id).order('confidence_score', { ascending: false }),
         supabase.from('selected_career').select('*').eq('user_id', user.id).single(),
-        supabase.from('user_skill_validation').select('*').eq('user_id', user.id),
         supabase.from('user_learning_journey').select('*').eq('user_id', user.id),
-        supabase.from('user_projects').select('*, project:projects(*)').eq('user_id', user.id),
+        supabase.from('project_ideas').select('*').eq('user_id', user.id),
       ]);
 
       if (profileRes.data) {
@@ -155,16 +153,15 @@ const Dashboard = () => {
         });
       }
 
-      if (skillsRes.data) {
-        setSkills(skillsRes.data.map(s => ({
-          skill_name: s.skill_name,
-          current_level: s.current_level || 'Beginner',
-          required_level: s.required_level || 'Expert',
-          status: s.status || 'gap',
-        })));
-      }
-
+      // Extract skills from learning journeys
       if (learningRes.data) {
+        setSkills(learningRes.data.map(l => ({
+          skill_name: l.skill_name,
+          current_level: 'Beginner',
+          required_level: 'Expert',
+          status: l.status || 'not_started',
+        })));
+        
         setLearningJourneys(learningRes.data.map(l => ({
           skill_name: l.skill_name,
           status: l.status || 'not_started',
@@ -173,15 +170,16 @@ const Dashboard = () => {
         })));
       }
 
-      if (projectsRes.data) {
-        setProjects(projectsRes.data.map((p: any) => ({
+      // Use project_ideas table for projects
+      if (projectIdeasRes.data) {
+        setProjects(projectIdeasRes.data.map((p) => ({
           id: p.id,
-          status: p.status || 'not_started',
+          status: p.status || 'Not Started',
           project: {
-            project_title: p.project?.project_title || 'Unknown Project',
-            description: p.project?.description || '',
-            difficulty: p.project?.difficulty || 'Medium',
-            skills_covered: p.project?.skills_covered || [],
+            project_title: p.title || 'Unknown Project',
+            description: p.description || '',
+            difficulty: 'Medium',
+            skills_covered: [],
           },
         })));
       }
@@ -190,7 +188,7 @@ const Dashboard = () => {
       if (selectedCareerRes.data) {
         const careerTitle = selectedCareerRes.data.career_title;
         const industry = selectedCareerRes.data.industry || 'Technology';
-        const userSkills = skillsRes.data?.map(s => s.skill_name) || [];
+        const userSkills = learningRes.data?.map(l => l.skill_name) || [];
         
         // Generate mock job recommendations based on career
         const mockJobs: RecommendedJob[] = generateJobRecommendations(careerTitle, industry, userSkills);
