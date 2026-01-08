@@ -12,6 +12,7 @@ import Setup from "./pages/Setup";
 import Dashboard from "./pages/Dashboard";
 import Advisor from "./pages/Advisor";
 import Profile from "./pages/Profile";
+import Sigma from "./pages/Sigma";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/advisor" element={<Advisor />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/sigma" element={<Sigma />} />
             </Route>
 
             <Route path="*" element={<NotFound />} />
