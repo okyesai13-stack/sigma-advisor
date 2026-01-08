@@ -806,19 +806,30 @@ const Setup = () => {
                       <p className="text-sm text-muted-foreground mb-4">
                         {resumeFileName}
                       </p>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => {
-                          setResumeFileName(null);
-                          setResumeParsed(false);
-                          if (fileInputRef.current) fileInputRef.current.value = '';
-                        }}
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        Upload a different resume
-                      </Button>
+                      <div className="flex flex-col gap-3 items-center">
+                        <Button
+                          type="button"
+                          variant="hero"
+                          onClick={() => navigate('/sigma')}
+                          className="gap-2"
+                        >
+                          <Rocket className="w-4 h-4" />
+                          Start Career Analysis
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setResumeFileName(null);
+                            setResumeParsed(false);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                          }}
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          Upload a different resume
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
