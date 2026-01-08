@@ -41,7 +41,9 @@ serve(async (req) => {
     // Get request body
     const { resumeText, fileName } = await req.json();
 
-    if (!resumeText) {
+    const cleanedResumeText = typeof resumeText === 'string' ? resumeText.replace(/\u0000/g, '').trim() : '';
+
+    if (!cleanedResumeText) {
       return new Response(
         JSON.stringify({ error: 'Resume text is required' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -106,7 +108,7 @@ serve(async (req) => {
 }
 
 Resume Text:
-${resumeText}
+${cleanedResumeText}
 
 Return ONLY the JSON object, no additional text or markdown formatting.`;
 
@@ -162,7 +164,7 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       parsedData = JSON.parse(parsedContent);
     } catch (parseError) {
       console.error('Failed to parse AI response:', parsedContent);
-      parsedData = { raw_text: resumeText, parse_error: 'Failed to structure data' };
+      parsedData = { raw_text: cleanedResumeText, parse_error: 'Failed to structure data' };
     }
 
     // Check if resume analysis already exists for this user
@@ -170,7 +172,7 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       .from('resume_analysis')
       .select('id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
     let result;
     if (existingAnalysis) {
@@ -178,7 +180,7 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
       const { data, error } = await supabase
         .from('resume_analysis')
         .update({
-          resume_text: resumeText,
+          resume_text: cleanedResumeText,
           file_name: fileName || null,
           parsed_data: parsedData,
           updated_at: new Date().toISOString(),
@@ -195,7 +197,7 @@ Return ONLY the JSON object, no additional text or markdown formatting.`;
         .from('resume_analysis')
         .insert({
           user_id: user.id,
-          resume_text: resumeText,
+          resume_text: cleanedResumeText,
           file_name: fileName || null,
           parsed_data: parsedData,
         })

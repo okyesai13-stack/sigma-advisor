@@ -4,14 +4,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
-import { 
-  Target, BookOpen, Rocket, Check, ArrowRight, ArrowLeft, 
-  Plus, X, GraduationCap, Briefcase, Award, LogOut, Loader2, Upload, FileText, CheckCircle 
+import {
+  Target,
+  BookOpen,
+  Rocket,
+  Check,
+  ArrowRight,
+  ArrowLeft,
+  Plus,
+  X,
+  GraduationCap,
+  Briefcase,
+  Award,
+  LogOut,
+  Loader2,
+  Upload,
+  FileText,
+  CheckCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
+import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
+import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import mammoth from "mammoth";
+
+(pdfjsLib as any).GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+
 
 const Setup = () => {
   const navigate = useNavigate();
@@ -193,13 +213,15 @@ const Setup = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type (text-based files for now)
-    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
+    // Validate file type
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const allowedExts = ['txt', 'pdf', 'docx'];
+
+    if (!ext || !allowedExts.includes(ext)) {
       toast({
         title: "Invalid file type",
-        description: "Please upload a PDF, DOC, DOCX, or TXT file",
-        variant: "destructive"
+        description: "Please upload a PDF, DOCX, or TXT file",
+        variant: "destructive",
       });
       return;
     }
@@ -210,50 +232,69 @@ const Setup = () => {
     try {
       let resumeText = '';
 
-      // For text files, read directly
-      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+      if (ext === 'txt') {
         resumeText = await file.text();
-      } else {
-        // For PDF/DOC files, we'll read as text for now (basic extraction)
-        // A more robust solution would use a dedicated PDF parsing library
-        const reader = new FileReader();
-        resumeText = await new Promise((resolve, reject) => {
-          reader.onload = (e) => {
-            const result = e.target?.result as string;
-            // Extract text content (basic approach)
-            resolve(result);
-          };
-          reader.onerror = () => reject(new Error('Failed to read file'));
-          reader.readAsText(file);
-        });
       }
 
-      if (!resumeText.trim()) {
+      if (ext === 'docx') {
+        const arrayBuffer = await file.arrayBuffer();
+        const { value } = await mammoth.extractRawText({ arrayBuffer });
+        resumeText = value || '';
+      }
+
+      if (ext === 'pdf') {
+        const arrayBuffer = await file.arrayBuffer();
+        const loadingTask = (pdfjsLib as any).getDocument({ data: new Uint8Array(arrayBuffer) });
+        const pdf = await loadingTask.promise;
+
+        let fullText = '';
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          const pageText = (content.items || [])
+            .map((item: any) => (typeof item.str === 'string' ? item.str : ''))
+            .join(' ');
+          fullText += pageText + "\n";
+        }
+
+        resumeText = fullText;
+      }
+
+      // Remove null bytes and trim for safety (prevents DB errors on \u0000)
+      resumeText = resumeText.replace(/\u0000/g, '').trim();
+
+      if (!resumeText) {
         toast({
-          title: "Empty file",
-          description: "The uploaded file appears to be empty. Please try a different file.",
-          variant: "destructive"
+          title: "Could not read resume",
+          description: "We couldn't extract text from that file. Try a different PDF/DOCX or upload a TXT resume.",
+          variant: "destructive",
         });
-        setIsUploadingResume(false);
         return;
       }
 
+      // Keep prompts bounded
+      const resumeTextForAi = resumeText.slice(0, 20000);
+
       // Call the edge function to parse the resume
       const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      if (!accessToken) throw new Error('You must be logged in to upload a resume');
+
       const response = await fetch(
         `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/resume-parser`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${sessionData.session?.access_token}`,
+            'Authorization': `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            resumeText,
+            resumeText: resumeTextForAi,
             fileName: file.name,
           }),
         }
       );
+
 
       const result = await response.json();
 
@@ -716,7 +757,7 @@ const Setup = () => {
                     type="file"
                     ref={fileInputRef}
                     onChange={handleResumeUpload}
-                    accept=".pdf,.doc,.docx,.txt"
+                    accept=".pdf,.docx,.txt"
                     className="hidden"
                   />
                   
