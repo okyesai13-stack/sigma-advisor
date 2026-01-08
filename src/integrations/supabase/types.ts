@@ -76,6 +76,63 @@ export type Database = {
           },
         ]
       }
+      ai_job_recommendations: {
+        Row: {
+          career_role: string
+          company_name: string
+          created_at: string
+          domain: string | null
+          id: string
+          is_saved: boolean
+          job_description: string | null
+          job_link: string | null
+          job_title: string
+          location: string | null
+          relevance_score: number
+          required_skills: string[] | null
+          selected_job: boolean | null
+          skill_tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          career_role: string
+          company_name: string
+          created_at?: string
+          domain?: string | null
+          id?: string
+          is_saved?: boolean
+          job_description?: string | null
+          job_link?: string | null
+          job_title: string
+          location?: string | null
+          relevance_score?: number
+          required_skills?: string[] | null
+          selected_job?: boolean | null
+          skill_tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          career_role?: string
+          company_name?: string
+          created_at?: string
+          domain?: string | null
+          id?: string
+          is_saved?: boolean
+          job_description?: string | null
+          job_link?: string | null
+          job_title?: string
+          location?: string | null
+          relevance_score?: number
+          required_skills?: string[] | null
+          selected_job?: boolean | null
+          skill_tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       career_recommendations: {
         Row: {
           career_title: string
@@ -193,86 +250,259 @@ export type Database = {
         }
         Relationships: []
       }
-      job_readiness: {
+      project_build: {
         Row: {
-          confidence_level: number | null
+          about: string
+          category: string
+          created_at: string | null
+          how: string
           id: string
-          portfolio_ready: boolean | null
-          resume_ready: boolean | null
+          project_id: string
+          tool_link: string
+          tool_name: string
           updated_at: string | null
           user_id: string
+          user_link: string | null
+          why: string
         }
         Insert: {
-          confidence_level?: number | null
+          about: string
+          category: string
+          created_at?: string | null
+          how: string
           id?: string
-          portfolio_ready?: boolean | null
-          resume_ready?: boolean | null
+          project_id: string
+          tool_link: string
+          tool_name: string
           updated_at?: string | null
           user_id: string
+          user_link?: string | null
+          why: string
         }
         Update: {
-          confidence_level?: number | null
+          about?: string
+          category?: string
+          created_at?: string | null
+          how?: string
           id?: string
-          portfolio_ready?: boolean | null
-          resume_ready?: boolean | null
+          project_id?: string
+          tool_link?: string
+          tool_name?: string
           updated_at?: string | null
           user_id?: string
+          user_link?: string | null
+          why?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "project_build_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      learning_plan: {
+      project_build_steps: {
         Row: {
-          created_at: string | null
+          created_at: string
+          deliverables: string[] | null
+          description: string
+          estimated_duration: string | null
           id: string
-          priority: number | null
-          skill_name: string
-          status: string | null
+          project_id: string
+          status: string
+          step_number: number
+          title: string
+          updated_at: string
           user_id: string
         }
         Insert: {
-          created_at?: string | null
+          created_at?: string
+          deliverables?: string[] | null
+          description: string
+          estimated_duration?: string | null
           id?: string
-          priority?: number | null
-          skill_name: string
-          status?: string | null
+          project_id: string
+          status?: string
+          step_number: number
+          title: string
+          updated_at?: string
           user_id: string
         }
         Update: {
-          created_at?: string | null
+          created_at?: string
+          deliverables?: string[] | null
+          description?: string
+          estimated_duration?: string | null
           id?: string
-          priority?: number | null
-          skill_name?: string
-          status?: string | null
+          project_id?: string
+          status?: string
+          step_number?: number
+          title?: string
+          updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "project_build_steps_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      projects: {
+      project_detail: {
         Row: {
-          career_title: string
+          created_at: string
+          id: string
+          kanban_board: Json | null
+          project_id: string
+          tasks: Json | null
+          timeline: Json | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kanban_board?: Json | null
+          project_id: string
+          tasks?: Json | null
+          timeline?: Json | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kanban_board?: Json | null
+          project_id?: string
+          tasks?: Json | null
+          timeline?: Json | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_detail_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_ideas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      project_ideas: {
+        Row: {
+          budget: number | null
+          created_at: string
           description: string | null
-          difficulty: string | null
+          domain: string | null
           id: string
-          project_title: string
-          skills_covered: string[] | null
+          problem: string | null
+          selected_project: boolean | null
+          status: string | null
+          title: string
+          updated_at: string
+          user_id: string
         }
         Insert: {
-          career_title: string
+          budget?: number | null
+          created_at?: string
           description?: string | null
-          difficulty?: string | null
+          domain?: string | null
           id?: string
-          project_title: string
-          skills_covered?: string[] | null
+          problem?: string | null
+          selected_project?: boolean | null
+          status?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
         }
         Update: {
-          career_title?: string
+          budget?: number | null
+          created_at?: string
           description?: string | null
-          difficulty?: string | null
+          domain?: string | null
           id?: string
-          project_title?: string
-          skills_covered?: string[] | null
+          problem?: string | null
+          selected_project?: boolean | null
+          status?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
+      }
+      resume_analysis: {
+        Row: {
+          created_at: string
+          file_name: string | null
+          id: string
+          parsed_data: Json | null
+          resume_text: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          parsed_data?: Json | null
+          resume_text?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string | null
+          id?: string
+          parsed_data?: Json | null
+          resume_text?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      resume_career_advice: {
+        Row: {
+          career_advice: Json
+          created_at: string
+          id: string
+          resume_analysis_id: string | null
+          selected_role: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          career_advice: Json
+          created_at?: string
+          id?: string
+          resume_analysis_id?: string | null
+          selected_role?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          career_advice?: Json
+          created_at?: string
+          id?: string
+          resume_analysis_id?: string | null
+          selected_role?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "resume_career_advice_resume_analysis_id_fkey"
+            columns: ["resume_analysis_id"]
+            isOneToOne: false
+            referencedRelation: "resume_analysis"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       selected_career: {
         Row: {
@@ -295,27 +525,6 @@ export type Database = {
           industry?: string | null
           selected_at?: string | null
           user_id?: string
-        }
-        Relationships: []
-      }
-      skill_catalog: {
-        Row: {
-          category: string | null
-          description: string | null
-          id: string
-          skill_name: string
-        }
-        Insert: {
-          category?: string | null
-          description?: string | null
-          id?: string
-          skill_name: string
-        }
-        Update: {
-          category?: string | null
-          description?: string | null
-          id?: string
-          skill_name?: string
         }
         Relationships: []
       }
@@ -399,118 +608,6 @@ export type Database = {
           status?: string | null
           steps_completed?: boolean[] | null
           updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_project_steps: {
-        Row: {
-          ai_tools: Json
-          build_completed: boolean[] | null
-          build_steps: Json
-          created_at: string | null
-          id: string
-          plan_completed: boolean[] | null
-          plan_steps: Json
-          updated_at: string | null
-          user_id: string
-          user_project_id: string
-        }
-        Insert: {
-          ai_tools?: Json
-          build_completed?: boolean[] | null
-          build_steps?: Json
-          created_at?: string | null
-          id?: string
-          plan_completed?: boolean[] | null
-          plan_steps?: Json
-          updated_at?: string | null
-          user_id: string
-          user_project_id: string
-        }
-        Update: {
-          ai_tools?: Json
-          build_completed?: boolean[] | null
-          build_steps?: Json
-          created_at?: string | null
-          id?: string
-          plan_completed?: boolean[] | null
-          plan_steps?: Json
-          updated_at?: string | null
-          user_id?: string
-          user_project_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_project_steps_user_project_id_fkey"
-            columns: ["user_project_id"]
-            isOneToOne: false
-            referencedRelation: "user_projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_projects: {
-        Row: {
-          created_at: string | null
-          id: string
-          project_id: string
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          project_id: string
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          project_id?: string
-          status?: string | null
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_projects_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "projects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      user_skill_validation: {
-        Row: {
-          career_title: string
-          created_at: string | null
-          current_level: string | null
-          id: string
-          required_level: string | null
-          skill_name: string
-          status: string | null
-          user_id: string
-        }
-        Insert: {
-          career_title: string
-          created_at?: string | null
-          current_level?: string | null
-          id?: string
-          required_level?: string | null
-          skill_name: string
-          status?: string | null
-          user_id: string
-        }
-        Update: {
-          career_title?: string
-          created_at?: string | null
-          current_level?: string | null
-          id?: string
-          required_level?: string | null
-          skill_name?: string
-          status?: string | null
           user_id?: string
         }
         Relationships: []
