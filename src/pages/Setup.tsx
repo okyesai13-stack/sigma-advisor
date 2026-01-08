@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useNavigate } from "react-router-dom";
 import { 
   Target, BookOpen, Rocket, Check, ArrowRight, ArrowLeft, 
-  Plus, X, GraduationCap, Briefcase, Award, LogOut, Loader2 
+  Plus, X, GraduationCap, Briefcase, Award, LogOut, Loader2, Upload, FileText, CheckCircle 
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -46,6 +46,12 @@ const Setup = () => {
     issuer: string;
     year: string;
   }[]>([]);
+  
+  // Resume upload state
+  const [isUploadingResume, setIsUploadingResume] = useState(false);
+  const [resumeFileName, setResumeFileName] = useState<string | null>(null);
+  const [resumeParsed, setResumeParsed] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing data when component mounts
   useEffect(() => {
@@ -181,6 +187,154 @@ const Setup = () => {
 
   const removeCertification = (index: number) => {
     setCertifications(certifications.filter((_, i) => i !== index));
+  };
+
+  const handleResumeUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type (text-based files for now)
+    const allowedTypes = ['text/plain', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type) && !file.name.endsWith('.txt')) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a PDF, DOC, DOCX, or TXT file",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingResume(true);
+    setResumeFileName(file.name);
+
+    try {
+      let resumeText = '';
+
+      // For text files, read directly
+      if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
+        resumeText = await file.text();
+      } else {
+        // For PDF/DOC files, we'll read as text for now (basic extraction)
+        // A more robust solution would use a dedicated PDF parsing library
+        const reader = new FileReader();
+        resumeText = await new Promise((resolve, reject) => {
+          reader.onload = (e) => {
+            const result = e.target?.result as string;
+            // Extract text content (basic approach)
+            resolve(result);
+          };
+          reader.onerror = () => reject(new Error('Failed to read file'));
+          reader.readAsText(file);
+        });
+      }
+
+      if (!resumeText.trim()) {
+        toast({
+          title: "Empty file",
+          description: "The uploaded file appears to be empty. Please try a different file.",
+          variant: "destructive"
+        });
+        setIsUploadingResume(false);
+        return;
+      }
+
+      // Call the edge function to parse the resume
+      const { data: sessionData } = await supabase.auth.getSession();
+      const response = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/resume-parser`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionData.session?.access_token}`,
+          },
+          body: JSON.stringify({
+            resumeText,
+            fileName: file.name,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to parse resume');
+      }
+
+      // Auto-fill form fields from parsed data
+      const parsedData = result.data?.parsed_data;
+      if (parsedData) {
+        // Fill education
+        if (parsedData.education && parsedData.education.length > 0) {
+          const latestEdu = parsedData.education[0];
+          setEducation({
+            degree: latestEdu.degree || '',
+            field: latestEdu.field || '',
+            year: latestEdu.graduation_year?.toString() || '',
+            institution: latestEdu.institution || '',
+          });
+        }
+
+        // Fill experiences
+        if (parsedData.experience && parsedData.experience.length > 0) {
+          setExperiences(parsedData.experience.map((exp: { 
+            company?: string; 
+            role?: string; 
+            skills?: string[];
+            start_year?: number;
+            end_year?: number;
+          }) => ({
+            company: exp.company || '',
+            role: exp.role || '',
+            skills: (exp.skills || []).join(', '),
+            startYear: exp.start_year?.toString() || '',
+            endYear: exp.end_year?.toString() || '',
+          })));
+        }
+
+        // Fill certifications
+        if (parsedData.certifications && parsedData.certifications.length > 0) {
+          setCertifications(parsedData.certifications.map((cert: {
+            title?: string;
+            issuer?: string;
+            year?: number;
+          }) => ({
+            title: cert.title || '',
+            issuer: cert.issuer || '',
+            year: cert.year?.toString() || '',
+          })));
+        }
+
+        // Fill interests from resume
+        if (parsedData.interests && parsedData.interests.length > 0) {
+          setInterests(prev => [...new Set([...prev, ...parsedData.interests])]);
+        }
+
+        // Fill hobbies if any
+        if (parsedData.skills && parsedData.skills.length > 0) {
+          // Add skills as activities if not already present
+          const skillsText = parsedData.skills.slice(0, 10).join(', ');
+          setActivities(prev => prev ? `${prev}, ${skillsText}` : skillsText);
+        }
+      }
+
+      setResumeParsed(true);
+      toast({
+        title: "Resume uploaded successfully!",
+        description: "Your information has been extracted and filled in automatically.",
+      });
+
+    } catch (error: unknown) {
+      console.error('Error uploading resume:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to upload resume';
+      toast({
+        title: "Upload failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingResume(false);
+    }
   };
 
   const saveProfileToSupabase = async () => {
@@ -549,6 +703,84 @@ const Setup = () => {
                     </span>
                   )}
                 </p>
+              </div>
+
+              {/* Resume Upload */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-foreground font-semibold">
+                  <Upload className="w-5 h-5 text-primary" />
+                  Upload Resume
+                </div>
+                <div className="p-6 rounded-xl bg-gradient-to-br from-primary/5 to-accent/30 border-2 border-dashed border-primary/30 hover:border-primary/50 transition-colors">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleResumeUpload}
+                    accept=".pdf,.doc,.docx,.txt"
+                    className="hidden"
+                  />
+                  
+                  {!resumeFileName && !isUploadingResume && (
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                        <FileText className="w-8 h-8 text-primary" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2">Upload your resume</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        We'll automatically extract your education, experience, and skills
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="gap-2"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Choose File
+                      </Button>
+                      <p className="text-xs text-muted-foreground mt-3">
+                        Supports PDF, DOC, DOCX, and TXT files
+                      </p>
+                    </div>
+                  )}
+
+                  {isUploadingResume && (
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2">Parsing your resume...</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {resumeFileName}
+                      </p>
+                    </div>
+                  )}
+
+                  {resumeFileName && !isUploadingResume && resumeParsed && (
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/10 flex items-center justify-center">
+                        <CheckCircle className="w-8 h-8 text-success" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2">Resume uploaded successfully!</h3>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        {resumeFileName}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setResumeFileName(null);
+                          setResumeParsed(false);
+                          if (fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                        className="text-muted-foreground hover:text-foreground"
+                      >
+                        Upload a different resume
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Education */}
