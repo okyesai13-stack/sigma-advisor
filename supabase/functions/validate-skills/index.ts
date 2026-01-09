@@ -28,56 +28,60 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    console.log("Validating skills for user:", user.id);
+    const { role, domain, career_id } = await req.json();
+    console.log("Validating skills for user:", user.id, "role:", role);
 
-    // Get selected career
-    const { data: selectedCareer, error: careerError } = await supabaseClient
-      .from("selected_career")
-      .select("*")
+    const targetRole = role || 'Software Developer';
+    const targetDomain = domain || 'Technology';
+
+    // Get user resume data for skills
+    const { data: resumeData } = await supabaseClient
+      .from("resume_analysis")
+      .select("parsed_data")
       .eq("user_id", user.id)
-      .single();
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    if (careerError || !selectedCareer) {
-      throw new Error("No career selected. Please select a career first.");
-    }
-
-    // Get user experience to extract skills
-    const { data: experience } = await supabaseClient
-      .from("experience_details")
-      .select("skills")
-      .eq("user_id", user.id);
-
-    const userSkills = experience?.flatMap((e) => e.skills || []) || [];
+    const parsedData = resumeData?.parsed_data as any;
+    const userSkills = parsedData?.skills || [];
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY is not configured");
     }
 
-    const prompt = `You are a career skills analyst. Given a career title and a user's existing skills, identify the required skills for that career and assess the user's current level.
+    const prompt = `You are a career skills analyst. Given a target role and user's existing skills, assess their readiness.
 
-Return a JSON array of skill assessments with this structure:
-[
-  {
-    "skill_name": "string",
-    "required_level": "beginner|intermediate|advanced|expert",
-    "current_level": "none|beginner|intermediate|advanced|expert",
-    "status": "ready|gap"
-  }
-]
+Target Role: ${targetRole}
+Domain: ${targetDomain}
+User's Existing Skills: ${userSkills.length > 0 ? JSON.stringify(userSkills) : "None specified"}
 
-Include 5-8 key skills for the career. Status is "ready" if current_level >= required_level, otherwise "gap".
+Analyze and return JSON:
+{
+  "readiness_score": 65,
+  "level": "intermediate",
+  "matched_skills": {
+    "strong": ["Skill user is proficient in"],
+    "partial": ["Skill user has some experience with"]
+  },
+  "missing_skills": ["Critical skill 1", "Critical skill 2", "Skill 3"],
+  "recommended_next_step": "learn"
+}
 
-Career: ${selectedCareer.career_title}
-User's existing skills: ${userSkills.length > 0 ? userSkills.join(", ") : "None specified"}
+Rules:
+- readiness_score: 0-100 based on skill match
+- level: beginner|intermediate|advanced|expert
+- matched_skills.strong: skills user clearly has
+- matched_skills.partial: skills user has partially
+- missing_skills: 3-6 important skills they need
+- recommended_next_step: "learn" (needs learning), "learn_foundation" (needs basics), "project" (ready for projects), "job" (ready to apply)
 
-Analyze and return the skill assessment as a JSON array only.`;
+Return ONLY valid JSON.`;
 
     const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
@@ -90,104 +94,68 @@ Analyze and return the skill assessment as a JSON array only.`;
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
       console.error("Gemini API error:", aiResponse.status, errorText);
-      if (aiResponse.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw new Error("Gemini API error");
+      throw new Error("AI API error");
     }
 
     const aiData = await aiResponse.json();
     const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-    
-    console.log("AI skill validation response:", content);
+    console.log("AI skill validation response received");
 
-    let skillAssessments;
+    let validationResult;
     try {
-      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        skillAssessments = JSON.parse(jsonMatch[0]);
+        validationResult = JSON.parse(jsonMatch[0]);
       } else {
-        throw new Error("No JSON array found");
+        throw new Error("No JSON found");
       }
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
-      // Fallback skill assessments
-      skillAssessments = [
-        { skill_name: "JavaScript", required_level: "advanced", current_level: "intermediate", status: "gap" },
-        { skill_name: "React", required_level: "advanced", current_level: "beginner", status: "gap" },
-        { skill_name: "TypeScript", required_level: "intermediate", current_level: "none", status: "gap" },
-        { skill_name: "Node.js", required_level: "intermediate", current_level: "beginner", status: "gap" },
-        { skill_name: "Git", required_level: "intermediate", current_level: "intermediate", status: "ready" },
-        { skill_name: "HTML/CSS", required_level: "intermediate", current_level: "advanced", status: "ready" },
-      ];
+      validationResult = {
+        readiness_score: 50,
+        level: "intermediate",
+        matched_skills: { strong: [], partial: userSkills.slice(0, 3) },
+        missing_skills: ["JavaScript", "React", "TypeScript", "Node.js"],
+        recommended_next_step: "learn"
+      };
     }
 
-    // Delete existing skill validations for this user and career
-    await supabaseClient
-      .from("user_skill_validation")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("career_title", selectedCareer.career_title);
-
-    // Insert new skill validations
-    const { data: insertedSkills, error: insertError } = await supabaseClient
-      .from("user_skill_validation")
-      .insert(
-        skillAssessments.map((skill: any) => ({
-          user_id: user.id,
-          career_title: selectedCareer.career_title,
-          skill_name: skill.skill_name,
-          required_level: skill.required_level,
-          current_level: skill.current_level,
-          status: skill.status,
-        }))
-      )
-      .select();
+    // Save to skill_validations table
+    const { data: savedValidation, error: insertError } = await supabaseClient
+      .from("skill_validations")
+      .insert({
+        user_id: user.id,
+        career_id: career_id || null,
+        role: targetRole,
+        domain: targetDomain,
+        readiness_score: validationResult.readiness_score || 50,
+        level: validationResult.level || "intermediate",
+        matched_skills: validationResult.matched_skills || { strong: [], partial: [] },
+        missing_skills: validationResult.missing_skills || [],
+        recommended_next_step: validationResult.recommended_next_step || "learn"
+      })
+      .select()
+      .single();
 
     if (insertError) {
-      console.error("Error inserting skill validations:", insertError);
-      throw new Error("Failed to save skill validations");
+      console.error("Error inserting skill validation:", insertError);
+      throw new Error("Failed to save skill validation");
     }
-
-    // Update journey state
-    const { error: stateError } = await supabaseClient
-      .from("user_journey_state")
-      .update({ skill_validated: true, updated_at: new Date().toISOString() })
-      .eq("user_id", user.id);
-
-    if (stateError) {
-      console.error("Error updating journey state:", stateError);
-    }
-
-    const gapCount = skillAssessments.filter((s: any) => s.status === "gap").length;
-    const readyCount = skillAssessments.filter((s: any) => s.status === "ready").length;
-
-    // Store advisor conversation
-    await supabaseClient.from("advisor_conversations").insert([
-      {
-        user_id: user.id,
-        role: "advisor",
-        message: `I've analyzed your skills against the requirements for ${selectedCareer.career_title}. You have ${readyCount} skills ready and ${gapCount} skill gaps to address. ${gapCount > 0 ? "Let's create a learning plan to close these gaps." : "You're well-prepared! Let's move to building projects."}`,
-        context: { action: "skills_validated", skills: insertedSkills, gapCount, readyCount },
-      },
-    ]);
 
     console.log("Successfully validated skills");
 
     return new Response(JSON.stringify({ 
-      skills: insertedSkills, 
-      hasGaps: gapCount > 0,
-      gapCount,
-      readyCount 
+      success: true,
+      data: savedValidation
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("Error in validate-skills:", error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }), {
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error" 
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
