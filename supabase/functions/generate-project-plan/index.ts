@@ -35,9 +35,9 @@ serve(async (req) => {
       throw new Error("No project_id provided");
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     const prompt = `You are a project planning expert. Create a detailed project plan.
@@ -74,26 +74,41 @@ Return JSON in this format:
 Include 4-6 timeline entries, 8-12 tasks, and 4-6 resources.
 Return ONLY valid JSON.`;
 
-    const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }],
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 3000,
-        },
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: "You are a project planning expert. Return only valid JSON." },
+          { role: "user", content: prompt }
+        ],
       }),
     });
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error("Gemini API error:", aiResponse.status, errorText);
+      console.error("Lovable AI error:", aiResponse.status, errorText);
+      if (aiResponse.status === 429) {
+        return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded. Please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (aiResponse.status === 402) {
+        return new Response(JSON.stringify({ success: false, error: "AI credits exhausted. Please add credits to continue." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       throw new Error("AI API error");
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const content = aiData.choices?.[0]?.message?.content || "";
 
     let planData;
     try {
