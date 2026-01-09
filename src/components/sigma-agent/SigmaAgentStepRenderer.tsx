@@ -57,8 +57,8 @@ const SigmaAgentStepRenderer: React.FC<StepRendererProps> = ({
                   <h4 className="font-semibold text-foreground">{match.role}</h4>
                   <Badge variant="secondary">{match.match_score}%</Badge>
                 </div>
-                {match.domain && (
-                  <p className="text-sm text-primary font-medium">{match.domain}</p>
+                {match.rationale && (
+                  <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{match.rationale}</p>
                 )}
                 <div className="w-full bg-muted rounded-full h-1.5 mt-2">
                   <div 
@@ -160,6 +160,47 @@ const SigmaAgentStepRenderer: React.FC<StepRendererProps> = ({
         </div>
       </div>
     );
+  }
+
+  // Project Build - Show selected project and execute button
+  if (step.id === 'project_build' && step.status === 'pending') {
+    const selectedProject = step.data?.selectedProject;
+    
+    if (selectedProject) {
+      return (
+        <div className="space-y-4">
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground mb-4">
+              Generate build tools and setup for your selected project
+            </p>
+            <Card className="border-primary/20 bg-primary/5 mb-4">
+              <CardContent className="p-4">
+                <h4 className="font-semibold text-foreground mb-1">{selectedProject.title}</h4>
+                <p className="text-sm text-muted-foreground line-clamp-2">{selectedProject.description}</p>
+                {selectedProject.domain && (
+                  <Badge variant="secondary" className="mt-2">{selectedProject.domain}</Badge>
+                )}
+              </CardContent>
+            </Card>
+            <Button 
+              onClick={() => executeStep('project_build', selectedProject)}
+              disabled={isExecuting}
+              className="gap-2"
+            >
+              {isExecuting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
+              Generate Build Tools
+            </Button>
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="text-center py-4 text-orange-600">
+          <p className="mb-2">No project selected for build tools.</p>
+          <p className="text-sm text-muted-foreground">Please complete the project planning step first.</p>
+        </div>
+      );
+    }
   }
 
   // Executing state

@@ -17,7 +17,7 @@ const Landing = () => {
     if (!journeyState.skill_validated) return "/advisor";
     if (!journeyState.learning_completed) return "/learn";
     if (!journeyState.projects_completed) return "/projects";
-    if (!journeyState.job_ready) return "/job-readiness";
+    if (!journeyState.job_ready) return "/advisor";
     if (!journeyState.interview_completed) return "/interview";
     return "/apply";
   };

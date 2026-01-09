@@ -26,11 +26,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import * as pdfjsLib from "pdfjs-dist/build/pdf.mjs";
-import pdfWorkerSrc from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
 
-(pdfjsLib as any).GlobalWorkerOptions.workerSrc = pdfWorkerSrc;
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
 
 
 const Setup = () => {
@@ -71,6 +71,12 @@ const Setup = () => {
   const [isUploadingResume, setIsUploadingResume] = useState(false);
   const [resumeFileName, setResumeFileName] = useState<string | null>(null);
   const [resumeParsed, setResumeParsed] = useState(false);
+  const [existingResume, setExistingResume] = useState<{
+    id: string;
+    file_name: string;
+    created_at: string;
+    parsed_data: any;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load existing data when component mounts
@@ -151,6 +157,26 @@ const Setup = () => {
           issuer: cert.issuer || "",
           year: cert.year?.toString() || "",
         })));
+      }
+
+      // Load existing resume data
+      const { data: resumeData } = await supabase
+        .from('resume_analysis')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (resumeData) {
+        setExistingResume({
+          id: resumeData.id,
+          file_name: resumeData.file_name || 'Resume',
+          created_at: resumeData.created_at,
+          parsed_data: resumeData.parsed_data
+        });
+        setResumeFileName(resumeData.file_name || 'Resume');
+        setResumeParsed(true);
       }
 
     } catch (error) {
@@ -524,7 +550,7 @@ const Setup = () => {
           title: "Success",
           description: "Profile setup complete!",
         });
-        navigate("/dashboard");
+        navigate("/sigma");
       }
     }
   };
@@ -761,7 +787,70 @@ const Setup = () => {
                     className="hidden"
                   />
                   
-                  {!resumeFileName && !isUploadingResume && (
+                  {/* Loading state */}
+                  {isUploadingResume && (
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2">Parsing your resume...</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {resumeFileName}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Show existing resume or newly uploaded resume */}
+                  {!isUploadingResume && (existingResume || (resumeFileName && resumeParsed)) && (
+                    <div className="text-center">
+                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/10 flex items-center justify-center">
+                        <CheckCircle className="w-8 h-8 text-success" />
+                      </div>
+                      <h3 className="font-semibold text-foreground mb-2">
+                        {existingResume ? "Resume already uploaded" : "Resume uploaded successfully!"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {existingResume ? existingResume.file_name : resumeFileName}
+                      </p>
+                      {existingResume && (
+                        <p className="text-xs text-muted-foreground mb-4">
+                          Uploaded on {new Date(existingResume.created_at).toLocaleDateString()}
+                        </p>
+                      )}
+                      <div className="flex flex-col gap-3 items-center">
+                        <Button
+                          type="button"
+                          variant="hero"
+                          onClick={() => navigate('/sigma')}
+                          className="gap-2"
+                        >
+                          <Rocket className="w-4 h-4" />
+                          Start Career Analysis
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            // Reset states for new upload
+                            setResumeFileName(null);
+                            setResumeParsed(false);
+                            setExistingResume(null);
+                            if (fileInputRef.current) fileInputRef.current.value = '';
+                            // Trigger file picker
+                            fileInputRef.current?.click();
+                          }}
+                          className="gap-2"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Upload New Resume
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show upload interface when no resume exists */}
+                  {!isUploadingResume && !existingResume && !resumeFileName && (
                     <div className="text-center">
                       <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
                         <FileText className="w-8 h-8 text-primary" />
@@ -782,54 +871,6 @@ const Setup = () => {
                       <p className="text-xs text-muted-foreground mt-3">
                         Supports PDF, DOC, DOCX, and TXT files
                       </p>
-                    </div>
-                  )}
-
-                  {isUploadingResume && (
-                    <div className="text-center">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Loader2 className="w-8 h-8 text-primary animate-spin" />
-                      </div>
-                      <h3 className="font-semibold text-foreground mb-2">Parsing your resume...</h3>
-                      <p className="text-sm text-muted-foreground">
-                        {resumeFileName}
-                      </p>
-                    </div>
-                  )}
-
-                  {resumeFileName && !isUploadingResume && resumeParsed && (
-                    <div className="text-center">
-                      <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/10 flex items-center justify-center">
-                        <CheckCircle className="w-8 h-8 text-success" />
-                      </div>
-                      <h3 className="font-semibold text-foreground mb-2">Resume uploaded successfully!</h3>
-                      <p className="text-sm text-muted-foreground mb-4">
-                        {resumeFileName}
-                      </p>
-                      <div className="flex flex-col gap-3 items-center">
-                        <Button
-                          type="button"
-                          variant="hero"
-                          onClick={() => navigate('/sigma')}
-                          className="gap-2"
-                        >
-                          <Rocket className="w-4 h-4" />
-                          Start Career Analysis
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setResumeFileName(null);
-                            setResumeParsed(false);
-                            if (fileInputRef.current) fileInputRef.current.value = '';
-                          }}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          Upload a different resume
-                        </Button>
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1024,7 +1065,7 @@ const Setup = () => {
                 </>
               ) : (
                 <>
-                  {step === 3 ? "Continue to AI Advisor" : "Continue"}
+                  {step === 3 ? "Ask Sigma" : "Continue"}
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}

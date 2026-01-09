@@ -100,7 +100,7 @@ const SigmaAgentTimeline: React.FC<AgentTimelineProps> = ({
               key={step.id}
               className={`transition-all duration-300 ${
                 status === 'completed' ? 'border-green-500/30 bg-green-50/50 dark:bg-green-950/20' :
-                status === 'executing' ? 'border-primary/50 bg-primary/5 animate-pulse' :
+                status === 'executing' ? 'border-primary/50 bg-primary/5' :
                 isCurrent ? 'border-primary/30 bg-accent/30' :
                 'border-border bg-card/50 opacity-60'
               }`}

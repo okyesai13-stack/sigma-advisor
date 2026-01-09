@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { createSigmaService } from '@/services/sigmaAgentService';
@@ -38,6 +39,7 @@ export interface AgentControllerProps {
 
 const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [agentState, setAgentState] = useState<AgentState>({
     resume_uploaded: false,
     resume_parsed: false,
@@ -79,8 +81,14 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
         currentStep.status === 'pending' && 
         agentState.project_plan_completed &&
         !agentState.project_build_completed) {
-      const timer = setTimeout(() => executeStep('project_build'), 2000);
-      return () => clearTimeout(timer);
+      
+      if (currentStep.data?.selectedProject) {
+        const timer = setTimeout(() => executeStep('project_build', currentStep.data.selectedProject), 2000);
+        return () => clearTimeout(timer);
+      } else {
+        const timer = setTimeout(() => executeStep('project_build'), 2000);
+        return () => clearTimeout(timer);
+      }
     }
 
     // Auto-execute resume_upgrade after project build
@@ -162,7 +170,8 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
       const projectData = await loadProjectIdeas();
       setCurrentStep({ id: 'project_plan', name: 'Project Planning', status: 'pending', data: projectData });
     } else if (!state.project_build_completed) {
-      setCurrentStep({ id: 'project_build', name: 'Build Tools', status: 'pending' });
+      const selectedProjectData = await loadSelectedProject();
+      setCurrentStep({ id: 'project_build', name: 'Build Tools', status: 'pending', data: selectedProjectData });
     } else if (!state.resume_completed) {
       setCurrentStep({ id: 'resume_upgrade', name: 'Resume Upgrade', status: 'pending' });
     } else if (!state.job_matching_completed) {
@@ -172,26 +181,37 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
       setCurrentStep({ id: 'interview_prep', name: 'Interview Prep', status: 'pending', data: jobData });
     } else {
       setCurrentStep({ id: 'completed', name: 'Journey Complete', status: 'completed' });
+      
+      // Auto-navigate to advisor page after a short delay
+      setTimeout(() => {
+        toast.success('Career analysis complete! Redirecting to AI Advisor...');
+        navigate('/advisor');
+      }, 2000);
     }
   };
 
   const loadCareerMatches = async () => {
     try {
-      const { data: careerAdvice } = await supabase
-        .from('resume_career_advice')
-        .select('career_advice')
+      const { data: careerRecommendations } = await supabase
+        .from('career_recommendations')
+        .select('*')
         .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('confidence_score', { ascending: false });
 
-      if (careerAdvice?.career_advice) {
-        const advice = careerAdvice.career_advice as any;
-        return { careerMatches: advice.career_matches || [] };
+      if (careerRecommendations && careerRecommendations.length > 0) {
+        return { 
+          careerMatches: careerRecommendations.map(rec => ({
+            id: rec.id,
+            role: rec.career_title,
+            match_score: rec.confidence_score || 0,
+            rationale: rec.rationale,
+            created_at: rec.created_at
+          }))
+        };
       }
       return { careerMatches: [] };
     } catch (error) {
-      console.error('Error loading career matches:', error);
+      console.error('Error loading career recommendations:', error);
       return { careerMatches: [] };
     }
   };
@@ -245,6 +265,64 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
     }
   };
 
+  const loadSelectedProject = async () => {
+    try {
+      // Strategy 1: Get the most recent project detail to find the selected project
+      const { data: projectDetail } = await supabase
+        .from('project_detail')
+        .select(`
+          project_id,
+          project_ideas (
+            id,
+            title,
+            description,
+            problem,
+            domain
+          )
+        `)
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (projectDetail?.project_ideas) {
+        const selectedProject = {
+          id: projectDetail.project_ideas.id,
+          title: projectDetail.project_ideas.title,
+          description: projectDetail.project_ideas.description,
+          problem: projectDetail.project_ideas.problem,
+          domain: projectDetail.project_ideas.domain
+        };
+        return { selectedProject };
+      }
+      
+      // Strategy 2: If no project_detail found, get the most recent project idea
+      const { data: recentProject } = await supabase
+        .from('project_ideas')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentProject) {
+        const selectedProject = {
+          id: recentProject.id,
+          title: recentProject.title,
+          description: recentProject.description,
+          problem: recentProject.problem,
+          domain: recentProject.domain
+        };
+        return { selectedProject };
+      }
+      
+      return { selectedProject: null };
+    } catch (error) {
+      console.error('Error loading selected project:', error);
+      return { selectedProject: null };
+    }
+  };
+
   const canExecute = (stepId: string): boolean => {
     if (isExecuting || !currentStep || currentStep.status === 'blocked') return false;
     return currentStep.id === stepId;
@@ -277,7 +355,7 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
           result = await service.executeProjectPlan(userSelection);
           break;
         case 'project_build':
-          result = await service.executeProjectBuild();
+          result = await service.executeProjectBuild(userSelection);
           break;
         case 'resume_upgrade':
           result = await service.executeResumeUpgrade();

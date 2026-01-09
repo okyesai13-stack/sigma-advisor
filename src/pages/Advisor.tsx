@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,12 +8,7 @@ import {
   Send,
   Sparkles,
   User,
-  Plus,
   Loader2,
-  MessageSquare,
-  Trash2,
-  PanelLeftClose,
-  PanelLeft,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -54,15 +49,14 @@ const Advisor = () => {
   const { toast } = useToast();
   const { user } = useAuth();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { loading: guardLoading } = usePageGuard('profile_completed', '/setup');
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [loadingSessions, setLoadingSessions] = useState(true);
+  const [loadingSession, setLoadingSession] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -84,42 +78,22 @@ const Advisor = () => {
     }
   }, [location.state]);
 
-  // Load chat sessions
+  // Handle session parameter from URL
   useEffect(() => {
-    if (!user) return;
-    loadChatSessions();
-  }, [user]);
-
-  const loadChatSessions = async () => {
-    if (!user) return;
-    setLoadingSessions(true);
-
-    try {
-      const { data, error } = await supabase
-        .from('advisor_chat_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (error) throw error;
-
-      setChatSessions(data || []);
-      
-      // Auto-select the most recent session if exists
-      if (data && data.length > 0) {
-        setCurrentSessionId(data[0].id);
-        loadConversations(data[0].id);
-      } else {
-        setLoadingSessions(false);
-      }
-    } catch (error) {
-      console.error('Error loading chat sessions:', error);
-      setLoadingSessions(false);
+    const sessionId = searchParams.get('session');
+    if (sessionId && sessionId !== currentSessionId) {
+      setCurrentSessionId(sessionId);
+      loadConversations(sessionId);
+    } else if (!sessionId && currentSessionId) {
+      // Clear session if no session parameter
+      setCurrentSessionId(null);
+      setMessages([]);
     }
-  };
+  }, [searchParams, currentSessionId]);
 
   const loadConversations = async (sessionId: string) => {
     if (!user) return;
+    setLoadingSession(true);
 
     try {
       const { data, error } = await supabase
@@ -139,8 +113,13 @@ const Advisor = () => {
       }
     } catch (error) {
       console.error('Error loading conversations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load conversation. Please try again.",
+        variant: "destructive"
+      });
     } finally {
-      setLoadingSessions(false);
+      setLoadingSession(false);
     }
   };
 
@@ -158,8 +137,6 @@ const Advisor = () => {
         .single();
 
       if (error) throw error;
-
-      setChatSessions(prev => [data, ...prev]);
       return data.id;
     } catch (error) {
       console.error('Error creating session:', error);
@@ -183,10 +160,6 @@ const Advisor = () => {
         .from('advisor_chat_sessions')
         .update({ title, updated_at: new Date().toISOString() })
         .eq('id', sessionId);
-
-      setChatSessions(prev => prev.map(s => 
-        s.id === sessionId ? { ...s, title } : s
-      ));
     } catch (error) {
       console.error('Error updating session title:', error);
     }
@@ -213,6 +186,8 @@ const Advisor = () => {
         sessionId = await createNewSession();
         if (!sessionId) throw new Error("Failed to create session");
         setCurrentSessionId(sessionId);
+        // Update URL to include session parameter
+        setSearchParams({ session: sessionId });
       }
 
       // Update title if this is the first message
@@ -268,189 +243,91 @@ const Advisor = () => {
   const startNewChat = async () => {
     setMessages([]);
     setCurrentSessionId(null);
+    // Remove session parameter from URL
+    setSearchParams({});
     toast({
       title: "New chat started",
       description: "Start typing to begin a new conversation.",
     });
   };
 
-  const selectSession = (session: ChatSession) => {
-    if (session.id === currentSessionId) return;
-    setCurrentSessionId(session.id);
-    setMessages([]);
-    loadConversations(session.id);
-  };
-
-  const deleteSession = async (sessionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
-    try {
-      await supabase
-        .from('advisor_chat_sessions')
-        .delete()
-        .eq('id', sessionId);
-
-      setChatSessions(prev => prev.filter(s => s.id !== sessionId));
-      
-      if (currentSessionId === sessionId) {
-        setCurrentSessionId(null);
-        setMessages([]);
-      }
-
-      toast({
-        title: "Chat deleted",
-        description: "The conversation has been removed.",
-      });
-    } catch (error) {
-      console.error('Error deleting session:', error);
-    }
-  };
-
-  if (guardLoading) {
+  if (guardLoading || loadingSession) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Chat History Sidebar */}
-      <div className={cn(
-        "border-r border-border bg-card/50 flex flex-col transition-all duration-300",
-        sidebarOpen ? "w-64" : "w-0 overflow-hidden"
-      )}>
-        {/* Sidebar Header */}
-        <div className="h-14 border-b border-border flex items-center justify-between px-3">
-          <span className="font-medium text-sm text-foreground">Chat History</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={startNewChat}
-            className="h-8 w-8"
-            title="New chat"
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
-        </div>
-
-        {/* Sessions List */}
-        <ScrollArea className="flex-1">
-          <div className="p-2 space-y-1">
-            {loadingSessions ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : chatSessions.length === 0 ? (
-              <div className="text-center py-8 px-4">
-                <MessageSquare className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">No conversations yet</p>
-                <p className="text-xs text-muted-foreground/70 mt-1">Start a new chat below</p>
-              </div>
-            ) : (
-              chatSessions.map((session) => (
+    <div className="h-screen flex flex-col">
+      {/* Chat Area - Full Height */}
+      <div className="flex-1 flex flex-col min-h-0">
+        {messages.length === 0 ? (
+          /* Empty State - Centered */
+          <div className="flex-1 flex flex-col items-center justify-center px-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-6">
+              <Sparkles className="w-8 h-8 text-primary-foreground" />
+            </div>
+            <h1 className="text-2xl md:text-3xl font-semibold text-foreground mb-2 text-center">
+              How can I help with your career today?
+            </h1>
+            <p className="text-muted-foreground text-center max-w-md mb-8">
+              Ask me anything about career paths, skill development, interview preparation, or job search strategies.
+            </p>
+            
+            {/* Suggestion chips */}
+            <div className="flex flex-wrap gap-2 justify-center max-w-2xl mb-8">
+              {[
+                "What career path suits my skills?",
+                "How do I prepare for interviews?",
+                "What skills should I learn?",
+                "Help me with my resume",
+              ].map((suggestion) => (
                 <button
-                  key={session.id}
-                  onClick={() => selectSession(session)}
-                  className={cn(
-                    "w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors group flex items-center gap-2",
-                    currentSessionId === session.id
-                      ? "bg-primary/10 text-primary"
-                      : "hover:bg-muted text-foreground"
-                  )}
+                  key={suggestion}
+                  onClick={() => {
+                    setInputValue(suggestion);
+                    textareaRef.current?.focus();
+                  }}
+                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/50 text-sm text-foreground transition-all"
                 >
-                  <MessageSquare className="w-4 h-4 shrink-0" />
-                  <span className="flex-1 truncate">{session.title}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
-                    onClick={(e) => deleteSession(session.id, e)}
-                  >
-                    <Trash2 className="w-3 h-3 text-muted-foreground hover:text-destructive" />
-                  </Button>
+                  {suggestion}
                 </button>
-              ))
-            )}
-          </div>
-        </ScrollArea>
-      </div>
+              ))}
+            </div>
 
-      {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="h-14 border-b border-border flex items-center justify-between px-4 bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="rounded-full"
-              title={sidebarOpen ? "Close sidebar" : "Open sidebar"}
-            >
-              {sidebarOpen ? (
-                <PanelLeftClose className="w-5 h-5" />
-              ) : (
-                <PanelLeft className="w-5 h-5" />
-              )}
-            </Button>
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-primary-foreground" />
+            {/* Centered Input Area */}
+            <div className="w-full max-w-2xl">
+              <div className="relative flex items-end gap-2">
+                <Textarea
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask me anything about your career..."
+                  className="flex-1 min-h-[44px] max-h-[200px] resize-none border border-border rounded-2xl focus-visible:ring-1 focus-visible:ring-primary py-3 px-4 text-sm"
+                  rows={1}
+                  disabled={isLoading}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isLoading}
+                  size="icon"
+                  className="shrink-0 rounded-full w-9 h-9"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                </Button>
               </div>
-              <span className="font-semibold text-lg text-foreground">Career Advisor</span>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={startNewChat}
-            className="rounded-full"
-            title="New chat"
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
-        </header>
-
-        {/* Chat Area */}
-        <div className="flex-1 flex flex-col">
-          {messages.length === 0 ? (
-            /* Empty State */
-            <div className="flex-1 flex flex-col items-center justify-center px-4">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-6">
-                <Sparkles className="w-8 h-8 text-primary-foreground" />
-              </div>
-              <h1 className="text-2xl md:text-3xl font-semibold text-foreground mb-2 text-center">
-                How can I help with your career today?
-              </h1>
-              <p className="text-muted-foreground text-center max-w-md mb-8">
-                Ask me anything about career paths, skill development, interview preparation, or job search strategies.
-              </p>
-              
-              {/* Suggestion chips */}
-              <div className="flex flex-wrap gap-2 justify-center max-w-2xl">
-                {[
-                  "What career path suits my skills?",
-                  "How do I prepare for interviews?",
-                  "What skills should I learn?",
-                  "Help me with my resume",
-                ].map((suggestion) => (
-                  <button
-                    key={suggestion}
-                    onClick={() => {
-                      setInputValue(suggestion);
-                      textareaRef.current?.focus();
-                    }}
-                    className="px-4 py-2 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/50 text-sm text-foreground transition-all"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            /* Messages */
+        ) : (
+          /* Messages with Input at Bottom */
+          <>
             <ScrollArea className="flex-1">
               <div className="max-w-3xl mx-auto py-6 px-4">
                 {messages.map((message, index) => (
@@ -489,7 +366,7 @@ const Advisor = () => {
                           "rounded-2xl px-4 py-3",
                           message.role === "user"
                             ? "bg-primary text-primary-foreground rounded-tr-sm"
-                            : "bg-muted/50 text-foreground rounded-tl-sm"
+                            : "text-foreground rounded-tl-sm"
                         )}
                       >
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">
@@ -508,7 +385,7 @@ const Advisor = () => {
                         <Sparkles className="w-4 h-4" />
                       </AvatarFallback>
                     </Avatar>
-                    <div className="flex items-center gap-1 px-4 py-3 rounded-2xl rounded-tl-sm bg-muted/50">
+                    <div className="flex items-center gap-1 px-4 py-3 rounded-2xl rounded-tl-sm">
                       <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
                       <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
                       <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" />
@@ -519,44 +396,41 @@ const Advisor = () => {
                 <div ref={messagesEndRef} />
               </div>
             </ScrollArea>
-          )}
 
-          {/* Input Area */}
-          <div className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
-            <div className="max-w-3xl mx-auto">
-              <div className="relative flex items-end gap-2 bg-muted/50 rounded-2xl border border-border focus-within:border-primary/50 transition-colors">
-                <Textarea
-                  ref={textareaRef}
-                  value={inputValue}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything about your career..."
-                  className="flex-1 min-h-[44px] max-h-[200px] resize-none border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 py-3 px-4 text-sm"
-                  rows={1}
-                  disabled={isLoading}
-                />
-                <Button
-                  onClick={handleSendMessage}
-                  disabled={!inputValue.trim() || isLoading}
-                  size="icon"
-                  className="shrink-0 rounded-full w-9 h-9 mr-1.5 mb-1.5"
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                </Button>
+            {/* Input Area - Fixed at Bottom */}
+            <div className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
+              <div className="max-w-3xl mx-auto">
+                <div className="relative flex items-end gap-2">
+                  <Textarea
+                    ref={textareaRef}
+                    value={inputValue}
+                    onChange={handleTextareaChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Ask me anything about your career..."
+                    className="flex-1 min-h-[44px] max-h-[200px] resize-none border border-border rounded-2xl focus-visible:ring-1 focus-visible:ring-primary py-3 px-4 text-sm"
+                    rows={1}
+                    disabled={isLoading}
+                  />
+                  <Button
+                    onClick={handleSendMessage}
+                    disabled={!inputValue.trim() || isLoading}
+                    size="icon"
+                    className="shrink-0 rounded-full w-9 h-9"
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
+                  </Button>
+                </div>
               </div>
-              <p className="text-xs text-muted-foreground text-center mt-2">
-                Career Advisor can make mistakes. Consider checking important information.
-              </p>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
-};
+  };
 
 export default Advisor;

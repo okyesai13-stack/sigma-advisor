@@ -71,13 +71,26 @@ export class SigmaAgentService {
       if (error) throw error;
       if (!data.success) throw new Error(data.error || 'Career analysis failed');
 
-      await supabase
-        .from('resume_career_advice')
-        .upsert({
+      // Store career recommendations if they exist
+      if (data.careerRecommendations && Array.isArray(data.careerRecommendations)) {
+        // Delete existing recommendations for this user
+        await supabase
+          .from('career_recommendations')
+          .delete()
+          .eq('user_id', this.userId);
+
+        // Insert new recommendations
+        const recommendations = data.careerRecommendations.map((rec: any) => ({
           user_id: this.userId,
-          career_advice: data.careerAdvice,
-          resume_analysis_id: resumeData.id
-        }, { onConflict: 'user_id' });
+          career_title: rec.career_title || rec.title || rec.role,
+          confidence_score: rec.confidence_score || rec.match_score || 0,
+          rationale: rec.rationale || rec.description || null
+        }));
+
+        await supabase
+          .from('career_recommendations')
+          .insert(recommendations);
+      }
 
       await supabase.rpc('update_sigma_state_flag', {
         p_user_id: this.userId,
@@ -87,7 +100,7 @@ export class SigmaAgentService {
 
       return {
         success: true,
-        data: data.careerAdvice,
+        data: data.careerRecommendations || data.careerAdvice,
         nextStep: 'skill_validation'
       };
     } catch (error) {
@@ -290,28 +303,70 @@ export class SigmaAgentService {
     }
   }
 
-  async executeProjectBuild(): Promise<AgentExecutionResult> {
+  async executeProjectBuild(selectedProject?: any): Promise<AgentExecutionResult> {
     try {
-      let projectId = this.selectedProjectData?.id;
+      let projectId = selectedProject?.id;
+      let projectData = selectedProject;
       
+      // If no project passed, try multiple fallback strategies
       if (!projectId) {
-        const { data: projectDetail } = await supabase
-          .from('project_detail')
-          .select('project_id')
-          .eq('user_id', this.userId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        // Strategy 1: Check if we have stored project data from previous step
+        if (this.selectedProjectData?.id) {
+          projectId = this.selectedProjectData.id;
+          projectData = this.selectedProjectData;
+        }
         
-        projectId = projectDetail?.project_id;
+        // Strategy 2: Get from the most recent project detail
+        if (!projectId) {
+          const { data: projectDetail } = await supabase
+            .from('project_detail')
+            .select(`
+              project_id,
+              project_ideas (
+                id,
+                title,
+                description,
+                problem,
+                domain
+              )
+            `)
+            .eq('user_id', this.userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (projectDetail?.project_id) {
+            projectId = projectDetail.project_id;
+            projectData = projectDetail.project_ideas;
+          }
+        }
+        
+        // Strategy 3: Get the most recent project idea directly
+        if (!projectId) {
+          const { data: recentProject } = await supabase
+            .from('project_ideas')
+            .select('*')
+            .eq('user_id', this.userId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (recentProject?.id) {
+            projectId = recentProject.id;
+            projectData = recentProject;
+          }
+        }
       }
 
       if (!projectId) {
-        throw new Error('No project selected for build tools');
+        throw new Error('No project selected for build tools. Please complete the project planning step first.');
       }
 
       const { data, error } = await supabase.functions.invoke('generate-build-tools', {
-        body: { projectId }
+        body: { 
+          projectId,
+          project: projectData || null
+        }
       });
       
       if (error) throw error;
@@ -325,7 +380,11 @@ export class SigmaAgentService {
 
       return {
         success: true,
-        data: { tools: data.tools, build_steps: data.build_steps || [] },
+        data: { 
+          tools: data.tools, 
+          build_steps: data.build_steps || [],
+          project: projectData || { id: projectId }
+        },
         nextStep: 'resume_upgrade'
       };
     } catch (error) {
@@ -505,11 +564,37 @@ export class SigmaAgentService {
       };
 
       const { data, error } = await supabase.functions.invoke('ai-interview-prep-generator', {
-        body: { job: jobData, resume: resumeData }
+        body: { job: jobData, resumeData: resumeData }
       });
       
       if (error) throw error;
       if (!data.success) throw new Error(data.error || 'Interview prep failed');
+
+      // The edge function returns { success: true, preparation: prepData }
+      let interviewPrepData;
+      if (data.preparation) {
+        interviewPrepData = data.preparation;
+      } else if (data.interview_prep) {
+        interviewPrepData = data.interview_prep;
+      } else if (data.data) {
+        interviewPrepData = data.data;
+      } else {
+        // Fallback: use the data object directly
+        interviewPrepData = {
+          job_analysis: data.job_analysis || 'Job analysis not available',
+          interview_questions: data.interview_questions || [],
+          resume_alignment: data.resume_alignment || 'Resume alignment not available',
+          preparation_checklist: data.preparation_checklist || []
+        };
+      }
+
+      // Ensure all required fields exist
+      const safeInterviewPrepData = {
+        job_analysis: interviewPrepData.job_analysis || 'Job analysis not available',
+        interview_questions: interviewPrepData.interview_questions || [],
+        resume_alignment: interviewPrepData.resume_alignment || 'Resume alignment not available',
+        preparation_checklist: interviewPrepData.preparation_checklist || []
+      };
 
       await supabase
         .from('interview_preparation')
@@ -518,10 +603,10 @@ export class SigmaAgentService {
           job_id: selectedJob.id,
           role: jobData.title,
           company: jobData.company,
-          job_analysis: data.interview_prep.job_analysis,
-          interview_questions: data.interview_prep.interview_questions,
-          resume_alignment: data.interview_prep.resume_alignment,
-          preparation_checklist: data.interview_prep.preparation_checklist
+          job_analysis: safeInterviewPrepData.job_analysis,
+          interview_questions: safeInterviewPrepData.interview_questions,
+          resume_alignment: safeInterviewPrepData.resume_alignment,
+          preparation_checklist: safeInterviewPrepData.preparation_checklist
         }, { onConflict: 'user_id,job_id' });
 
       await supabase.rpc('update_sigma_state_flag', {
@@ -532,7 +617,7 @@ export class SigmaAgentService {
 
       return {
         success: true,
-        data: { interview_prep: data.interview_prep, job: jobData },
+        data: { interview_prep: safeInterviewPrepData, job: jobData },
         nextStep: 'completed'
       };
     } catch (error) {

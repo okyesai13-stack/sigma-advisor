@@ -34,12 +34,23 @@ const App = () => (
                 <SidebarLayout />
               </ProtectedRoute>
             }>
-              <Route path="/setup" element={<Setup />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/advisor" element={<Advisor />} />
               <Route path="/profile" element={<Profile />} />
-              <Route path="/sigma" element={<Sigma />} />
             </Route>
+
+            {/* Pages without sidebar */}
+            <Route path="/setup" element={
+              <ProtectedRoute>
+                <Setup />
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/sigma" element={
+              <ProtectedRoute>
+                <Sigma />
+              </ProtectedRoute>
+            } />
 
             <Route path="*" element={<NotFound />} />
           </Routes>
