@@ -28,43 +28,29 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { skill_name } = await req.json();
+    const { skill_name, career_title, current_level, required_level } = await req.json();
 
-    console.log("Generating learning journey for user:", user.id, "skill:", skill_name);
+    const skillName = skill_name || "Programming";
+    const targetCareer = career_title || "Software Developer";
+    const userLevel = current_level || "beginner";
+    const targetLevel = required_level || "intermediate";
+
+    console.log("Generating learning journey for user:", user.id, "skill:", skillName);
 
     // Check if learning journey already exists for this skill
     const { data: existingJourney } = await supabaseClient
       .from("user_learning_journey")
       .select("*")
       .eq("user_id", user.id)
-      .eq("skill_name", skill_name)
+      .eq("skill_name", skillName)
       .maybeSingle();
 
     if (existingJourney) {
       console.log("Learning journey already exists, returning existing");
-      return new Response(JSON.stringify({ learningJourney: existingJourney }), {
+      return new Response(JSON.stringify({ success: true, ok: true, data: existingJourney }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-
-    // Get selected career for context
-    const { data: selectedCareer } = await supabaseClient
-      .from("selected_career")
-      .select("career_title")
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    // Get skill validation for levels
-    const { data: skillValidation } = await supabaseClient
-      .from("user_skill_validation")
-      .select("current_level, required_level")
-      .eq("user_id", user.id)
-      .eq("skill_name", skill_name)
-      .maybeSingle();
-
-    const careerTitle = selectedCareer?.career_title || "Software Developer";
-    const currentLevel = skillValidation?.current_level || "beginner";
-    const requiredLevel = skillValidation?.required_level || "intermediate";
 
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) {
@@ -77,10 +63,10 @@ serve(async (req) => {
 Task: Generate a structured learning plan.
 
 Context:
-- Career: ${careerTitle}
-- Skill to learn: ${skill_name}
-- User level: ${currentLevel}
-- Target level: ${requiredLevel}
+- Career: ${targetCareer}
+- Skill to learn: ${skillName}
+- User level: ${userLevel}
+- Target level: ${targetLevel}
 
 Instructions:
 1. Generate exactly 5 learning steps in logical order.
@@ -181,8 +167,8 @@ Output format:
       .from("user_learning_journey")
       .insert({
         user_id: user.id,
-        career_title: careerTitle,
-        skill_name: skill_name,
+        career_title: targetCareer,
+        skill_name: skillName,
         learning_steps: learningContent.learning_steps,
         recommended_courses: learningContent.recommended_courses,
         recommended_videos: learningContent.recommended_videos,
