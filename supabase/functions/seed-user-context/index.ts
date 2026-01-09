@@ -1,8 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GoogleGenerativeAI } from "https://esm.sh/@google/generative-ai";
-
-declare const Deno: any;
 
 const corsHeaders = {
     "Access-Control-Allow-Origin": "*",
@@ -33,24 +30,52 @@ serve(async (req: Request) => {
             throw new Error("User not authenticated");
         }
 
-        const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "AIzaSyA7seyM9dUmtiQnmij7PyjMylnXZvdcZXs";
-        const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-        const model = genAI.getGenerativeModel({ model: "gemini-3-pro-preview" });
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        if (!LOVABLE_API_KEY) {
+            throw new Error("LOVABLE_API_KEY is not configured");
+        }
 
         const prompt = `Analyze this user's profile and output a structured career DNA summary.
       Goal: ${goal}, Interests: ${interests}, 
       Education: ${education}, Experience: ${experience}.`;
 
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const summary = response.text();
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: "google/gemini-2.5-flash",
+                messages: [
+                    { role: "system", content: "You are a career profile analyst. Provide structured career DNA summaries." },
+                    { role: "user", content: prompt }
+                ],
+            }),
+        });
+
+        if (!aiResponse.ok) {
+            const errorText = await aiResponse.text();
+            console.error("Lovable AI error:", aiResponse.status, errorText);
+            if (aiResponse.status === 429) {
+                return new Response(JSON.stringify({ error: "Rate limit exceeded. Please try again later." }), {
+                    status: 429,
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+            }
+            if (aiResponse.status === 402) {
+                return new Response(JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }), {
+                    status: 402,
+                    headers: { ...corsHeaders, "Content-Type": "application/json" },
+                });
+            }
+            throw new Error("AI API error");
+        }
+
+        const aiData = await aiResponse.json();
+        const summary = aiData.choices?.[0]?.message?.content || "Career DNA summary generated.";
 
         // Save to Supabase 'user_context' table
-        // Assuming table 'user_context' exists and has 'user_id' and 'summary' columns
-        // If not, we might need to create it or store it in users_profile if the table doesn't exist
-        // The user instruction said: "Store the result in a Supabase table called user_context."
-        // I shall attempt to insert into user_context.
-
         const { error: insertError } = await supabaseClient
             .from("user_context")
             .upsert({

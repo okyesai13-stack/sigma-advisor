@@ -52,9 +52,9 @@ serve(async (req) => {
       });
     }
 
-    const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-    if (!GEMINI_API_KEY) {
-      throw new Error("GEMINI_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Use AI to generate personalized learning content
@@ -102,24 +102,25 @@ Output format:
     let learningContent = null;
     
     try {
-      const aiResponse = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
+          "Authorization": `Bearer ${LOVABLE_API_KEY}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 2048,
-          },
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: "You are a professional AI Career Advisor. Return only valid JSON." },
+            { role: "user", content: prompt }
+          ],
         }),
       });
 
       if (aiResponse.ok) {
         const aiData = await aiResponse.json();
-        const content = aiData.candidates?.[0]?.content?.parts?.[0]?.text || "";
-        console.log("AI response:", content);
+        const content = aiData.choices?.[0]?.message?.content || "";
+        console.log("AI response received");
 
         const jsonMatch = content.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
@@ -127,7 +128,7 @@ Output format:
         }
       } else {
         const errorText = await aiResponse.text();
-        console.error("Gemini API error:", aiResponse.status, errorText);
+        console.error("Lovable AI error:", aiResponse.status, errorText);
         // Will use fallback content below
       }
     } catch (e) {
@@ -140,21 +141,21 @@ Output format:
       // Fallback content
       learningContent = {
         learning_steps: [
-          { step: 1, title: "Understand the fundamentals", description: `Learn the core concepts of ${skill_name}` },
+          { step: 1, title: "Understand the fundamentals", description: `Learn the core concepts of ${skillName}` },
           { step: 2, title: "Practice basics", description: "Complete beginner exercises and tutorials" },
           { step: 3, title: "Build small projects", description: "Apply your knowledge to mini-projects" },
           { step: 4, title: "Study advanced topics", description: "Dive deeper into complex concepts" },
           { step: 5, title: "Create a portfolio piece", description: "Build a substantial project to showcase" }
         ],
         recommended_courses: [
-          { title: `${skill_name} Fundamentals`, platform: "Coursera", link: "https://www.coursera.org" },
-          { title: `Complete ${skill_name} Course`, platform: "Udemy", link: "https://www.udemy.com" },
-          { title: `${skill_name} Professional`, platform: "edX", link: "https://www.edx.org" }
+          { title: `${skillName} Fundamentals`, platform: "Coursera", link: "https://www.coursera.org" },
+          { title: `Complete ${skillName} Course`, platform: "Udemy", link: "https://www.udemy.com" },
+          { title: `${skillName} Professional`, platform: "edX", link: "https://www.edx.org" }
         ],
         recommended_videos: [
-          { title: `${skill_name} Tutorial for Beginners`, creator: "freeCodeCamp", link: "https://www.youtube.com/freecodecamp" },
-          { title: `Learn ${skill_name} in 1 Hour`, creator: "Traversy Media", link: "https://www.youtube.com/traversymedia" },
-          { title: `${skill_name} Crash Course`, creator: "The Net Ninja", link: "https://www.youtube.com/thenetninja" }
+          { title: `${skillName} Tutorial for Beginners`, creator: "freeCodeCamp", link: "https://www.youtube.com/freecodecamp" },
+          { title: `Learn ${skillName} in 1 Hour`, creator: "Traversy Media", link: "https://www.youtube.com/traversymedia" },
+          { title: `${skillName} Crash Course`, creator: "The Net Ninja", link: "https://www.youtube.com/thenetninja" }
         ]
       };
     }
@@ -189,12 +190,12 @@ Output format:
       {
         user_id: user.id,
         role: "advisor",
-        message: `I've created a personalized learning journey for "${skill_name}"! You'll find 5 structured learning steps, 3 recommended courses, and 3 helpful YouTube videos. Complete all steps and submit at least one certification to mark this skill as complete.`,
-        context: { action: "learning_journey_generated", skill: skill_name },
+        message: `I've created a personalized learning journey for "${skillName}"! You'll find 5 structured learning steps, 3 recommended courses, and 3 helpful YouTube videos. Complete all steps and submit at least one certification to mark this skill as complete.`,
+        context: { action: "learning_journey_generated", skill: skillName },
       },
     ]);
 
-    console.log("Successfully generated learning journey for", skill_name);
+    console.log("Successfully generated learning journey for", skillName);
 
     return new Response(JSON.stringify({ learningJourney: insertedJourney }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
