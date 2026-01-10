@@ -37,25 +37,48 @@ const SigmaAgentStepRenderer: React.FC<StepRendererProps> = ({
     );
   }
 
-  // Skill Validation - Show career matches to select
-  if (step.id === 'skill_validation' && step.data?.careerMatches) {
-    const careerMatches = step.data.careerMatches;
+  // Skill Validation - Show career matches to select from Step 1
+  if (step.id === 'skill_validation' && step.status === 'pending') {
+    const careerMatches = step.data?.careerMatches || [];
+    
+    // If no career matches available, show a message
+    if (careerMatches.length === 0) {
+      return (
+        <div className="text-center py-4">
+          <p className="text-muted-foreground mb-2">
+            No career roles found from Step 1 analysis.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Please complete the Career Analysis step first to get role recommendations.
+          </p>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground text-center">
-          Select a role to validate your skills
-        </p>
+        <div className="text-center">
+          <h3 className="font-semibold text-foreground mb-1">Select a Role for Skill Validation</h3>
+          <p className="text-sm text-muted-foreground">
+            Choose a career role from Step 1 to validate your skills against
+          </p>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {careerMatches.slice(0, 4).map((match: any, index: number) => (
             <Card 
-              key={index}
-              className="cursor-pointer hover:border-primary/50 transition-all"
+              key={match.id || index}
+              className="cursor-pointer hover:border-primary/50 hover:shadow-md transition-all group"
               onClick={() => !isExecuting && executeStep('skill_validation', match)}
             >
               <CardContent className="p-4">
                 <div className="flex items-start justify-between mb-2">
-                  <h4 className="font-semibold text-foreground">{match.role}</h4>
-                  <Badge variant="secondary">{match.match_score}%</Badge>
+                  <div className="flex items-center gap-2">
+                    <Star className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <h4 className="font-semibold text-foreground">{match.role}</h4>
+                  </div>
+                  <Badge variant="secondary" className="bg-primary/10 text-primary">
+                    {match.match_score}% match
+                  </Badge>
                 </div>
                 {match.rationale && (
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-2">{match.rationale}</p>
@@ -66,6 +89,9 @@ const SigmaAgentStepRenderer: React.FC<StepRendererProps> = ({
                     style={{ width: `${match.match_score}%` }}
                   />
                 </div>
+                <p className="text-xs text-muted-foreground mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  Click to validate skills for this role
+                </p>
               </CardContent>
             </Card>
           ))}
