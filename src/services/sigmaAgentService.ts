@@ -71,25 +71,33 @@ export class SigmaAgentService {
       if (error) throw error;
       if (!data.success) throw new Error(data.error || 'Career analysis failed');
 
-      // Store career recommendations if they exist
-      if (data.careerRecommendations && Array.isArray(data.careerRecommendations)) {
-        // Delete existing recommendations for this user
+      // The edge function returns careerAdvice with roles array
+      const careerAdvice = data.careerAdvice;
+      console.log('Career advice received:', careerAdvice);
+
+      if (careerAdvice) {
+        // Delete existing career advice for this user
         await supabase
-          .from('career_recommendations')
+          .from('resume_career_advice')
           .delete()
           .eq('user_id', this.userId);
 
-        // Insert new recommendations
-        const recommendations = data.careerRecommendations.map((rec: any) => ({
-          user_id: this.userId,
-          career_title: rec.career_title || rec.title || rec.role,
-          confidence_score: rec.confidence_score || rec.match_score || 0,
-          rationale: rec.rationale || rec.description || null
-        }));
+        // Insert new career advice into resume_career_advice table
+        const { error: insertError } = await supabase
+          .from('resume_career_advice')
+          .insert({
+            user_id: this.userId,
+            resume_analysis_id: resumeData.id,
+            career_advice: careerAdvice,
+            selected_role: null
+          });
 
-        await supabase
-          .from('career_recommendations')
-          .insert(recommendations);
+        if (insertError) {
+          console.error('Failed to save career advice:', insertError);
+          throw new Error('Failed to save career advice to database');
+        }
+
+        console.log('Career advice saved successfully');
       }
 
       await supabase.rpc('update_sigma_state_flag', {
@@ -98,9 +106,12 @@ export class SigmaAgentService {
         p_flag_value: true
       });
 
+      // Return the roles from careerAdvice for step 2 selection
+      const roles = careerAdvice?.roles || [];
+      
       return {
         success: true,
-        data: data.careerRecommendations || data.careerAdvice,
+        data: roles,
         nextStep: 'skill_validation'
       };
     } catch (error) {
