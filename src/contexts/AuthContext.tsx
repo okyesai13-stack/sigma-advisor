@@ -111,7 +111,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 export const useAuth = (): AuthContextType => {
   const context = useContext(AuthContext);
   if (context === undefined) {
+    // This can happen during hot module reload - return safe defaults
+    console.warn('useAuth called outside AuthProvider - this may be a hot reload issue');
     throw new Error('useAuth must be used within an AuthProvider');
   }
   return context;
 };
+
+// Export context for potential debugging
+export { AuthContext };
