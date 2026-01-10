@@ -181,12 +181,6 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
       setCurrentStep({ id: 'interview_prep', name: 'Interview Prep', status: 'pending', data: jobData });
     } else {
       setCurrentStep({ id: 'completed', name: 'Journey Complete', status: 'completed' });
-      
-      // Auto-navigate to advisor page after a short delay
-      setTimeout(() => {
-        toast.success('Career analysis complete! Redirecting to AI Advisor...');
-        navigate('/advisor');
-      }, 2000);
     }
   };
 
