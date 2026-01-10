@@ -3,30 +3,44 @@ import { User } from '@supabase/supabase-js';
 
 export const createUserProfile = async (user: User) => {
   try {
-    // Check if profile already exists
-    const { data: existingProfile } = await supabase
+    // Check if profile already exists using maybeSingle to avoid 406 errors
+    const { data: existingProfile, error: checkError } = await supabase
       .from('users_profile')
       .select('id')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
+    // If we got a result, profile exists
     if (existingProfile) {
       return { success: true, profile: existingProfile };
     }
 
-    // Create new profile - trigger should auto-create on signup
-    // But if it doesn't exist, create it manually
+    // Only create if check didn't fail (might be no rows, which is fine)
+    if (checkError && checkError.code !== 'PGRST116') {
+      console.error('Error checking profile:', checkError);
+      return { success: false, error: checkError };
+    }
+
+    // Create new profile using upsert to handle race conditions
     const { data: profile, error } = await supabase
       .from('users_profile')
-      .insert({
+      .upsert({
         id: user.id,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
+      }, { 
+        onConflict: 'id',
+        ignoreDuplicates: true 
       })
       .select()
-      .single();
+      .maybeSingle();
 
     if (error) {
+      // Ignore conflict errors - profile might have been created by trigger
+      if (error.code === '23505' || error.code === '23503') {
+        console.log('Profile already exists or will be created by trigger');
+        return { success: true, profile: { id: user.id } };
+      }
       console.error('Error creating profile:', error);
       return { success: false, error };
     }
