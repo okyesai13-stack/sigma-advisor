@@ -192,26 +192,41 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
 
   const loadCareerMatches = async () => {
     try {
-      const { data: careerRecommendations } = await supabase
-        .from('career_recommendations')
+      // Load from resume_career_advice table (where career analysis results are stored)
+      const { data: careerAdvice, error } = await supabase
+        .from('resume_career_advice')
         .select('*')
         .eq('user_id', user?.id)
-        .order('confidence_score', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-      if (careerRecommendations && careerRecommendations.length > 0) {
+      if (error) {
+        console.error('Error loading career advice:', error);
+        return { careerMatches: [] };
+      }
+
+      if (careerAdvice?.career_advice) {
+        const advice = careerAdvice.career_advice as any;
+        const roles = advice?.roles || [];
+        
+        console.log('Loaded career matches from resume_career_advice:', roles);
+        
         return { 
-          careerMatches: careerRecommendations.map(rec => ({
-            id: rec.id,
-            role: rec.career_title,
-            match_score: rec.confidence_score || 0,
-            rationale: rec.rationale,
-            created_at: rec.created_at
+          careerMatches: roles.map((role: any, index: number) => ({
+            id: role.id || `role_${index}`,
+            role: role.role,
+            domain: role.domain,
+            match_score: role.match_score || 0,
+            rationale: role.rationale,
+            required_skills: role.required_skills || [],
+            growth_potential: role.growth_potential
           }))
         };
       }
       return { careerMatches: [] };
     } catch (error) {
-      console.error('Error loading career recommendations:', error);
+      console.error('Error loading career matches:', error);
       return { careerMatches: [] };
     }
   };
