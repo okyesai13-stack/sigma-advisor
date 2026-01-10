@@ -330,21 +330,24 @@ const Setup = () => {
 
       // Auto-fill form fields from parsed data
       const parsedData = result.data?.parsed_data;
+      console.log('Parsed resume data:', parsedData);
+      
       if (parsedData) {
-        // Fill education
-        if (parsedData.education && parsedData.education.length > 0) {
+        // Fill education - replace existing data
+        if (parsedData.education && Array.isArray(parsedData.education) && parsedData.education.length > 0) {
           const latestEdu = parsedData.education[0];
           setEducation({
             degree: latestEdu.degree || '',
             field: latestEdu.field || '',
-            year: latestEdu.graduation_year?.toString() || '',
+            year: latestEdu.graduation_year ? String(latestEdu.graduation_year) : '',
             institution: latestEdu.institution || '',
           });
+          console.log('Education auto-filled:', latestEdu);
         }
 
-        // Fill experiences
-        if (parsedData.experience && parsedData.experience.length > 0) {
-          setExperiences(parsedData.experience.map((exp: { 
+        // Fill experiences - replace existing data
+        if (parsedData.experience && Array.isArray(parsedData.experience) && parsedData.experience.length > 0) {
+          const mappedExperiences = parsedData.experience.map((exp: { 
             company?: string; 
             role?: string; 
             skills?: string[];
@@ -353,35 +356,43 @@ const Setup = () => {
           }) => ({
             company: exp.company || '',
             role: exp.role || '',
-            skills: (exp.skills || []).join(', '),
-            startYear: exp.start_year?.toString() || '',
-            endYear: exp.end_year?.toString() || '',
-          })));
+            skills: Array.isArray(exp.skills) ? exp.skills.join(', ') : '',
+            startYear: exp.start_year ? String(exp.start_year) : '',
+            endYear: exp.end_year ? String(exp.end_year) : '',
+          }));
+          setExperiences(mappedExperiences);
+          console.log('Experiences auto-filled:', mappedExperiences);
         }
 
-        // Fill certifications
-        if (parsedData.certifications && parsedData.certifications.length > 0) {
-          setCertifications(parsedData.certifications.map((cert: {
+        // Fill certifications - replace existing data
+        if (parsedData.certifications && Array.isArray(parsedData.certifications) && parsedData.certifications.length > 0) {
+          const mappedCerts = parsedData.certifications.map((cert: {
             title?: string;
             issuer?: string;
             year?: number;
           }) => ({
             title: cert.title || '',
             issuer: cert.issuer || '',
-            year: cert.year?.toString() || '',
-          })));
+            year: cert.year ? String(cert.year) : '',
+          }));
+          setCertifications(mappedCerts);
+          console.log('Certifications auto-filled:', mappedCerts);
         }
 
-        // Fill interests from resume
-        if (parsedData.interests && parsedData.interests.length > 0) {
-          setInterests(prev => [...new Set([...prev, ...parsedData.interests])]);
+        // Fill interests from resume - merge with existing
+        if (parsedData.interests && Array.isArray(parsedData.interests) && parsedData.interests.length > 0) {
+          setInterests(prev => {
+            const combined = [...new Set([...prev, ...parsedData.interests.filter((i: string) => typeof i === 'string')])];
+            console.log('Interests auto-filled:', combined);
+            return combined;
+          });
         }
 
-        // Fill hobbies if any
-        if (parsedData.skills && parsedData.skills.length > 0) {
-          // Add skills as activities if not already present
+        // Fill skills as activities
+        if (parsedData.skills && Array.isArray(parsedData.skills) && parsedData.skills.length > 0) {
           const skillsText = parsedData.skills.slice(0, 10).join(', ');
-          setActivities(prev => prev ? `${prev}, ${skillsText}` : skillsText);
+          setActivities(skillsText);
+          console.log('Skills/Activities auto-filled:', skillsText);
         }
       }
 
