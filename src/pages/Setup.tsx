@@ -46,12 +46,13 @@ const Setup = () => {
   const [newInterest, setNewInterest] = useState("");
   const [hobbies, setHobbies] = useState("");
   const [activities, setActivities] = useState("");
-  const [education, setEducation] = useState({
-    degree: "",
-    field: "",
-    year: "",
-    institution: "",
-  });
+  const [educations, setEducations] = useState<{
+    id?: string;
+    degree: string;
+    field: string;
+    year: string;
+    institution: string;
+  }[]>([]);
   const [experiences, setExperiences] = useState<{
     id?: string;
     company: string;
@@ -107,22 +108,21 @@ const Setup = () => {
         setHobbies((profile.hobbies || []).join(", "));
       }
 
-      // Load education data
+      // Load education data (all records, not just one)
       const { data: educationData } = await supabase
         .from('education_details')
         .select('*')
         .eq('user_id', user.id)
-        .order('graduation_year', { ascending: false })
-        .limit(1);
+        .order('graduation_year', { ascending: false });
 
       if (educationData && educationData.length > 0) {
-        const edu = educationData[0];
-        setEducation({
+        setEducations(educationData.map(edu => ({
+          id: edu.id,
           degree: edu.degree || "",
           field: edu.field || "",
           year: edu.graduation_year?.toString() || "",
           institution: edu.institution || "",
-        });
+        })));
       }
 
       // Load experience data
@@ -205,6 +205,20 @@ const Setup = () => {
 
   const removeInterest = (interest: string) => {
     setInterests(interests.filter((i) => i !== interest));
+  };
+
+  const addEducation = () => {
+    setEducations([...educations, { degree: "", field: "", year: "", institution: "" }]);
+  };
+
+  const updateEducation = (index: number, field: string, value: string) => {
+    const updated = [...educations];
+    updated[index] = { ...updated[index], [field]: value };
+    setEducations(updated);
+  };
+
+  const removeEducation = (index: number) => {
+    setEducations(educations.filter((_, i) => i !== index));
   };
 
   const addExperience = () => {
@@ -333,16 +347,21 @@ const Setup = () => {
       console.log('Parsed resume data:', parsedData);
       
       if (parsedData) {
-        // Fill education - replace existing data
+        // Fill education - replace existing data with ALL education entries
         if (parsedData.education && Array.isArray(parsedData.education) && parsedData.education.length > 0) {
-          const latestEdu = parsedData.education[0];
-          setEducation({
-            degree: latestEdu.degree || '',
-            field: latestEdu.field || '',
-            year: latestEdu.graduation_year ? String(latestEdu.graduation_year) : '',
-            institution: latestEdu.institution || '',
-          });
-          console.log('Education auto-filled:', latestEdu);
+          const mappedEducations = parsedData.education.map((edu: {
+            degree?: string;
+            field?: string;
+            graduation_year?: number;
+            institution?: string;
+          }) => ({
+            degree: edu.degree || '',
+            field: edu.field || '',
+            year: edu.graduation_year ? String(edu.graduation_year) : '',
+            institution: edu.institution || '',
+          }));
+          setEducations(mappedEducations);
+          console.log('Educations auto-filled:', mappedEducations);
         }
 
         // Fill experiences - replace existing data
@@ -447,26 +466,28 @@ const Setup = () => {
 
       if (profileError) throw profileError;
 
-      // 2. Handle education_details - delete existing and insert new if provided
-      if (education.degree || education.field || education.institution) {
-        // Delete existing education records
-        await supabase
-          .from('education_details')
-          .delete()
-          .eq('user_id', user.id);
+      // 2. Handle education_details - delete existing and insert new
+      // Delete existing education records
+      await supabase
+        .from('education_details')
+        .delete()
+        .eq('user_id', user.id);
 
-        // Insert new education record
-        const { error: eduError } = await supabase
-          .from('education_details')
-          .insert({
-            user_id: user.id,
-            degree: education.degree || null,
-            field: education.field || null,
-            institution: education.institution || null,
-            graduation_year: education.year ? parseInt(education.year) : null,
-          });
+      // Insert new education records
+      for (const edu of educations) {
+        if (edu.degree || edu.field || edu.institution) {
+          const { error: eduError } = await supabase
+            .from('education_details')
+            .insert({
+              user_id: user.id,
+              degree: edu.degree || null,
+              field: edu.field || null,
+              institution: edu.institution || null,
+              graduation_year: edu.year ? parseInt(edu.year) : null,
+            });
 
-        if (eduError) throw eduError;
+          if (eduError) throw eduError;
+        }
       }
 
       // 3. Handle experience_details - delete existing and insert new
@@ -775,7 +796,7 @@ const Setup = () => {
                 <h2 className="text-2xl font-bold text-foreground mb-2">Your Background</h2>
                 <p className="text-muted-foreground">
                   Tell us about your education and experience
-                  {(education.degree || education.field || education.institution || experiences.length > 0 || certifications.length > 0) && (
+                  {(educations.length > 0 || experiences.length > 0 || certifications.length > 0) && (
                     <span className="block mt-2 text-sm text-primary">
                       ✓ We've loaded your existing information
                     </span>
@@ -889,44 +910,65 @@ const Setup = () => {
 
               {/* Education */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2 text-foreground font-semibold">
-                  <GraduationCap className="w-5 h-5 text-primary" />
-                  Education
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-foreground font-semibold">
+                    <GraduationCap className="w-5 h-5 text-primary" />
+                    Education
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={addEducation}>
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
                 </div>
-                <div className="grid md:grid-cols-2 gap-4 p-4 rounded-xl bg-muted/50 border border-border">
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Degree</Label>
-                    <Input
-                      placeholder="e.g., Bachelor's, Master's"
-                      value={education.degree}
-                      onChange={(e) => setEducation({ ...education, degree: e.target.value })}
-                    />
+                {educations.map((edu, index) => (
+                  <div key={index} className="p-4 rounded-xl bg-muted/50 border border-border space-y-4 relative">
+                    <button
+                      onClick={() => removeEducation(index)}
+                      className="absolute top-3 right-3 text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Degree</Label>
+                        <Input
+                          placeholder="e.g., Bachelor's, Master's"
+                          value={edu.degree}
+                          onChange={(e) => updateEducation(index, "degree", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Field of Study</Label>
+                        <Input
+                          placeholder="e.g., Computer Science"
+                          value={edu.field}
+                          onChange={(e) => updateEducation(index, "field", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Year</Label>
+                        <Input
+                          placeholder="e.g., 2023"
+                          value={edu.year}
+                          onChange={(e) => updateEducation(index, "year", e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label className="text-foreground">Institution</Label>
+                        <Input
+                          placeholder="e.g., MIT"
+                          value={edu.institution}
+                          onChange={(e) => updateEducation(index, "institution", e.target.value)}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Field of Study</Label>
-                    <Input
-                      placeholder="e.g., Computer Science"
-                      value={education.field}
-                      onChange={(e) => setEducation({ ...education, field: e.target.value })}
-                    />
+                ))}
+                {educations.length === 0 && (
+                  <div className="p-6 rounded-xl border-2 border-dashed border-border text-center text-muted-foreground">
+                    No education added yet. Click "Add" to include your education details.
                   </div>
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Year</Label>
-                    <Input
-                      placeholder="e.g., 2023"
-                      value={education.year}
-                      onChange={(e) => setEducation({ ...education, year: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-foreground">Institution</Label>
-                    <Input
-                      placeholder="e.g., MIT"
-                      value={education.institution}
-                      onChange={(e) => setEducation({ ...education, institution: e.target.value })}
-                    />
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Experience */}
