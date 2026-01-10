@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 import {
   Brain,
   CheckCircle2,
@@ -36,6 +38,8 @@ const SigmaAgentTimeline: React.FC<AgentTimelineProps> = ({
   isExecuting,
   canExecute
 }) => {
+  const navigate = useNavigate();
+  const [hasNavigated, setHasNavigated] = useState(false);
   const steps = [
     { id: 'career_analysis', title: 'Career Analysis', icon: Brain, stateKey: 'career_analysis_completed' },
     { id: 'skill_validation', title: 'Skill Validation', icon: Target, stateKey: 'skill_validation_completed' },
@@ -58,6 +62,18 @@ const SigmaAgentTimeline: React.FC<AgentTimelineProps> = ({
   };
 
   const allCompleted = steps.every(step => agentState[step.stateKey as keyof AgentState]);
+
+  // Auto-navigate to advisor page when all steps are complete
+  useEffect(() => {
+    if (allCompleted && !hasNavigated) {
+      setHasNavigated(true);
+      const timer = setTimeout(() => {
+        toast.success('Career analysis complete! Redirecting to AI Advisor...');
+        navigate('/advisor');
+      }, 2500);
+      return () => clearTimeout(timer);
+    }
+  }, [allCompleted, hasNavigated, navigate]);
 
   return (
     <div className="space-y-4">
