@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, MessageSquare } from 'lucide-react';
 import { SigmaAgentController, SigmaAgentTimeline } from '@/components/sigma-agent';
 
 const Sigma = () => {
@@ -56,7 +56,35 @@ const Sigma = () => {
 
         <SigmaAgentController>
           {(props) => (
-            <SigmaAgentTimeline {...props} />
+            <>
+              {/* Ask Sigma Button - Show after career analysis is completed */}
+              {props.agentState.career_analysis_completed && (
+                <div className="mb-6">
+                  <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/10">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold text-foreground mb-1">Ready to Chat?</h3>
+                          <p className="text-sm text-muted-foreground">
+                            Ask Sigma questions about your career analysis and get personalized advice.
+                          </p>
+                        </div>
+                        <Button
+                          onClick={() => navigate('/advisor')}
+                          className="gap-2"
+                          variant="default"
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                          Ask Sigma
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+              
+              <SigmaAgentTimeline {...props} />
+            </>
           )}
         </SigmaAgentController>
       </main>

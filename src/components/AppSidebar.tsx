@@ -10,6 +10,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
     SidebarRail,
+    SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
     User,
@@ -87,6 +88,9 @@ export function AppSidebar() {
     return (
         <Sidebar collapsible="icon">
             <SidebarHeader>
+                <div className="flex items-center justify-between p-2">
+                    <SidebarTrigger className="h-8 w-8" />
+                </div>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>

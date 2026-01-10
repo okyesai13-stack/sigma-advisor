@@ -6,12 +6,8 @@ export default function SidebarLayout({ children }: { children?: React.ReactNode
     return (
         <SidebarProvider>
             <AppSidebar />
-            <main className="w-full relative">
-                {/* Fixed Sidebar trigger */}
-                <div className="fixed top-4 left-4 z-50">
-                    <SidebarTrigger className="md:inline-flex" />
-                </div>
-                <div className="p-4 md:p-0 pt-16 md:pt-4">
+            <main className="w-full">
+                <div className="p-4 md:p-0">
                     {children || <Outlet />}
                 </div>
             </main>
