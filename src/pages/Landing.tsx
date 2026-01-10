@@ -13,13 +13,13 @@ const Landing = () => {
   const getNextRoute = () => {
     if (!journeyState) return "/setup";
     if (!journeyState.profile_completed) return "/setup";
-    if (!journeyState.career_selected) return "/advisor";
-    if (!journeyState.skill_validated) return "/advisor";
-    if (!journeyState.learning_completed) return "/learn";
-    if (!journeyState.projects_completed) return "/projects";
-    if (!journeyState.job_ready) return "/advisor";
-    if (!journeyState.interview_completed) return "/interview";
-    return "/apply";
+    if (!journeyState.career_analysis_completed) return "/sigma";
+    if (!journeyState.skill_validation_completed) return "/sigma";
+    if (!journeyState.learning_plan_completed) return "/sigma";
+    if (!journeyState.project_plan_completed) return "/sigma";
+    if (!journeyState.job_matching_completed) return "/sigma";
+    if (!journeyState.interview_completed) return "/sigma";
+    return "/advisor";
   };
 
   const handleSignOut = async () => {
