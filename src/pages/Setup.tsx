@@ -539,12 +539,11 @@ const Setup = () => {
         }
       }
 
-      // 5. Update user_journey_state.profile_completed = true
+      // 5. Ensure sigma_journey_state record exists for the user
       const { error: journeyError } = await supabase
-        .from('user_journey_state')
+        .from('sigma_journey_state')
         .upsert({
           user_id: user.id,
-          profile_completed: true,
           updated_at: new Date().toISOString(),
         });
 

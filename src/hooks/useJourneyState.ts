@@ -5,12 +5,14 @@ import { useAuth } from './useAuth';
 
 interface JourneyState {
   profile_completed: boolean;
-  career_recommended: boolean;
-  career_selected: boolean;
-  skill_validated: boolean;
-  learning_completed: boolean;
-  projects_completed: boolean;
-  job_ready: boolean;
+  career_analysis_completed: boolean;
+  skill_validation_completed: boolean;
+  learning_plan_completed: boolean;
+  project_guidance_completed: boolean;
+  project_plan_completed: boolean;
+  project_build_completed: boolean;
+  resume_completed: boolean;
+  job_matching_completed: boolean;
   interview_completed: boolean;
 }
 
@@ -23,12 +25,14 @@ interface UseJourneyStateReturn {
 
 const defaultState: JourneyState = {
   profile_completed: false,
-  career_recommended: false,
-  career_selected: false,
-  skill_validated: false,
-  learning_completed: false,
-  projects_completed: false,
-  job_ready: false,
+  career_analysis_completed: false,
+  skill_validation_completed: false,
+  learning_plan_completed: false,
+  project_guidance_completed: false,
+  project_plan_completed: false,
+  project_build_completed: false,
+  resume_completed: false,
+  job_matching_completed: false,
   interview_completed: false,
 };
 
@@ -75,8 +79,9 @@ export const useJourneyState = (): UseJourneyStateReturn => {
     }
 
     try {
+      // Use sigma_journey_state table
       const { data, error } = await supabase
-        .from('user_journey_state')
+        .from('sigma_journey_state')
         .select('*')
         .eq('user_id', user.id)
         .maybeSingle();
@@ -84,60 +89,55 @@ export const useJourneyState = (): UseJourneyStateReturn => {
       if (error) {
         console.error('Error fetching journey state:', error);
         setJourneyState(defaultState);
+        setLoading(false);
         return;
       }
 
-      // If no record exists, create one.
-      if (!data) {
-        const profileCompleted = await isProfileComplete();
+      // Check if profile is complete from users_profile table
+      const profileCompleted = await isProfileComplete();
 
+      // If no record exists, create one
+      if (!data) {
         const { data: newData, error: insertError } = await supabase
-          .from('user_journey_state')
-          .insert({ user_id: user.id, profile_completed: profileCompleted })
+          .from('sigma_journey_state')
+          .insert({ user_id: user.id })
           .select()
           .single();
 
         if (insertError || !newData) {
           console.error('Error creating journey state:', insertError);
-          setJourneyState(defaultState);
+          setJourneyState({ ...defaultState, profile_completed: profileCompleted });
+          setLoading(false);
           return;
         }
 
         setJourneyState({
-          profile_completed: newData.profile_completed ?? false,
-          career_recommended: newData.career_recommended ?? false,
-          career_selected: newData.career_selected ?? false,
-          skill_validated: newData.skill_validated ?? false,
-          learning_completed: newData.learning_completed ?? false,
-          projects_completed: newData.projects_completed ?? false,
-          job_ready: newData.job_ready ?? false,
+          profile_completed: profileCompleted,
+          career_analysis_completed: newData.career_analysis_completed ?? false,
+          skill_validation_completed: newData.skill_validation_completed ?? false,
+          learning_plan_completed: newData.learning_plan_completed ?? false,
+          project_guidance_completed: newData.project_guidance_completed ?? false,
+          project_plan_completed: newData.project_plan_completed ?? false,
+          project_build_completed: newData.project_build_completed ?? false,
+          resume_completed: newData.resume_completed ?? false,
+          job_matching_completed: newData.job_matching_completed ?? false,
           interview_completed: newData.interview_completed ?? false,
         });
-
+        setLoading(false);
         return;
       }
 
-      // Record exists.
-      let profile_completed = data.profile_completed ?? false;
-      if (!profile_completed) {
-        const computed = await isProfileComplete();
-        if (computed) {
-          profile_completed = true;
-          await supabase
-            .from('user_journey_state')
-            .update({ profile_completed: true, updated_at: new Date().toISOString() })
-            .eq('user_id', user.id);
-        }
-      }
-
+      // Record exists - use data from sigma_journey_state
       setJourneyState({
-        profile_completed,
-        career_recommended: data.career_recommended ?? false,
-        career_selected: data.career_selected ?? false,
-        skill_validated: data.skill_validated ?? false,
-        learning_completed: data.learning_completed ?? false,
-        projects_completed: data.projects_completed ?? false,
-        job_ready: data.job_ready ?? false,
+        profile_completed: profileCompleted,
+        career_analysis_completed: data.career_analysis_completed ?? false,
+        skill_validation_completed: data.skill_validation_completed ?? false,
+        learning_plan_completed: data.learning_plan_completed ?? false,
+        project_guidance_completed: data.project_guidance_completed ?? false,
+        project_plan_completed: data.project_plan_completed ?? false,
+        project_build_completed: data.project_build_completed ?? false,
+        resume_completed: data.resume_completed ?? false,
+        job_matching_completed: data.job_matching_completed ?? false,
         interview_completed: data.interview_completed ?? false,
       });
     } catch (error) {
@@ -152,14 +152,19 @@ export const useJourneyState = (): UseJourneyStateReturn => {
     if (!user) return;
 
     try {
-      const { error } = await supabase
-        .from('user_journey_state')
-        .update({ ...updates, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id);
+      // Filter out profile_completed as it's derived from users_profile
+      const { profile_completed, ...sigmaUpdates } = updates;
+      
+      if (Object.keys(sigmaUpdates).length > 0) {
+        const { error } = await supabase
+          .from('sigma_journey_state')
+          .update({ ...sigmaUpdates, updated_at: new Date().toISOString() })
+          .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error updating journey state:', error);
-        return;
+        if (error) {
+          console.error('Error updating journey state:', error);
+          return;
+        }
       }
 
       setJourneyState((prev) => prev ? { ...prev, ...updates } : null);

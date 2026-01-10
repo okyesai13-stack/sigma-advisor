@@ -303,59 +303,6 @@ export type Database = {
           },
         ]
       }
-      project_build: {
-        Row: {
-          about: string
-          category: string
-          created_at: string | null
-          how: string
-          id: string
-          project_id: string
-          tool_link: string
-          tool_name: string
-          updated_at: string | null
-          user_id: string
-          user_link: string | null
-          why: string
-        }
-        Insert: {
-          about: string
-          category: string
-          created_at?: string | null
-          how: string
-          id?: string
-          project_id: string
-          tool_link: string
-          tool_name: string
-          updated_at?: string | null
-          user_id: string
-          user_link?: string | null
-          why: string
-        }
-        Update: {
-          about?: string
-          category?: string
-          created_at?: string | null
-          how?: string
-          id?: string
-          project_id?: string
-          tool_link?: string
-          tool_name?: string
-          updated_at?: string | null
-          user_id?: string
-          user_link?: string | null
-          why?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_build_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "project_ideas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       project_build_steps: {
         Row: {
           created_at: string
@@ -773,45 +720,6 @@ export type Database = {
           recommended_next_step?: string
           role?: string
           updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_journey_state: {
-        Row: {
-          career_recommended: boolean | null
-          career_selected: boolean | null
-          interview_completed: boolean | null
-          job_ready: boolean | null
-          learning_completed: boolean | null
-          profile_completed: boolean | null
-          projects_completed: boolean | null
-          skill_validated: boolean | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          career_recommended?: boolean | null
-          career_selected?: boolean | null
-          interview_completed?: boolean | null
-          job_ready?: boolean | null
-          learning_completed?: boolean | null
-          profile_completed?: boolean | null
-          projects_completed?: boolean | null
-          skill_validated?: boolean | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          career_recommended?: boolean | null
-          career_selected?: boolean | null
-          interview_completed?: boolean | null
-          job_ready?: boolean | null
-          learning_completed?: boolean | null
-          profile_completed?: boolean | null
-          projects_completed?: boolean | null
-          skill_validated?: boolean | null
-          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
