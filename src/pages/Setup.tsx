@@ -21,6 +21,7 @@ import {
   Upload,
   FileText,
   CheckCircle,
+  Building,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ const Setup = () => {
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [userType, setUserType] = useState("student");
   const [goal, setGoal] = useState("");
   const [goalDescription, setGoalDescription] = useState("");
   const [interests, setInterests] = useState<string[]>([]);
@@ -101,6 +103,7 @@ const Setup = () => {
         .single();
 
       if (profile) {
+        setUserType(profile.user_type || "student");
         setGoal(profile.goal_type || "");
         setGoalDescription(profile.goal_description || "");
         setInterests(profile.interests || []);
@@ -456,6 +459,7 @@ const Setup = () => {
         .from('users_profile')
         .upsert({
           id: user.id,
+          user_type: userType,
           goal_type: goal,
           goal_description: goalDescription,
           interests: interests,
@@ -801,6 +805,110 @@ const Setup = () => {
                     </span>
                   )}
                 </p>
+              </div>
+
+              {/* User Type Selection */}
+              <div className="space-y-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-foreground mb-4">What best describes you?</h3>
+                </div>
+                
+                <div className="grid md:grid-cols-3 gap-4 max-w-4xl mx-auto">
+                  {/* Student */}
+                  <button
+                    onClick={() => setUserType("student")}
+                    className={`p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative ${
+                      userType === "student"
+                        ? "border-primary bg-primary/5 shadow-lg"
+                        : "border-border hover:border-primary/50 hover:bg-accent/50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center space-y-4">
+                      <div
+                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${
+                          userType === "student" 
+                            ? "bg-primary/10 text-primary" 
+                            : "bg-muted text-muted-foreground group-hover:bg-primary/10 group-hover:text-primary"
+                        }`}
+                      >
+                        <GraduationCap className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground text-lg mb-1">Student</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Currently studying or recently graduated
+                        </p>
+                      </div>
+                    </div>
+                    {userType === "student" && (
+                      <div className="absolute top-3 right-3">
+                        <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
+                          <Check className="w-4 h-4 text-primary-foreground" />
+                        </div>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Working Professional */}
+                  <button
+                    onClick={() => setUserType("working_professional")}
+                    className={`p-6 rounded-2xl border-2 transition-all duration-300 text-center group relative ${
+                      userType === "working_professional"
+                        ? "border-cyan-400 bg-cyan-50 shadow-lg"
+                        : "border-border hover:border-cyan-400/50 hover:bg-cyan-50/50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center space-y-4">
+                      <div
+                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${
+                          userType === "working_professional" 
+                            ? "bg-cyan-100 text-cyan-600" 
+                            : "bg-muted text-muted-foreground group-hover:bg-cyan-100 group-hover:text-cyan-600"
+                        }`}
+                      >
+                        <Briefcase className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-foreground text-lg mb-1">Working</h4>
+                        <h4 className="font-semibold text-foreground text-lg mb-1 -mt-1">Professional</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Currently employed or seeking career growth
+                        </p>
+                      </div>
+                    </div>
+                    {userType === "working_professional" && (
+                      <div className="absolute top-3 right-3">
+                        <div className="w-6 h-6 rounded-full bg-cyan-500 flex items-center justify-center">
+                          <Check className="w-4 h-4 text-white" />
+                        </div>
+                      </div>
+                    )}
+                  </button>
+
+                  {/* Founder */}
+                  <button
+                    onClick={() => setUserType("founder")}
+                    disabled={true}
+                    className="p-6 rounded-2xl border-2 border-dashed border-gray-300 text-center group relative opacity-50 cursor-not-allowed"
+                  >
+                    <div className="flex flex-col items-center space-y-4">
+                      <div className="w-16 h-16 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center">
+                        <Building className="w-8 h-8" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-500 text-lg mb-1">Founder</h4>
+                        <p className="text-sm text-gray-400">
+                          Coming Soon
+                        </p>
+                      </div>
+                    </div>
+                    <div className="absolute top-3 right-3">
+                      <div className="w-6 h-6 rounded-full bg-gray-300 flex items-center justify-center">
+                        <X className="w-4 h-4 text-gray-500" />
+                      </div>
+                    </div>
+                  </button>
+                </div>
               </div>
 
               {/* Resume Upload */}
