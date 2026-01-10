@@ -37,6 +37,36 @@ export const useJourneyState = (): UseJourneyStateReturn => {
   const [journeyState, setJourneyState] = useState<JourneyState | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const isProfileComplete = async (): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const { data: profile, error } = await supabase
+        .from('users_profile')
+        .select('goal_type, goal_description, interests, hobbies, activities')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.warn('Unable to check users_profile completeness:', error);
+        return false;
+      }
+
+      if (!profile) return false;
+
+      const hasGoal = Boolean(profile.goal_type && profile.goal_type.trim().length > 0);
+      const hasGoalDescription = Boolean(profile.goal_description && profile.goal_description.trim().length > 0);
+      const hasInterests = Array.isArray(profile.interests) && profile.interests.length > 0;
+      const hasHobbies = Array.isArray(profile.hobbies) && profile.hobbies.length > 0;
+      const hasActivities = Array.isArray(profile.activities) && profile.activities.length > 0;
+
+      return hasGoal || hasGoalDescription || hasInterests || hasHobbies || hasActivities;
+    } catch (err) {
+      console.warn('Unable to check users_profile completeness:', err);
+      return false;
+    }
+  };
+
   const fetchState = async () => {
     if (!user) {
       setJourneyState(null);
@@ -49,47 +79,67 @@ export const useJourneyState = (): UseJourneyStateReturn => {
         .from('user_journey_state')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) {
-        if (error.code === 'PGRST116') {
-          // No record found, create one
-          const { data: newData, error: insertError } = await supabase
-            .from('user_journey_state')
-            .insert({ user_id: user.id })
-            .select()
-            .single();
-          
-          if (!insertError && newData) {
-            setJourneyState({
-              profile_completed: newData.profile_completed ?? false,
-              career_recommended: newData.career_recommended ?? false,
-              career_selected: newData.career_selected ?? false,
-              skill_validated: newData.skill_validated ?? false,
-              learning_completed: newData.learning_completed ?? false,
-              projects_completed: newData.projects_completed ?? false,
-              job_ready: newData.job_ready ?? false,
-              interview_completed: newData.interview_completed ?? false,
-            });
-          } else {
-            setJourneyState(defaultState);
-          }
-        } else {
-          console.error('Error fetching journey state:', error);
-          setJourneyState(defaultState);
-        }
-      } else if (data) {
-        setJourneyState({
-          profile_completed: data.profile_completed ?? false,
-          career_recommended: data.career_recommended ?? false,
-          career_selected: data.career_selected ?? false,
-          skill_validated: data.skill_validated ?? false,
-          learning_completed: data.learning_completed ?? false,
-          projects_completed: data.projects_completed ?? false,
-          job_ready: data.job_ready ?? false,
-          interview_completed: data.interview_completed ?? false,
-        });
+        console.error('Error fetching journey state:', error);
+        setJourneyState(defaultState);
+        return;
       }
+
+      // If no record exists, create one.
+      if (!data) {
+        const profileCompleted = await isProfileComplete();
+
+        const { data: newData, error: insertError } = await supabase
+          .from('user_journey_state')
+          .insert({ user_id: user.id, profile_completed: profileCompleted })
+          .select()
+          .single();
+
+        if (insertError || !newData) {
+          console.error('Error creating journey state:', insertError);
+          setJourneyState(defaultState);
+          return;
+        }
+
+        setJourneyState({
+          profile_completed: newData.profile_completed ?? false,
+          career_recommended: newData.career_recommended ?? false,
+          career_selected: newData.career_selected ?? false,
+          skill_validated: newData.skill_validated ?? false,
+          learning_completed: newData.learning_completed ?? false,
+          projects_completed: newData.projects_completed ?? false,
+          job_ready: newData.job_ready ?? false,
+          interview_completed: newData.interview_completed ?? false,
+        });
+
+        return;
+      }
+
+      // Record exists.
+      let profile_completed = data.profile_completed ?? false;
+      if (!profile_completed) {
+        const computed = await isProfileComplete();
+        if (computed) {
+          profile_completed = true;
+          await supabase
+            .from('user_journey_state')
+            .update({ profile_completed: true, updated_at: new Date().toISOString() })
+            .eq('user_id', user.id);
+        }
+      }
+
+      setJourneyState({
+        profile_completed,
+        career_recommended: data.career_recommended ?? false,
+        career_selected: data.career_selected ?? false,
+        skill_validated: data.skill_validated ?? false,
+        learning_completed: data.learning_completed ?? false,
+        projects_completed: data.projects_completed ?? false,
+        job_ready: data.job_ready ?? false,
+        interview_completed: data.interview_completed ?? false,
+      });
     } catch (error) {
       console.error('Error fetching journey state:', error);
       setJourneyState(defaultState);
