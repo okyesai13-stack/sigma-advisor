@@ -17,23 +17,29 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
+  const getNextRoute = () => {
+    if (!journeyState) return "/setup";
+    if (!journeyState.profile_completed) return "/setup";
+    if (!journeyState.career_analysis_completed) return "/sigma";
+    if (!journeyState.skill_validation_completed) return "/sigma";
+    if (!journeyState.learning_plan_completed) return "/sigma";
+    if (!journeyState.project_plan_completed) return "/sigma";
+    if (!journeyState.job_matching_completed) return "/sigma";
+    if (!journeyState.interview_completed) return "/sigma";
+    return "/advisor";
+  };
+
   // Redirect if user is already authenticated based on journey state
   useEffect(() => {
-    if (user && !authLoading) {
-      // User is logged in, check journey state
-      if (journeyLoading) return; // Wait for journey state to load
-      
-      if (!journeyState?.profile_completed) {
-        navigate("/setup");
-      } else {
-        navigate("/advisor");
-      }
-    }
+    if (authLoading || !user) return;
+    if (journeyLoading) return; // Wait for journey state to load
+
+    navigate(getNextRoute(), { replace: true });
   }, [user, authLoading, journeyLoading, journeyState, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error("Please fill in all fields");
       return;
@@ -47,7 +53,7 @@ const Auth = () => {
         result = await signIn(email, password);
         if (!result.error) {
           toast.success("Welcome back!");
-          navigate("/setup");
+          // Navigation is handled by the auth + journey state effect above.
         }
       } else {
         result = await signUp(email, password);
