@@ -7,6 +7,7 @@ import { Sparkles, Mail, Lock, ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { useJourneyState } from "@/hooks/useJourneyState";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,14 +20,31 @@ const Auth = () => {
 
   const getNextRoute = () => {
     if (!journeyState) return "/setup";
+    
+    // If profile is not completed, go to setup
     if (!journeyState.profile_completed) return "/setup";
-    if (!journeyState.career_analysis_completed) return "/sigma";
-    if (!journeyState.skill_validation_completed) return "/sigma";
-    if (!journeyState.learning_plan_completed) return "/sigma";
-    if (!journeyState.project_plan_completed) return "/sigma";
-    if (!journeyState.job_matching_completed) return "/sigma";
-    if (!journeyState.interview_completed) return "/sigma";
+    
+    // For existing users who have completed their profile, go directly to advisor
     return "/advisor";
+  };
+
+  // Check if user has completed profile by checking users_profile table as fallback
+  const checkProfileCompletedFallback = async () => {
+    if (!user) return false;
+    
+    try {
+      const { data } = await supabase
+        .from('users_profile')
+        .select('goal_type, goal_description')
+        .eq('id', user.id)
+        .single();
+      
+      // If user has goal_type set, consider profile completed
+      return !!(data?.goal_type);
+    } catch (error) {
+      console.error('Error checking profile completion:', error);
+      return false;
+    }
   };
 
   // Redirect if user is already authenticated based on journey state
@@ -34,7 +52,33 @@ const Auth = () => {
     if (authLoading || !user) return;
     if (journeyLoading) return; // Wait for journey state to load
 
-    navigate(getNextRoute(), { replace: true });
+    const handleNavigation = async () => {
+      let route = getNextRoute();
+      
+      // If journey state says profile is not completed, double-check with users_profile table
+      if (route === "/setup" && journeyState && !journeyState.profile_completed) {
+        const hasProfile = await checkProfileCompletedFallback();
+        if (hasProfile) {
+          // Update journey state to reflect profile completion
+          try {
+            await supabase
+              .from('sigma_journey_state')
+              .upsert({
+                user_id: user.id,
+                profile_completed: true,
+                updated_at: new Date().toISOString(),
+              });
+          } catch (error) {
+            console.error('Error updating journey state:', error);
+          }
+          route = "/advisor";
+        }
+      }
+      
+      navigate(route, { replace: true });
+    };
+
+    handleNavigation();
   }, [user, authLoading, journeyLoading, journeyState, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {

@@ -22,10 +22,12 @@ import {
   FileText,
   CheckCircle,
   Building,
+  Sparkles,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
+import { useJourneyState } from "@/hooks/useJourneyState";
 import { supabase } from "@/integrations/supabase/client";
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
@@ -38,6 +40,7 @@ const Setup = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const { toast } = useToast();
+  const { journeyState } = useJourneyState();
   const [step, setStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -543,11 +546,12 @@ const Setup = () => {
         }
       }
 
-      // 5. Ensure sigma_journey_state record exists for the user
+      // 5. Ensure sigma_journey_state record exists and mark profile as completed
       const { error: journeyError } = await supabase
         .from('sigma_journey_state')
         .upsert({
           user_id: user.id,
+          profile_completed: true,
           updated_at: new Date().toISOString(),
         });
 
@@ -679,6 +683,26 @@ const Setup = () => {
         <div className="bg-card border border-border rounded-2xl shadow-lg p-8 animate-scale-in">
           {step === 1 && (
             <div className="space-y-8">
+              {/* Ask Sigma Button - Only show if profile is completed */}
+              {journeyState?.profile_completed && (
+                <div className="text-center pb-6 border-b border-border">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">Ready to get personalized advice?</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Your profile is complete! Ask Sigma for personalized career guidance.
+                    </p>
+                  </div>
+                  <Button
+                    onClick={() => navigate('/advisor')}
+                    variant="hero"
+                    className="gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Ask Sigma
+                  </Button>
+                </div>
+              )}
+
               <div className="text-center">
                 <h2 className="text-2xl font-bold text-foreground mb-2">What is your goal?</h2>
                 <p className="text-muted-foreground">
