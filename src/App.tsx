@@ -13,6 +13,9 @@ import Dashboard from "./pages/Dashboard";
 import Advisor from "./pages/Advisor";
 import Profile from "./pages/Profile";
 import Sigma from "./pages/Sigma";
+import Projects from "./pages/Projects";
+import Interview from "./pages/Interview";
+import Resume from "./pages/Resume";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -49,6 +52,24 @@ const App = () => (
             <Route path="/sigma" element={
               <ProtectedRoute>
                 <Sigma />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/projects" element={
+              <ProtectedRoute>
+                <Projects />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/interview" element={
+              <ProtectedRoute>
+                <Interview />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/resume" element={
+              <ProtectedRoute>
+                <Resume />
               </ProtectedRoute>
             } />
 

@@ -239,6 +239,15 @@ const Profile = () => {
                 </div>
               )}
             </div>
+            <div className="flex items-center gap-3">
+              <Button
+                onClick={() => navigate('/resume')}
+                className="gap-2"
+              >
+                <User className="w-4 h-4" />
+                Resume
+              </Button>
+            </div>
           </div>
         </div>
 

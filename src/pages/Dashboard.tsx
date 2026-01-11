@@ -489,22 +489,87 @@ const Dashboard = () => {
         .order('created_at', { ascending: false });
 
       if (projectData) {
-        // Validate and normalize project status
-        const validateProjectStatus = (status: string | null): 'not_started' | 'planned' | 'built' => {
-          if (status === 'planned' || status === 'built') {
-            return status;
+        // Validate and normalize project status with resource/build step checking
+        const validateProjectStatus = async (projectId: string, originalStatus: string | null, projectTitle: string): Promise<'not_started' | 'planned' | 'built'> => {
+          console.log(`Checking project: ${projectTitle} (ID: ${projectId})`);
+          console.log(`Original status: ${originalStatus}`);
+          
+          // First check the original status
+          if (originalStatus === 'built' || originalStatus === 'Built') {
+            console.log(`Project ${projectTitle} already marked as built`);
+            return 'built';
           }
+          
+          // Normalize the status check - handle both database format and display format
+          const isNotStarted = !originalStatus || 
+                              originalStatus === 'not_started' || 
+                              originalStatus === 'Not Started' ||
+                              originalStatus.toLowerCase().includes('not started');
+          
+          // If status is not_started (in any format), check if project has resources and build steps
+          if (isNotStarted) {
+            console.log(`Project ${projectTitle} is not started, checking for resources and build steps...`);
+            try {
+              // Check if project has resources
+              const { data: resourcesData, error: resourcesError } = await supabase
+                .from('project_resources')
+                .select('id')
+                .eq('project_id', projectId)
+                .limit(1);
+
+              console.log(`Resources for ${projectTitle}:`, resourcesData, resourcesError);
+
+              // Check if project has build steps
+              const { data: buildStepsData, error: buildStepsError } = await supabase
+                .from('project_build_steps')
+                .select('id')
+                .eq('project_id', projectId)
+                .limit(1);
+
+              console.log(`Build steps for ${projectTitle}:`, buildStepsData, buildStepsError);
+
+              // If either resources OR build steps exist (indicating progress), mark as in_progress
+              if ((resourcesData && resourcesData.length > 0) || (buildStepsData && buildStepsData.length > 0)) {
+                console.log(`Project ${projectTitle} has resources OR build steps - marking as planned (in progress)`);
+                return 'planned'; // Using 'planned' to represent 'in_progress'
+              } else {
+                console.log(`Project ${projectTitle} missing both resources AND build steps`);
+                console.log(`Has resources: ${resourcesData && resourcesData.length > 0}`);
+                console.log(`Has build steps: ${buildStepsData && buildStepsData.length > 0}`);
+              }
+            } catch (error) {
+              console.error(`Error checking project resources/build steps for ${projectTitle}:`, error);
+            }
+          } else {
+            console.log(`Project ${projectTitle} status is not 'not started', skipping resource check`);
+          }
+          
+          // Return original status or default to not_started
+          if (originalStatus === 'planned' || originalStatus === 'Planned') {
+            console.log(`Project ${projectTitle} keeping original planned status`);
+            return 'planned';
+          }
+          console.log(`Project ${projectTitle} defaulting to not_started`);
           return 'not_started';
         };
 
-        setProjectIdeas(projectData.map(item => ({
-          id: item.id,
-          title: item.title || 'Untitled Project',
-          domain: item.domain || 'Technology',
-          status: validateProjectStatus(item.status),
-          description: item.description || '',
-          created_at: item.created_at
-        })));
+        // Process projects with async status validation
+        const processedProjects = await Promise.all(
+          projectData.map(async (item) => {
+            const validatedStatus = await validateProjectStatus(item.id, item.status, item.title || 'Untitled Project');
+            
+            return {
+              id: item.id,
+              title: item.title || 'Untitled Project',
+              domain: item.domain || 'Technology',
+              status: validatedStatus,
+              description: item.description || '',
+              created_at: item.created_at
+            };
+          })
+        );
+
+        setProjectIdeas(processedProjects);
       }
 
       // Load job recommendations
@@ -515,28 +580,41 @@ const Dashboard = () => {
         .order('created_at', { ascending: false });
 
       if (jobData) {
-        setJobRecommendations(jobData.map(item => {
-          // Safely parse skills array
-          const parseSkillsArray = (skillsData: any): string[] => {
-            if (Array.isArray(skillsData)) {
-              return skillsData.filter(skill => typeof skill === 'string');
-            }
-            return [];
-          };
+        // Check interview preparation for each job
+        const jobsWithPrepStatus = await Promise.all(
+          jobData.map(async (item) => {
+            // Check if interview preparation exists for this job
+            const { data: prepData } = await supabase
+              .from('interview_preparation')
+              .select('id')
+              .eq('job_id', item.id)
+              .eq('user_id', user.id)
+              .limit(1);
 
-          return {
-            id: item.id,
-            title: item.job_title || 'Unknown Position',
-            company: item.company_name || 'Unknown Company',
-            location: item.location || 'Remote',
-            match_percentage: item.relevance_score || 0,
-            salary_range: 'Not specified', // This field doesn't exist in the schema
-            job_type: 'Full-time', // This field doesn't exist in the schema
-            required_skills: parseSkillsArray(item.required_skills),
-            posted_date: item.created_at || new Date().toISOString(),
-            interview_prep_completed: false // This would need to be checked against interview_preparation table
-          };
-        }));
+            // Safely parse skills array
+            const parseSkillsArray = (skillsData: any): string[] => {
+              if (Array.isArray(skillsData)) {
+                return skillsData.filter(skill => typeof skill === 'string');
+              }
+              return [];
+            };
+
+            return {
+              id: item.id,
+              title: item.job_title || 'Unknown Position',
+              company: item.company_name || 'Unknown Company',
+              location: item.location || 'Remote',
+              match_percentage: item.relevance_score || 0,
+              salary_range: 'Not specified', // This field doesn't exist in the schema
+              job_type: 'Full-time', // This field doesn't exist in the schema
+              required_skills: parseSkillsArray(item.required_skills),
+              posted_date: item.created_at || new Date().toISOString(),
+              interview_prep_completed: prepData && prepData.length > 0
+            };
+          })
+        );
+
+        setJobRecommendations(jobsWithPrepStatus);
       }
 
       // Determine next best action
@@ -626,6 +704,65 @@ const Dashboard = () => {
     return learningJourneys.some(journey => 
       journey.skill_name.toLowerCase() === skillName.toLowerCase()
     );
+  };
+
+  // Function to generate learning plan for a skill
+  const generateLearningPlan = async (skillName: string) => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        toast({
+          title: "Authentication Error",
+          description: "Please sign in to continue.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      toast({
+        title: "Generating Learning Plan",
+        description: `Creating a personalized learning plan for ${skillName}...`,
+      });
+
+      const response = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/generate-learning-plan`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ skillName }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to generate learning plan');
+      }
+
+      toast({
+        title: "Success",
+        description: `Learning plan for ${skillName} has been generated!`,
+      });
+
+      // Refresh dashboard data to show the new learning journey
+      loadDashboardData();
+
+      // Scroll to learning section
+      setTimeout(() => {
+        document.getElementById('learning')?.scrollIntoView({ behavior: 'smooth' });
+      }, 1000);
+
+    } catch (error) {
+      console.error('Error generating learning plan:', error);
+      toast({
+        title: "Error",
+        description: `Failed to generate learning plan for ${skillName}. Please try again.`,
+        variant: "destructive"
+      });
+    }
   };
 
   // Function to toggle step completion
@@ -1355,7 +1492,13 @@ const Dashboard = () => {
                                       <Button
                                         size="sm"
                                         variant={hasLearning ? "outline" : "default"}
-                                        onClick={() => document.getElementById('learning')?.scrollIntoView({ behavior: 'smooth' })}
+                                        onClick={() => {
+                                          if (hasLearning) {
+                                            document.getElementById('learning')?.scrollIntoView({ behavior: 'smooth' });
+                                          } else {
+                                            generateLearningPlan(skill);
+                                          }
+                                        }}
                                         className="gap-1 text-xs h-7"
                                       >
                                         {hasLearning ? (
@@ -1474,7 +1617,13 @@ const Dashboard = () => {
                                       <Button
                                         size="sm"
                                         variant={hasLearning ? "outline" : "default"}
-                                        onClick={() => document.getElementById('learning')?.scrollIntoView({ behavior: 'smooth' })}
+                                        onClick={() => {
+                                          if (hasLearning) {
+                                            document.getElementById('learning')?.scrollIntoView({ behavior: 'smooth' });
+                                          } else {
+                                            generateLearningPlan(skill);
+                                          }
+                                        }}
                                         className="gap-1 text-xs h-7 w-full"
                                       >
                                         {hasLearning ? (
@@ -1882,12 +2031,12 @@ const Dashboard = () => {
                             <div className="flex items-center justify-between">
                               <Badge className={getStatusColor(project.status)}>
                                 {project.status === 'built' ? 'Built' :
-                                 project.status === 'planned' ? 'Planned' : 'Not Started'}
+                                 project.status === 'planned' ? 'In Progress' : 'Not Started'}
                               </Badge>
                               
                               <Button
                                 size="sm"
-                                onClick={() => navigate('/projects')}
+                                onClick={() => navigate(`/projects?id=${project.id}`)}
                                 className="gap-2"
                               >
                                 {project.status === 'not_started' ? (
@@ -1993,7 +2142,7 @@ const Dashboard = () => {
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
-                                  onClick={() => navigate('/interview')}
+                                  onClick={() => navigate(`/interview?id=${job.id}`)}
                                   className="gap-2"
                                   variant={job.interview_prep_completed ? "outline" : "default"}
                                 >
