@@ -641,6 +641,7 @@ export type Database = {
           interview_completed: boolean | null
           job_matching_completed: boolean | null
           learning_plan_completed: boolean | null
+          profile_completed: boolean | null
           project_build_completed: boolean | null
           project_guidance_completed: boolean | null
           project_plan_completed: boolean | null
@@ -655,6 +656,7 @@ export type Database = {
           interview_completed?: boolean | null
           job_matching_completed?: boolean | null
           learning_plan_completed?: boolean | null
+          profile_completed?: boolean | null
           project_build_completed?: boolean | null
           project_guidance_completed?: boolean | null
           project_plan_completed?: boolean | null
@@ -669,6 +671,7 @@ export type Database = {
           interview_completed?: boolean | null
           job_matching_completed?: boolean | null
           learning_plan_completed?: boolean | null
+          profile_completed?: boolean | null
           project_build_completed?: boolean | null
           project_guidance_completed?: boolean | null
           project_plan_completed?: boolean | null
@@ -779,6 +782,7 @@ export type Database = {
           id: string
           interests: string[] | null
           updated_at: string | null
+          user_type: string | null
         }
         Insert: {
           activities?: string[] | null
@@ -789,6 +793,7 @@ export type Database = {
           id: string
           interests?: string[] | null
           updated_at?: string | null
+          user_type?: string | null
         }
         Update: {
           activities?: string[] | null
@@ -799,6 +804,7 @@ export type Database = {
           id?: string
           interests?: string[] | null
           updated_at?: string | null
+          user_type?: string | null
         }
         Relationships: []
       }

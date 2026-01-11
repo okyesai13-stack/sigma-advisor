@@ -41,32 +41,25 @@ export const useJourneyState = (): UseJourneyStateReturn => {
   const [journeyState, setJourneyState] = useState<JourneyState | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const isProfileComplete = async (): Promise<boolean> => {
+  // Check if profile_completed is true in sigma_journey_state
+  const checkProfileCompleted = async (): Promise<boolean> => {
     if (!user) return false;
 
     try {
-      const { data: profile, error } = await supabase
-        .from('users_profile')
-        .select('goal_type, goal_description, interests, hobbies, activities')
-        .eq('id', user.id)
+      const { data, error } = await supabase
+        .from('sigma_journey_state')
+        .select('profile_completed')
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (error) {
-        console.warn('Unable to check users_profile completeness:', error);
+        console.warn('Unable to check sigma_journey_state:', error);
         return false;
       }
 
-      if (!profile) return false;
-
-      const hasGoal = Boolean(profile.goal_type && profile.goal_type.trim().length > 0);
-      const hasGoalDescription = Boolean(profile.goal_description && profile.goal_description.trim().length > 0);
-      const hasInterests = Array.isArray(profile.interests) && profile.interests.length > 0;
-      const hasHobbies = Array.isArray(profile.hobbies) && profile.hobbies.length > 0;
-      const hasActivities = Array.isArray(profile.activities) && profile.activities.length > 0;
-
-      return hasGoal || hasGoalDescription || hasInterests || hasHobbies || hasActivities;
+      return data?.profile_completed ?? false;
     } catch (err) {
-      console.warn('Unable to check users_profile completeness:', err);
+      console.warn('Unable to check sigma_journey_state:', err);
       return false;
     }
   };
@@ -93,9 +86,6 @@ export const useJourneyState = (): UseJourneyStateReturn => {
         return;
       }
 
-      // Check if profile is complete from users_profile table
-      const profileCompleted = await isProfileComplete();
-
       // If no record exists, create one
       if (!data) {
         const { data: newData, error: insertError } = await supabase
@@ -106,13 +96,13 @@ export const useJourneyState = (): UseJourneyStateReturn => {
 
         if (insertError || !newData) {
           console.error('Error creating journey state:', insertError);
-          setJourneyState({ ...defaultState, profile_completed: profileCompleted });
+          setJourneyState(defaultState);
           setLoading(false);
           return;
         }
 
         setJourneyState({
-          profile_completed: profileCompleted,
+          profile_completed: newData.profile_completed ?? false,
           career_analysis_completed: newData.career_analysis_completed ?? false,
           skill_validation_completed: newData.skill_validation_completed ?? false,
           learning_plan_completed: newData.learning_plan_completed ?? false,
@@ -127,9 +117,9 @@ export const useJourneyState = (): UseJourneyStateReturn => {
         return;
       }
 
-      // Record exists - use data from sigma_journey_state
+      // Record exists - use data from sigma_journey_state directly
       setJourneyState({
-        profile_completed: profileCompleted,
+        profile_completed: data.profile_completed ?? false,
         career_analysis_completed: data.career_analysis_completed ?? false,
         skill_validation_completed: data.skill_validation_completed ?? false,
         learning_plan_completed: data.learning_plan_completed ?? false,
@@ -152,13 +142,10 @@ export const useJourneyState = (): UseJourneyStateReturn => {
     if (!user) return;
 
     try {
-      // Filter out profile_completed as it's derived from users_profile
-      const { profile_completed, ...sigmaUpdates } = updates;
-      
-      if (Object.keys(sigmaUpdates).length > 0) {
+      if (Object.keys(updates).length > 0) {
         const { error } = await supabase
           .from('sigma_journey_state')
-          .update({ ...sigmaUpdates, updated_at: new Date().toISOString() })
+          .update({ ...updates, updated_at: new Date().toISOString() })
           .eq('user_id', user.id);
 
         if (error) {

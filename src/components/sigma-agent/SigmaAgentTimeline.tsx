@@ -4,6 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 import {
   Brain,
   CheckCircle2,
@@ -39,6 +41,7 @@ const SigmaAgentTimeline: React.FC<AgentTimelineProps> = ({
   canExecute
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [hasNavigated, setHasNavigated] = useState(false);
   const steps = [
     { id: 'career_analysis', title: 'Career Analysis', icon: Brain, stateKey: 'career_analysis_completed' },
@@ -65,15 +68,33 @@ const SigmaAgentTimeline: React.FC<AgentTimelineProps> = ({
 
   // Auto-navigate to advisor page when all steps are complete
   useEffect(() => {
-    if (allCompleted && !hasNavigated) {
-      setHasNavigated(true);
-      const timer = setTimeout(() => {
-        toast.success('Career analysis complete! Redirecting to AI Advisor...');
-        navigate('/advisor');
-      }, 2500);
-      return () => clearTimeout(timer);
-    }
-  }, [allCompleted, hasNavigated, navigate]);
+    const markProfileCompleteAndNavigate = async () => {
+      if (allCompleted && !hasNavigated && user) {
+        setHasNavigated(true);
+        
+        // Mark profile_completed as true in sigma_journey_state
+        try {
+          await supabase
+            .from('sigma_journey_state')
+            .update({ 
+              profile_completed: true, 
+              updated_at: new Date().toISOString() 
+            })
+            .eq('user_id', user.id);
+        } catch (error) {
+          console.error('Error marking profile complete:', error);
+        }
+
+        const timer = setTimeout(() => {
+          toast.success('Career analysis complete! Redirecting to AI Advisor...');
+          navigate('/advisor');
+        }, 2500);
+        return () => clearTimeout(timer);
+      }
+    };
+    
+    markProfileCompleteAndNavigate();
+  }, [allCompleted, hasNavigated, navigate, user]);
 
   return (
     <div className="space-y-4">
