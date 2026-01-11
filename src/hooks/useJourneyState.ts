@@ -71,6 +71,8 @@ export const useJourneyState = (): UseJourneyStateReturn => {
       return;
     }
 
+    setLoading(true);
+
     try {
       // Use sigma_journey_state table
       const { data, error } = await supabase
