@@ -152,23 +152,8 @@ Return ONLY valid JSON.`;
       };
     }
 
-    // Save tools to project_build
-    if (buildData.tools && Array.isArray(buildData.tools)) {
-      for (const tool of buildData.tools) {
-        await supabaseClient
-          .from('project_build')
-          .insert({
-            project_id: projectId,
-            user_id: user.id,
-            tool_name: tool.tool_name,
-            category: tool.category,
-            about: tool.about,
-            why: tool.why,
-            how: tool.how,
-            tool_link: tool.tool_link
-          });
-      }
-    }
+    // Note: Tools are returned in the response but not saved to a separate table
+    // They can be used by the frontend to display recommended tools for the project
 
     // Save build steps
     if (buildData.build_steps && Array.isArray(buildData.build_steps)) {

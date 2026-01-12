@@ -721,6 +721,11 @@ const Dashboard = () => {
         return;
       }
 
+      // Get the career title from selected career or first skill validation
+      const careerTitle = selectedCareer?.career_title || 
+                          skillValidations[0]?.career_role || 
+                          "Software Developer";
+
       toast({
         title: "Generating Learning Plan",
         description: `Creating a personalized learning plan for ${skillName}...`,
@@ -734,7 +739,12 @@ const Dashboard = () => {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${accessToken}`,
           },
-          body: JSON.stringify({ skillName }),
+          body: JSON.stringify({ 
+            skill_name: skillName,
+            career_title: careerTitle,
+            current_level: "beginner",
+            required_level: "intermediate"
+          }),
         }
       );
 
@@ -762,6 +772,185 @@ const Dashboard = () => {
         description: `Failed to generate learning plan for ${skillName}. Please try again.`,
         variant: "destructive"
       });
+    }
+  };
+
+  // State for loading projects and jobs
+  const [loadingProjectId, setLoadingProjectId] = useState<string | null>(null);
+  const [loadingJobId, setLoadingJobId] = useState<string | null>(null);
+
+  // Function to start a project (generate project plan and build tools)
+  const startProject = async (project: ProjectIdea) => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        toast({
+          title: "Authentication Error",
+          description: "Please sign in to continue.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setLoadingProjectId(project.id);
+
+      toast({
+        title: "Starting Project",
+        description: `Generating project plan and build tools for ${project.title}...`,
+      });
+
+      // Call generate-project-plan edge function
+      const planResponse = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/generate-project-plan`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ 
+            project_id: project.id,
+            title: project.title,
+            problem: project.description,
+            description: project.description
+          }),
+        }
+      );
+
+      if (!planResponse.ok) {
+        const errorData = await planResponse.json();
+        throw new Error(errorData.error || 'Failed to generate project plan');
+      }
+
+      // Call generate-build-tools edge function
+      const buildResponse = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/generate-build-tools`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ 
+            projectId: project.id
+          }),
+        }
+      );
+
+      if (!buildResponse.ok) {
+        const errorData = await buildResponse.json();
+        throw new Error(errorData.error || 'Failed to generate build tools');
+      }
+
+      // Update project status to planned
+      await supabase
+        .from('project_ideas')
+        .update({ status: 'planned' })
+        .eq('id', project.id);
+
+      toast({
+        title: "Success",
+        description: `Project plan and build tools have been generated for ${project.title}!`,
+      });
+
+      // Refresh dashboard data
+      loadDashboardData();
+
+      // Navigate to projects page
+      navigate(`/projects?id=${project.id}`);
+
+    } catch (error) {
+      console.error('Error starting project:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : `Failed to start project. Please try again.`,
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingProjectId(null);
+    }
+  };
+
+  // Function to prepare for interview (generate interview prep materials)
+  const prepareForInterview = async (job: JobRecommendation) => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        toast({
+          title: "Authentication Error",
+          description: "Please sign in to continue.",
+          variant: "destructive"
+        });
+        return;
+      }
+
+      setLoadingJobId(job.id);
+
+      toast({
+        title: "Preparing Interview",
+        description: `Generating interview preparation materials for ${job.title} at ${job.company}...`,
+      });
+
+      // Get resume data for the user
+      const { data: resumeData } = await supabase
+        .from('resume_analysis')
+        .select('parsed_data')
+        .eq('user_id', user?.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      // Call ai-interview-prep-generator edge function
+      const response = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/ai-interview-prep-generator`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ 
+            job: {
+              id: job.id,
+              title: job.title,
+              company: job.company,
+              description: `${job.title} position at ${job.company} in ${job.location}`,
+              skills: job.required_skills
+            },
+            resumeData: resumeData?.parsed_data || {}
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to generate interview prep');
+      }
+
+      toast({
+        title: "Success",
+        description: `Interview preparation materials have been generated for ${job.title}!`,
+      });
+
+      // Refresh dashboard data
+      loadDashboardData();
+
+      // Navigate to interview page
+      navigate(`/interview?id=${job.id}`);
+
+    } catch (error) {
+      console.error('Error preparing for interview:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : `Failed to prepare for interview. Please try again.`,
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingJobId(null);
     }
   };
 
@@ -2036,10 +2225,22 @@ const Dashboard = () => {
                               
                               <Button
                                 size="sm"
-                                onClick={() => navigate(`/projects?id=${project.id}`)}
+                                onClick={() => {
+                                  if (project.status === 'not_started') {
+                                    startProject(project);
+                                  } else {
+                                    navigate(`/projects?id=${project.id}`);
+                                  }
+                                }}
+                                disabled={loadingProjectId === project.id}
                                 className="gap-2"
                               >
-                                {project.status === 'not_started' ? (
+                                {loadingProjectId === project.id ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Starting...
+                                  </>
+                                ) : project.status === 'not_started' ? (
                                   <>
                                     <Play className="w-4 h-4" />
                                     Start
@@ -2142,11 +2343,23 @@ const Dashboard = () => {
                               <div className="flex gap-2">
                                 <Button
                                   size="sm"
-                                  onClick={() => navigate(`/interview?id=${job.id}`)}
+                                  onClick={() => {
+                                    if (job.interview_prep_completed) {
+                                      navigate(`/interview?id=${job.id}`);
+                                    } else {
+                                      prepareForInterview(job);
+                                    }
+                                  }}
+                                  disabled={loadingJobId === job.id}
                                   className="gap-2"
                                   variant={job.interview_prep_completed ? "outline" : "default"}
                                 >
-                                  {job.interview_prep_completed ? (
+                                  {loadingJobId === job.id ? (
+                                    <>
+                                      <Loader2 className="w-4 h-4 animate-spin" />
+                                      Preparing...
+                                    </>
+                                  ) : job.interview_prep_completed ? (
                                     <>
                                       <Eye className="w-4 h-4" />
                                       View Prep
