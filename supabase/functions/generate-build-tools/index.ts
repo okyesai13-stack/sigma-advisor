@@ -120,19 +120,38 @@ Return ONLY valid JSON.`;
       throw new Error("AI API error");
     }
 
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
+    let aiData;
+    let content = "";
+    
+    try {
+      const responseText = await aiResponse.text();
+      if (!responseText || responseText.trim() === "") {
+        console.error("AI response body is empty, using fallback");
+        throw new Error("Empty AI response");
+      }
+      aiData = JSON.parse(responseText);
+      content = aiData.choices?.[0]?.message?.content || "";
+    } catch (jsonParseError) {
+      console.error("Failed to parse AI response JSON:", jsonParseError);
+      // Use fallback data
+      aiData = null;
+      content = "";
+    }
 
     let buildData;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        buildData = JSON.parse(jsonMatch[0]);
+      if (content) {
+        const jsonMatch = content.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          buildData = JSON.parse(jsonMatch[0]);
+        } else {
+          throw new Error("No JSON found in content");
+        }
       } else {
-        throw new Error("No JSON found");
+        throw new Error("No content available");
       }
     } catch (parseError) {
-      console.error("Failed to parse AI response:", parseError);
+      console.error("Failed to parse AI content, using fallback:", parseError);
       buildData = {
         tools: [
           { tool_name: "VS Code", category: "devops", about: "Code editor", why: "Industry standard", how: "Write and edit code", tool_link: "https://code.visualstudio.com" },
