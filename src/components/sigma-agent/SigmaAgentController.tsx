@@ -56,6 +56,8 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
 
   const [currentStep, setCurrentStep] = useState<AgentStep | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
+  // Store the selected project from project_plan step to use in project_build
+  const [lastSelectedProject, setLastSelectedProject] = useState<any>(null);
 
   useEffect(() => {
     if (user) {
@@ -76,16 +78,23 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
       return () => clearTimeout(timer);
     }
 
-    // Auto-execute project_build after project plan
+    // Auto-execute project_build after project plan - use the stored selected project
     if (currentStep.id === 'project_build' && 
         currentStep.status === 'pending' && 
         agentState.project_plan_completed &&
         !agentState.project_build_completed) {
       
-      if (currentStep.data?.selectedProject) {
-        const timer = setTimeout(() => executeStep('project_build', currentStep.data.selectedProject), 2000);
+      // First priority: use lastSelectedProject stored from project_plan step
+      // Second priority: use data from currentStep
+      // Third priority: will be fetched in the service
+      const projectToUse = lastSelectedProject || currentStep.data?.selectedProject;
+      
+      if (projectToUse) {
+        console.log('Auto-executing project_build with project:', projectToUse.id, projectToUse.title);
+        const timer = setTimeout(() => executeStep('project_build', projectToUse), 2000);
         return () => clearTimeout(timer);
       } else {
+        console.log('Auto-executing project_build without specific project selection');
         const timer = setTimeout(() => executeStep('project_build'), 2000);
         return () => clearTimeout(timer);
       }
@@ -276,7 +285,29 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
 
   const loadSelectedProject = async () => {
     try {
-      // Strategy 1: Get the most recent project detail to find the selected project
+      // Strategy 1: Check project with selected_project = true flag
+      const { data: selectedProjectFlag } = await supabase
+        .from('project_ideas')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('selected_project', true)
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (selectedProjectFlag) {
+        console.log('Found selected project by flag:', selectedProjectFlag.id, selectedProjectFlag.title);
+        const selectedProject = {
+          id: selectedProjectFlag.id,
+          title: selectedProjectFlag.title,
+          description: selectedProjectFlag.description,
+          problem: selectedProjectFlag.problem,
+          domain: selectedProjectFlag.domain
+        };
+        return { selectedProject };
+      }
+      
+      // Strategy 2: Get the most recent project detail to find the selected project
       const { data: projectDetail } = await supabase
         .from('project_detail')
         .select(`
@@ -295,6 +326,7 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
         .maybeSingle();
 
       if (projectDetail?.project_ideas) {
+        console.log('Found selected project from project_detail:', projectDetail.project_ideas.id);
         const selectedProject = {
           id: projectDetail.project_ideas.id,
           title: projectDetail.project_ideas.title,
@@ -305,7 +337,7 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
         return { selectedProject };
       }
       
-      // Strategy 2: If no project_detail found, get the most recent project idea
+      // Strategy 3: If no project_detail found, get the most recent project idea
       const { data: recentProject } = await supabase
         .from('project_ideas')
         .select('*')
@@ -315,6 +347,7 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
         .maybeSingle();
 
       if (recentProject) {
+        console.log('Using most recent project as fallback:', recentProject.id);
         const selectedProject = {
           id: recentProject.id,
           title: recentProject.title,
@@ -361,10 +394,18 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
           result = await service.executeProjectIdeas();
           break;
         case 'project_plan':
+          // Store the selected project for use in the next step (project_build)
+          if (userSelection) {
+            console.log('Storing selected project for project_build:', userSelection.id, userSelection.title);
+            setLastSelectedProject(userSelection);
+          }
           result = await service.executeProjectPlan(userSelection);
           break;
         case 'project_build':
-          result = await service.executeProjectBuild(userSelection);
+          // Use the passed selection, or fall back to lastSelectedProject
+          const projectForBuild = userSelection || lastSelectedProject;
+          console.log('Executing project_build with project:', projectForBuild?.id, projectForBuild?.title);
+          result = await service.executeProjectBuild(projectForBuild);
           break;
         case 'resume_upgrade':
           result = await service.executeResumeUpgrade();

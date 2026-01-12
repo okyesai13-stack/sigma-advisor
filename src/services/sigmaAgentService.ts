@@ -281,6 +281,20 @@ export class SigmaAgentService {
       }
 
       this.selectedProjectData = selectedProject;
+      
+      // Mark this project as selected in the database (reset others first)
+      await supabase
+        .from('project_ideas')
+        .update({ selected_project: false })
+        .eq('user_id', this.userId);
+      
+      await supabase
+        .from('project_ideas')
+        .update({ selected_project: true })
+        .eq('id', selectedProject.id)
+        .eq('user_id', this.userId);
+      
+      console.log('Marked project as selected:', selectedProject.id, selectedProject.title);
 
       const { data, error } = await supabase.functions.invoke('generate-project-plan', {
         body: {
@@ -319,15 +333,36 @@ export class SigmaAgentService {
       let projectId = selectedProject?.id;
       let projectData = selectedProject;
       
+      console.log('executeProjectBuild called with:', projectId, projectData?.title);
+      
       // If no project passed, try multiple fallback strategies
       if (!projectId) {
         // Strategy 1: Check if we have stored project data from previous step
         if (this.selectedProjectData?.id) {
           projectId = this.selectedProjectData.id;
           projectData = this.selectedProjectData;
+          console.log('Using stored selectedProjectData:', projectId);
         }
         
-        // Strategy 2: Get from the most recent project detail
+        // Strategy 2: Get the project marked as selected in database
+        if (!projectId) {
+          const { data: selectedProjectFromDb } = await supabase
+            .from('project_ideas')
+            .select('*')
+            .eq('user_id', this.userId)
+            .eq('selected_project', true)
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          
+          if (selectedProjectFromDb?.id) {
+            projectId = selectedProjectFromDb.id;
+            projectData = selectedProjectFromDb;
+            console.log('Using project marked as selected in DB:', projectId, projectData?.title);
+          }
+        }
+        
+        // Strategy 3: Get from the most recent project detail
         if (!projectId) {
           const { data: projectDetail } = await supabase
             .from('project_detail')
@@ -349,10 +384,11 @@ export class SigmaAgentService {
           if (projectDetail?.project_id) {
             projectId = projectDetail.project_id;
             projectData = projectDetail.project_ideas;
+            console.log('Using project from project_detail:', projectId);
           }
         }
         
-        // Strategy 3: Get the most recent project idea directly
+        // Strategy 4: Get the most recent project idea directly (last resort)
         if (!projectId) {
           const { data: recentProject } = await supabase
             .from('project_ideas')
@@ -365,6 +401,7 @@ export class SigmaAgentService {
           if (recentProject?.id) {
             projectId = recentProject.id;
             projectData = recentProject;
+            console.log('Using most recent project as fallback:', projectId, projectData?.title);
           }
         }
       }
@@ -372,6 +409,8 @@ export class SigmaAgentService {
       if (!projectId) {
         throw new Error('No project selected for build tools. Please complete the project planning step first.');
       }
+      
+      console.log('Final project for build tools:', projectId, projectData?.title);
 
       const { data, error } = await supabase.functions.invoke('generate-build-tools', {
         body: { 
