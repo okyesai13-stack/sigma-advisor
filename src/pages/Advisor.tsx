@@ -264,8 +264,8 @@ const Advisor = () => {
       {/* Chat Area - Full Height */}
       <div className="flex-1 flex flex-col min-h-0">
         {messages.length === 0 ? (
-          /* Empty State - Centered */
-          <div className="flex-1 flex flex-col items-center justify-center px-4">
+          /* Empty State - Centered with padding for mobile sidebar trigger */
+          <div className="flex-1 flex flex-col items-center justify-center px-4 pt-14 md:pt-0">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-6">
               <Sparkles className="w-8 h-8 text-primary-foreground" />
             </div>

@@ -201,17 +201,19 @@ const Profile = () => {
   return (
     <div className="min-h-screen bg-gradient-subtle">
       <div className="border-b border-border bg-card/80 backdrop-blur-md sticky top-0 z-10">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="container mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+          {/* Add left padding on mobile to avoid sidebar trigger overlap */}
           <button
             onClick={() => navigate("/advisor")}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group"
+            className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors group pl-12 md:pl-0"
           >
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-            Back to Advisor
+            <span className="hidden sm:inline">Back to Advisor</span>
+            <span className="sm:hidden">Back</span>
           </button>
           <div className="flex items-center gap-2">
-            <User className="w-5 h-5 text-primary" />
-            <span className="font-semibold text-foreground">Profile</span>
+            <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+            <span className="font-semibold text-foreground text-sm sm:text-base">Profile</span>
           </div>
         </div>
       </div>
