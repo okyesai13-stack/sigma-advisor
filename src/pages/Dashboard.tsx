@@ -1862,73 +1862,132 @@ const Dashboard = () => {
           {/* 5️⃣ LEARNING SECTION */}
           <section id="learning">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   Learning Journey
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {learningJourneys.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {learningJourneys.map((journey) => (
                       <Card key={journey.id} className="group hover:border-primary/30 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-3">
+                        <CardContent className="p-3 sm:p-4">
+                          {/* Mobile Layout */}
+                          <div className="block sm:hidden space-y-3">
+                            <div className="flex items-start gap-3">
                               <div className={cn(
-                                "w-10 h-10 rounded-lg flex items-center justify-center",
+                                "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0",
                                 journey.status === 'completed' ? "bg-green-50 text-green-600" :
                                 journey.status === 'in_progress' ? "bg-primary/10 text-primary" :
                                 "bg-gray-50 text-gray-600"
                               )}>
                                 {journey.status === 'completed' ? (
-                                  <CheckCircle2 className="w-5 h-5" />
+                                  <CheckCircle2 className="w-4 h-4" />
                                 ) : journey.status === 'in_progress' ? (
-                                  <BookOpen className="w-5 h-5" />
+                                  <BookOpen className="w-4 h-4" />
                                 ) : (
-                                  <Circle className="w-5 h-5" />
+                                  <Circle className="w-4 h-4" />
                                 )}
                               </div>
-                              <div>
-                                <h4 className="font-semibold text-foreground">{journey.skill_name}</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  {journey.learning_steps.length} learning steps
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-foreground text-sm truncate">{journey.skill_name}</h4>
+                                <p className="text-xs text-muted-foreground">
+                                  {journey.learning_steps.length} steps
                                 </p>
+                              </div>
+                              <Badge className={cn(getStatusColor(journey.status), "text-xs flex-shrink-0")}>
+                                {journey.status === 'completed' ? 'Done' :
+                                 journey.status === 'in_progress' ? 'Active' : 'New'}
+                              </Badge>
+                            </div>
+                            
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-muted-foreground">Progress</span>
+                                <span className="font-medium">{journey.progress_percentage}%</span>
+                              </div>
+                              <Progress value={journey.progress_percentage} className="h-1.5" />
+                            </div>
+                            
+                            <Button
+                              size="sm"
+                              onClick={() => navigate('/learn')}
+                              className="w-full gap-1 text-xs h-8"
+                            >
+                              {journey.status === 'completed' ? (
+                                <>
+                                  <Eye className="w-3 h-3" />
+                                  Review
+                                </>
+                              ) : (
+                                <>
+                                  <Play className="w-3 h-3" />
+                                  Continue
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                          
+                          {/* Desktop Layout */}
+                          <div className="hidden sm:block">
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center gap-3">
+                                <div className={cn(
+                                  "w-10 h-10 rounded-lg flex items-center justify-center",
+                                  journey.status === 'completed' ? "bg-green-50 text-green-600" :
+                                  journey.status === 'in_progress' ? "bg-primary/10 text-primary" :
+                                  "bg-gray-50 text-gray-600"
+                                )}>
+                                  {journey.status === 'completed' ? (
+                                    <CheckCircle2 className="w-5 h-5" />
+                                  ) : journey.status === 'in_progress' ? (
+                                    <BookOpen className="w-5 h-5" />
+                                  ) : (
+                                    <Circle className="w-5 h-5" />
+                                  )}
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-foreground">{journey.skill_name}</h4>
+                                  <p className="text-sm text-muted-foreground">
+                                    {journey.learning_steps.length} learning steps
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="flex items-center gap-3">
+                                <Badge className={getStatusColor(journey.status)}>
+                                  {journey.status === 'completed' ? 'Completed' :
+                                   journey.status === 'in_progress' ? 'In Progress' : 'Not Started'}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  onClick={() => navigate('/learn')}
+                                  className="gap-2"
+                                >
+                                  {journey.status === 'completed' ? (
+                                    <>
+                                      <Eye className="w-4 h-4" />
+                                      Review
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Play className="w-4 h-4" />
+                                      Start Learning
+                                    </>
+                                  )}
+                                </Button>
                               </div>
                             </div>
                             
-                            <div className="flex items-center gap-3">
-                              <Badge className={getStatusColor(journey.status)}>
-                                {journey.status === 'completed' ? 'Completed' :
-                                 journey.status === 'in_progress' ? 'In Progress' : 'Not Started'}
-                              </Badge>
-                              <Button
-                                size="sm"
-                                onClick={() => navigate('/learn')}
-                                className="gap-2"
-                              >
-                                {journey.status === 'completed' ? (
-                                  <>
-                                    <Eye className="w-4 h-4" />
-                                    Review
-                                  </>
-                                ) : (
-                                  <>
-                                    <Play className="w-4 h-4" />
-                                    Start Learning
-                                  </>
-                                )}
-                              </Button>
+                            <div className="space-y-2 mb-4">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-muted-foreground">Progress</span>
+                                <span className="font-medium">{journey.progress_percentage}%</span>
+                              </div>
+                              <Progress value={journey.progress_percentage} className="h-2" />
                             </div>
-                          </div>
-                          
-                          <div className="space-y-2 mb-4">
-                            <div className="flex items-center justify-between text-sm">
-                              <span className="text-muted-foreground">Progress</span>
-                              <span className="font-medium">{journey.progress_percentage}%</span>
-                            </div>
-                            <Progress value={journey.progress_percentage} className="h-2" />
                           </div>
 
                           {/* Collapsible Learning Resources */}
@@ -2174,10 +2233,10 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <BookOpen className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No Learning Paths Started</h3>
-                    <p className="text-muted-foreground mb-6">Complete skill analysis to get personalized learning recommendations</p>
+                  <div className="text-center py-8 sm:py-12">
+                    <BookOpen className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">No Learning Paths Started</h3>
+                    <p className="text-sm text-muted-foreground mb-4 sm:mb-6 px-4">Complete skill analysis to get personalized learning recommendations</p>
                     <Button 
                       onClick={() => document.getElementById('skill-analysis')?.scrollIntoView({ behavior: 'smooth' })}
                       variant="outline"
@@ -2195,30 +2254,30 @@ const Dashboard = () => {
           {/* 6️⃣ PROJECT SECTION */}
           <section id="projects">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderKanban className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <FolderKanban className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   Projects Portfolio
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {projectIdeas.length > 0 ? (
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                     {projectIdeas.map((project) => (
                       <Card key={project.id} className="group hover:border-primary/30 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="space-y-3">
-                            <div>
-                              <h4 className="font-semibold text-foreground">{project.title}</h4>
-                              <p className="text-sm text-muted-foreground">{project.domain}</p>
+                        <CardContent className="p-3 sm:p-4">
+                          <div className="space-y-2 sm:space-y-3">
+                            <div className="min-w-0">
+                              <h4 className="font-semibold text-foreground text-sm sm:text-base truncate">{project.title}</h4>
+                              <p className="text-xs sm:text-sm text-muted-foreground">{project.domain}</p>
                             </div>
                             
-                            <p className="text-sm text-muted-foreground line-clamp-2">
+                            <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">
                               {project.description}
                             </p>
                             
-                            <div className="flex items-center justify-between">
-                              <Badge className={getStatusColor(project.status)}>
+                            <div className="flex items-center justify-between gap-2">
+                              <Badge className={cn(getStatusColor(project.status), "text-xs")}>
                                 {project.status === 'built' ? 'Built' :
                                  project.status === 'planned' ? 'In Progress' : 'Not Started'}
                               </Badge>
@@ -2233,21 +2292,22 @@ const Dashboard = () => {
                                   }
                                 }}
                                 disabled={loadingProjectId === project.id}
-                                className="gap-2"
+                                className="gap-1 sm:gap-2 text-xs sm:text-sm h-8 sm:h-9"
                               >
                                 {loadingProjectId === project.id ? (
                                   <>
-                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                    Starting...
+                                    <Loader2 className="w-3 h-3 sm:w-4 sm:h-4 animate-spin" />
+                                    <span className="hidden sm:inline">Starting...</span>
+                                    <span className="sm:hidden">...</span>
                                   </>
                                 ) : project.status === 'not_started' ? (
                                   <>
-                                    <Play className="w-4 h-4" />
+                                    <Play className="w-3 h-3 sm:w-4 sm:h-4" />
                                     Start
                                   </>
                                 ) : (
                                   <>
-                                    <Eye className="w-4 h-4" />
+                                    <Eye className="w-3 h-3 sm:w-4 sm:h-4" />
                                     View
                                   </>
                                 )}
@@ -2259,10 +2319,10 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <FolderKanban className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No Projects Available</h3>
-                    <p className="text-muted-foreground mb-6">Complete your learning journey to get project recommendations</p>
+                  <div className="text-center py-8 sm:py-12">
+                    <FolderKanban className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">No Projects Available</h3>
+                    <p className="text-sm text-muted-foreground mb-4 sm:mb-6 px-4">Complete your learning journey to get project recommendations</p>
                     <Button 
                       onClick={() => document.getElementById('learning')?.scrollIntoView({ behavior: 'smooth' })}
                       variant="outline"
@@ -2280,26 +2340,110 @@ const Dashboard = () => {
           {/* 7️⃣ JOB SECTION */}
           <section id="jobs">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Briefcase className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 sm:pb-4">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                  <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                   Job Recommendations
                 </CardTitle>
               </CardHeader>
-              <CardContent>
+              <CardContent className="px-3 sm:px-6">
                 {jobRecommendations.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {jobRecommendations.map((job) => (
                       <Card key={job.id} className="group hover:border-primary/30 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-4">
-                            <div className="flex-1 space-y-3">
+                        <CardContent className="p-3 sm:p-4">
+                          {/* Mobile Layout */}
+                          <div className="block sm:hidden space-y-3">
+                            <div className="flex items-start gap-3">
+                              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                                <Building2 className="w-5 h-5 text-primary" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <h4 className="font-semibold text-foreground text-sm truncate">{job.title}</h4>
+                                <p className="text-xs text-muted-foreground">{job.company}</p>
+                              </div>
+                              <div className="text-center flex-shrink-0">
+                                <div className="text-lg font-bold text-primary">{job.match_percentage}%</div>
+                                <div className="text-xs text-muted-foreground">match</div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {job.location}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3 h-3" />
+                                {new Date(job.posted_date).toLocaleDateString()}
+                              </span>
+                            </div>
+                            
+                            <div className="flex flex-wrap gap-1.5">
+                              <Badge variant="outline" className="text-xs">{job.job_type}</Badge>
+                              {job.required_skills.slice(0, 2).map((skill) => (
+                                <Badge key={skill} variant="secondary" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                              {job.required_skills.length > 2 && (
+                                <Badge variant="outline" className="text-xs">
+                                  +{job.required_skills.length - 2}
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  if (job.interview_prep_completed) {
+                                    navigate(`/interview?id=${job.id}`);
+                                  } else {
+                                    prepareForInterview(job);
+                                  }
+                                }}
+                                disabled={loadingJobId === job.id}
+                                className="flex-1 gap-1 text-xs h-8"
+                                variant={job.interview_prep_completed ? "outline" : "default"}
+                              >
+                                {loadingJobId === job.id ? (
+                                  <>
+                                    <Loader2 className="w-3 h-3 animate-spin" />
+                                    Preparing...
+                                  </>
+                                ) : job.interview_prep_completed ? (
+                                  <>
+                                    <Eye className="w-3 h-3" />
+                                    View Prep
+                                  </>
+                                ) : (
+                                  <>
+                                    <Play className="w-3 h-3" />
+                                    Prepare
+                                  </>
+                                )}
+                              </Button>
+                              
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-8 w-8 p-0"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          
+                          {/* Desktop Layout */}
+                          <div className="hidden sm:flex items-start justify-between gap-4">
+                            <div className="flex-1 space-y-3 min-w-0">
                               <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                                   <Building2 className="w-6 h-6 text-primary" />
                                 </div>
-                                <div>
-                                  <h4 className="font-semibold text-foreground">{job.title}</h4>
+                                <div className="min-w-0">
+                                  <h4 className="font-semibold text-foreground truncate">{job.title}</h4>
                                   <p className="text-sm text-muted-foreground">{job.company}</p>
                                 </div>
                               </div>
@@ -2334,7 +2478,7 @@ const Dashboard = () => {
                               </div>
                             </div>
                             
-                            <div className="flex flex-col items-end gap-3">
+                            <div className="flex flex-col items-end gap-3 flex-shrink-0">
                               <div className="text-center">
                                 <div className="text-2xl font-bold text-primary">{job.match_percentage}%</div>
                                 <div className="text-xs text-muted-foreground">match</div>
@@ -2387,10 +2531,10 @@ const Dashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-12">
-                    <Briefcase className="w-16 h-16 text-muted-foreground/50 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold text-foreground mb-2">No Job Recommendations</h3>
-                    <p className="text-muted-foreground mb-6">Complete your career analysis to get personalized job matches</p>
+                  <div className="text-center py-8 sm:py-12">
+                    <Briefcase className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground/50 mx-auto mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground mb-2">No Job Recommendations</h3>
+                    <p className="text-sm text-muted-foreground mb-4 sm:mb-6 px-4">Complete your career analysis to get personalized job matches</p>
                     <Button 
                       onClick={() => document.getElementById('career-match')?.scrollIntoView({ behavior: 'smooth' })}
                       variant="outline"
