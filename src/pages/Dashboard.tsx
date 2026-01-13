@@ -1172,9 +1172,10 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* 1️⃣ HEADER SECTION (Sticky) */}
-      <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
+      <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-md">
         <div className="container mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
-          <div className="min-w-0 flex-1">
+          {/* Add left padding on mobile to avoid sidebar trigger overlap */}
+          <div className="min-w-0 flex-1 pl-12 md:pl-0">
             <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">Career Dashboard</h1>
             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Your complete career progress at a glance</p>
           </div>
