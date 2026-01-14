@@ -9,6 +9,8 @@ import {
   Loader2,
   FileText,
   Home,
+  FolderKanban,
+  BookOpen,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,6 +22,8 @@ import {
   EducationCard,
   CertificationCard,
   SkillsSection,
+  ProjectCard,
+  CourseCard,
 } from "@/components/portfolio";
 
 interface UserProfile {
@@ -54,11 +58,27 @@ interface Certification {
   year: number | null;
 }
 
+interface Project {
+  id: string;
+  title: string;
+  description: string | null;
+  domain: string | null;
+  status: string | null;
+}
+
+interface Course {
+  id: string;
+  skill_name: string;
+  career_title: string;
+  status: string | null;
+  learning_steps: any[] | null;
+  steps_completed: boolean[] | null;
+}
+
 const Profile = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -74,6 +94,8 @@ const Profile = () => {
   const [educations, setEducations] = useState<Education[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [certifications, setCertifications] = useState<Certification[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [selectedCareer, setSelectedCareer] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,7 +110,7 @@ const Profile = () => {
     try {
       setIsLoading(true);
 
-      const [profileRes, educationRes, experienceRes, certificationRes, careerRes] =
+      const [profileRes, educationRes, experienceRes, certificationRes, careerRes, projectsRes, coursesRes] =
         await Promise.all([
           supabase.from("users_profile").select("*").eq("id", user.id).single(),
           supabase
@@ -107,6 +129,16 @@ const Profile = () => {
             .eq("user_id", user.id)
             .order("year", { ascending: false }),
           supabase.from("selected_career").select("*").eq("user_id", user.id).single(),
+          supabase
+            .from("project_ideas")
+            .select("id, title, description, domain, status")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
+          supabase
+            .from("user_learning_journey")
+            .select("id, skill_name, career_title, status, learning_steps, steps_completed")
+            .eq("user_id", user.id)
+            .order("created_at", { ascending: false }),
         ]);
 
       if (profileRes.data) {
@@ -123,6 +155,8 @@ const Profile = () => {
       if (experienceRes.data) setExperiences(experienceRes.data);
       if (certificationRes.data) setCertifications(certificationRes.data);
       if (careerRes.data) setSelectedCareer(careerRes.data.career_title);
+      if (projectsRes.data) setProjects(projectsRes.data);
+      if (coursesRes.data) setCourses(coursesRes.data as Course[]);
     } catch (error) {
       console.error("Error loading profile data:", error);
     } finally {
@@ -406,6 +440,39 @@ const Profile = () => {
                 onUpdate={updateSkills}
               />
             </div>
+          </div>
+
+          {/* Full Width Sections - Projects & Courses */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+            {/* Projects Section */}
+            <PortfolioSection
+              title="Projects"
+              icon={<FolderKanban className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isEditing={false}
+              isEmpty={projects.length === 0}
+              emptyMessage="No projects started yet. Begin your journey!"
+            >
+              <div className="space-y-3">
+                {projects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+              </div>
+            </PortfolioSection>
+
+            {/* Courses/Learning Journey Section */}
+            <PortfolioSection
+              title="Learning Journey"
+              icon={<BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />}
+              isEditing={false}
+              isEmpty={courses.length === 0}
+              emptyMessage="No courses in progress. Start learning!"
+            >
+              <div className="space-y-3">
+                {courses.map((course) => (
+                  <CourseCard key={course.id} course={course} />
+                ))}
+              </div>
+            </PortfolioSection>
           </div>
 
           {/* Saving indicator */}
