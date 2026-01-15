@@ -32,6 +32,7 @@ interface UserProfile {
   interests: string[];
   activities: string[];
   hobbies: string[];
+  display_name: string;
 }
 
 interface Education {
@@ -89,6 +90,7 @@ const Profile = () => {
     interests: [],
     activities: [],
     hobbies: [],
+    display_name: "",
   });
 
   const [educations, setEducations] = useState<Education[]>([]);
@@ -148,6 +150,7 @@ const Profile = () => {
           interests: profileRes.data.interests || [],
           activities: profileRes.data.activities || [],
           hobbies: profileRes.data.hobbies || [],
+          display_name: (profileRes.data as any).display_name || "",
         });
       }
 
@@ -178,8 +181,9 @@ const Profile = () => {
         interests: profile.interests,
         activities: profile.activities,
         hobbies: profile.hobbies,
+        display_name: profile.display_name,
         updated_at: new Date().toISOString(),
-      });
+      } as any);
 
       toast({
         title: "Saved",
@@ -261,6 +265,17 @@ const Profile = () => {
   };
 
   // Skills update
+  const updateDisplayName = async (name: string) => {
+    setProfile({ ...profile, display_name: name });
+    if (user) {
+      await supabase.from("users_profile").upsert({
+        id: user.id,
+        display_name: name,
+        updated_at: new Date().toISOString(),
+      } as any);
+    }
+  };
+
   const updateSkills = async (data: {
     interests: string[];
     hobbies: string[];
@@ -354,8 +369,10 @@ const Profile = () => {
             profile={profile}
             selectedCareer={selectedCareer}
             isEditing={isEditing}
+            displayName={profile.display_name}
             onEditToggle={handleEditToggle}
             onShare={handleShare}
+            onDisplayNameChange={updateDisplayName}
           />
 
           {/* Two Column Layout on Desktop */}
