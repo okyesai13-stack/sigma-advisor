@@ -5,17 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import {
   User,
   Mail,
-  MapPin,
-  Globe,
-  Linkedin,
-  Github,
   Edit3,
-  Save,
-  X,
   Share2,
-  Download,
   Check,
-  Loader2,
+  Pencil,
 } from "lucide-react";
 
 interface PortfolioHeaderProps {
@@ -26,8 +19,10 @@ interface PortfolioHeaderProps {
   };
   selectedCareer: string | null;
   isEditing: boolean;
+  displayName: string;
   onEditToggle: () => void;
   onShare: () => void;
+  onDisplayNameChange: (name: string) => void;
 }
 
 export default function PortfolioHeader({
@@ -35,10 +30,14 @@ export default function PortfolioHeader({
   profile,
   selectedCareer,
   isEditing,
+  displayName,
   onEditToggle,
   onShare,
+  onDisplayNameChange,
 }: PortfolioHeaderProps) {
   const [copied, setCopied] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [tempName, setTempName] = useState(displayName);
 
   const handleShare = () => {
     navigator.clipboard.writeText(window.location.href);
@@ -47,7 +46,24 @@ export default function PortfolioHeader({
     onShare();
   };
 
-  const displayName = user?.email?.split("@")[0] || "User";
+  const handleNameSave = () => {
+    if (tempName.trim()) {
+      onDisplayNameChange(tempName.trim());
+    }
+    setIsEditingName(false);
+  };
+
+  const handleNameKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleNameSave();
+    } else if (e.key === "Escape") {
+      setTempName(displayName);
+      setIsEditingName(false);
+    }
+  };
+
+  const fallbackName = user?.email?.split("@")[0] || "User";
+  const shownName = displayName || fallbackName;
 
   return (
     <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-primary/10 via-accent to-primary/5 border border-border">
@@ -65,9 +81,37 @@ export default function PortfolioHeader({
           {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground capitalize truncate">
-                {displayName}
-              </h1>
+              {isEditingName ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    onKeyDown={handleNameKeyDown}
+                    onBlur={handleNameSave}
+                    autoFocus
+                    className="text-lg sm:text-xl md:text-2xl font-bold h-9 sm:h-10 w-48 sm:w-64"
+                    placeholder="Enter your name"
+                  />
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 group">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-foreground capitalize truncate">
+                    {shownName}
+                  </h1>
+                  {isEditing && (
+                    <button
+                      onClick={() => {
+                        setTempName(shownName);
+                        setIsEditingName(true);
+                      }}
+                      className="p-1.5 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                      title="Edit name"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              )}
               {selectedCareer && (
                 <Badge className="w-fit bg-primary/15 text-primary border-0 text-xs sm:text-sm">
                   {selectedCareer}

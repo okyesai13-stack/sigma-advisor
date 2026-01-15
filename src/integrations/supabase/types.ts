@@ -776,6 +776,7 @@ export type Database = {
         Row: {
           activities: string[] | null
           created_at: string | null
+          display_name: string | null
           goal_description: string | null
           goal_type: string | null
           hobbies: string[] | null
@@ -787,6 +788,7 @@ export type Database = {
         Insert: {
           activities?: string[] | null
           created_at?: string | null
+          display_name?: string | null
           goal_description?: string | null
           goal_type?: string | null
           hobbies?: string[] | null
@@ -798,6 +800,7 @@ export type Database = {
         Update: {
           activities?: string[] | null
           created_at?: string | null
+          display_name?: string | null
           goal_description?: string | null
           goal_type?: string | null
           hobbies?: string[] | null
