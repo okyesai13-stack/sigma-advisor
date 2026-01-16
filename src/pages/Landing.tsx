@@ -1,6 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Sparkles, ArrowRight, Target, BookOpen, Briefcase, TrendingUp } from "lucide-react";
+import { Sparkles, ArrowRight, Target, BookOpen, Briefcase, TrendingUp, ChevronDown } from "lucide-react";
+import {
+  FloatingParticles,
+  HowItWorks,
+  Testimonials,
+  FAQ,
+  TrustedBy,
+  AnimatedStats,
+} from "@/components/landing";
 
 const Landing = () => {
   const navigate = useNavigate();
@@ -41,11 +49,12 @@ const Landing = () => {
       </nav>
 
       {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6">
-        <div className="container mx-auto max-w-4xl text-center">
+      <section className="relative pt-32 pb-20 px-6 overflow-hidden min-h-[90vh] flex items-center">
+        <FloatingParticles />
+        <div className="container mx-auto max-w-4xl text-center relative z-10">
           <div className="animate-slide-up" style={{ animationDelay: "0.1s" }}>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-sm font-medium mb-8">
-              <Sparkles className="w-4 h-4" />
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent text-accent-foreground text-sm font-medium mb-8 hover:scale-105 transition-transform cursor-default">
+              <Sparkles className="w-4 h-4 animate-pulse" />
               Your AI-Powered Career Guide
             </div>
           </div>
@@ -55,7 +64,7 @@ const Landing = () => {
             style={{ animationDelay: "0.2s" }}
           >
             Your Personal
-            <span className="block bg-gradient-hero bg-clip-text text-transparent">
+            <span className="block bg-gradient-hero bg-clip-text text-transparent animate-pulse">
               AI Career Advisor
             </span>
           </h1>
@@ -68,7 +77,7 @@ const Landing = () => {
           </p>
 
           <div 
-            className="animate-slide-up"
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-slide-up"
             style={{ animationDelay: "0.4s" }}
           >
             <Button 
@@ -80,27 +89,60 @@ const Landing = () => {
               Ask Advisor
               <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
             </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+              className="group"
+            >
+              Learn More
+              <ChevronDown className="w-4 h-4 group-hover:translate-y-1 transition-transform" />
+            </Button>
+          </div>
+
+          {/* Scroll indicator */}
+          <div 
+            className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce cursor-pointer"
+            onClick={() => document.getElementById("how-it-works")?.scrollIntoView({ behavior: "smooth" })}
+          >
+            <ChevronDown className="w-6 h-6 text-muted-foreground" />
           </div>
         </div>
       </section>
 
+      {/* Trusted By Section */}
+      <TrustedBy />
+
+      {/* How It Works Section */}
+      <div id="how-it-works">
+        <HowItWorks />
+      </div>
+
       {/* Features Section */}
-      <section className="py-20 px-6">
+      <section className="py-24 px-6">
         <div className="container mx-auto max-w-5xl">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              Why Choose Us
+            </h2>
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+              Everything you need to accelerate your career journey
+            </p>
+          </div>
           <div className="grid md:grid-cols-3 gap-6">
             {features.map((feature, index) => (
               <div
                 key={feature.title}
-                className="group p-8 rounded-2xl bg-card border border-border shadow-sm hover:shadow-lg transition-all duration-300 animate-slide-up"
+                className="group p-8 rounded-2xl bg-card border border-border shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300 animate-slide-up cursor-pointer"
                 style={{ animationDelay: `${0.5 + index * 0.1}s` }}
               >
-                <div className="w-12 h-12 rounded-xl bg-accent flex items-center justify-center mb-5 group-hover:bg-gradient-hero transition-all duration-300">
-                  <feature.icon className="w-6 h-6 text-accent-foreground group-hover:text-primary-foreground transition-colors duration-300" />
+                <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center mb-5 group-hover:bg-gradient-hero group-hover:scale-110 transition-all duration-300">
+                  <feature.icon className="w-7 h-7 text-accent-foreground group-hover:text-primary-foreground transition-colors duration-300" />
                 </div>
-                <h3 className="text-xl font-semibold text-foreground mb-2">
+                <h3 className="text-xl font-semibold text-foreground mb-3 group-hover:text-primary transition-colors">
                   {feature.title}
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground leading-relaxed">
                   {feature.description}
                 </p>
               </div>
@@ -109,51 +151,40 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* Testimonials Section */}
+      <Testimonials />
+
       {/* Stats Section */}
-      <section className="py-20 px-6 border-t border-border">
-        <div className="container mx-auto max-w-4xl">
-          <div className="grid grid-cols-3 gap-8 text-center">
-            {[
-              { value: "10K+", label: "Career Paths" },
-              { value: "95%", label: "Success Rate" },
-              { value: "24/7", label: "AI Support" },
-            ].map((stat, index) => (
-              <div 
-                key={stat.label} 
-                className="animate-slide-up"
-                style={{ animationDelay: `${0.8 + index * 0.1}s` }}
-              >
-                <div className="text-3xl md:text-4xl font-bold bg-gradient-hero bg-clip-text text-transparent">
-                  {stat.value}
-                </div>
-                <div className="text-muted-foreground mt-1">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <AnimatedStats />
+
+      {/* FAQ Section */}
+      <FAQ />
 
       {/* CTA Section */}
-      <section className="py-20 px-6">
+      <section className="py-24 px-6">
         <div className="container mx-auto max-w-3xl">
-          <div className="relative p-12 rounded-3xl bg-card border border-border shadow-lg overflow-hidden animate-scale-in" style={{ animationDelay: "1s" }}>
-            <div className="absolute inset-0 bg-gradient-hero opacity-5"></div>
+          <div className="relative p-12 md:p-16 rounded-3xl bg-gradient-to-br from-card via-card to-accent/20 border border-border shadow-2xl overflow-hidden group hover:shadow-3xl transition-all duration-500">
+            <div className="absolute inset-0 bg-gradient-hero opacity-5 group-hover:opacity-10 transition-opacity"></div>
+            <div className="absolute -top-24 -right-24 w-48 h-48 bg-primary/20 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-primary/10 rounded-full blur-3xl"></div>
             <div className="relative text-center">
-              <TrendingUp className="w-12 h-12 text-primary mx-auto mb-6" />
-              <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-hero flex items-center justify-center mx-auto mb-8 group-hover:scale-110 transition-transform duration-300">
+                <TrendingUp className="w-8 h-8 text-primary-foreground" />
+              </div>
+              <h2 className="text-3xl md:text-5xl font-bold text-foreground mb-4">
                 Ready to Start Your Journey?
               </h2>
-              <p className="text-lg text-muted-foreground mb-8 max-w-xl mx-auto">
+              <p className="text-lg md:text-xl text-muted-foreground mb-10 max-w-xl mx-auto">
                 Join thousands of professionals who transformed their careers with personalized AI guidance.
               </p>
               <Button 
                 variant="hero" 
-                size="lg" 
+                size="xl" 
                 onClick={() => navigate("/auth")}
-                className="group"
+                className="group/btn"
               >
                 Get Started Free
-                <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+                <ArrowRight className="w-5 h-5 group-hover/btn:translate-x-1 transition-transform" />
               </Button>
             </div>
           </div>
