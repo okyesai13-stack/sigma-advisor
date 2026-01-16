@@ -9,6 +9,10 @@ import {
   Sparkles,
   User,
   Loader2,
+  Lightbulb,
+  GraduationCap,
+  FileText,
+  Target,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -44,6 +48,37 @@ const formatMessage = (content: string): string => {
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 };
+
+const suggestionCards = [
+  {
+    icon: Target,
+    title: "Career path",
+    description: "What career suits my skills?",
+    gradient: "from-blue-500/20 to-cyan-500/20",
+    iconColor: "text-blue-500",
+  },
+  {
+    icon: GraduationCap,
+    title: "Interview prep",
+    description: "How do I prepare for interviews?",
+    gradient: "from-purple-500/20 to-pink-500/20",
+    iconColor: "text-purple-500",
+  },
+  {
+    icon: Lightbulb,
+    title: "Skill development",
+    description: "What skills should I learn next?",
+    gradient: "from-orange-500/20 to-amber-500/20",
+    iconColor: "text-orange-500",
+  },
+  {
+    icon: FileText,
+    title: "Resume review",
+    description: "Help me improve my resume",
+    gradient: "from-emerald-500/20 to-green-500/20",
+    iconColor: "text-emerald-500",
+  },
+];
 
 const Advisor = () => {
   const { toast } = useToast();
@@ -240,73 +275,85 @@ const Advisor = () => {
     e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
   };
 
-  const startNewChat = async () => {
-    setMessages([]);
-    setCurrentSessionId(null);
-    // Remove session parameter from URL
-    setSearchParams({});
-    toast({
-      title: "New chat started",
-      description: "Start typing to begin a new conversation.",
-    });
+  const handleSuggestionClick = (description: string) => {
+    setInputValue(description);
+    textareaRef.current?.focus();
   };
 
   if (guardLoading || loadingSession) {
     return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-12 h-12 rounded-full border-2 border-primary/20 border-t-primary animate-spin" />
+            <Sparkles className="w-5 h-5 text-primary absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <p className="text-sm text-muted-foreground animate-pulse">Loading...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Chat Area - Full Height */}
-      <div className="flex-1 flex flex-col min-h-0">
-        {messages.length === 0 ? (
-          /* Empty State - Centered with padding for mobile sidebar trigger */
-          <div className="flex-1 flex flex-col items-center justify-center px-4 pt-14 md:pt-0">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center mb-6">
-              <Sparkles className="w-8 h-8 text-primary-foreground" />
+    <div className="h-screen flex flex-col bg-background">
+      {messages.length === 0 ? (
+        /* Empty State - Gemini Style */
+        <div className="flex-1 flex flex-col">
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col items-center justify-center px-4 pb-32">
+            {/* Greeting */}
+            <div className="text-center mb-12 animate-fade-in">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 mb-6">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <h1 className="text-3xl md:text-4xl font-medium text-foreground mb-3">
+                Hello, how can I help?
+              </h1>
+              <p className="text-muted-foreground text-lg max-w-md">
+                I'm your AI career advisor. Ask me anything about your professional journey.
+              </p>
             </div>
-            <h1 className="text-2xl md:text-3xl font-semibold text-foreground mb-2 text-center">
-              How can I help with your career today?
-            </h1>
-            <p className="text-muted-foreground text-center max-w-md mb-8">
-              Ask me anything about career paths, skill development, interview preparation, or job search strategies.
-            </p>
-            
-            {/* Suggestion chips */}
-            <div className="flex flex-wrap gap-2 justify-center max-w-2xl mb-8">
-              {[
-                "What career path suits my skills?",
-                "How do I prepare for interviews?",
-                "What skills should I learn?",
-                "Help me with my resume",
-              ].map((suggestion) => (
+
+            {/* Suggestion Cards - Gemini Style Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 max-w-3xl w-full mb-8">
+              {suggestionCards.map((card, index) => (
                 <button
-                  key={suggestion}
-                  onClick={() => {
-                    setInputValue(suggestion);
-                    textareaRef.current?.focus();
-                  }}
-                  className="px-4 py-2 rounded-full border border-border bg-card hover:bg-accent hover:border-primary/50 text-sm text-foreground transition-all"
+                  key={card.title}
+                  onClick={() => handleSuggestionClick(card.description)}
+                  className={cn(
+                    "group relative p-4 rounded-2xl border border-border bg-card hover:bg-accent/50 text-left transition-all duration-300 hover:shadow-lg hover:-translate-y-1 animate-fade-in",
+                  )}
+                  style={{ animationDelay: `${index * 0.1}s` }}
                 >
-                  {suggestion}
+                  <div className={cn(
+                    "absolute inset-0 rounded-2xl bg-gradient-to-br opacity-0 group-hover:opacity-100 transition-opacity",
+                    card.gradient
+                  )} />
+                  <div className="relative">
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl bg-muted flex items-center justify-center mb-3 group-hover:scale-110 transition-transform",
+                    )}>
+                      <card.icon className={cn("w-5 h-5", card.iconColor)} />
+                    </div>
+                    <p className="font-medium text-foreground text-sm mb-1">{card.title}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-2">{card.description}</p>
+                  </div>
                 </button>
               ))}
             </div>
+          </div>
 
-            {/* Centered Input Area */}
-            <div className="w-full max-w-2xl">
-              <div className="relative flex items-end gap-2">
+          {/* Input Area - Fixed at Bottom */}
+          <div className="fixed bottom-0 left-0 right-0 md:left-[--sidebar-width] bg-gradient-to-t from-background via-background to-transparent pt-8 pb-6 px-4">
+            <div className="max-w-3xl mx-auto">
+              <div className="relative bg-card border border-border rounded-3xl shadow-lg hover:shadow-xl transition-shadow">
                 <Textarea
                   ref={textareaRef}
                   value={inputValue}
                   onChange={handleTextareaChange}
                   onKeyDown={handleKeyDown}
-                  placeholder="Ask me anything about your career..."
-                  className="flex-1 min-h-[44px] max-h-[200px] resize-none border border-border rounded-2xl focus-visible:ring-1 focus-visible:ring-primary py-3 px-4 text-sm"
+                  placeholder="Ask me anything..."
+                  className="w-full min-h-[56px] max-h-[200px] resize-none border-0 rounded-3xl focus-visible:ring-0 focus-visible:ring-offset-0 py-4 pl-5 pr-14 text-base bg-transparent"
                   rows={1}
                   disabled={isLoading}
                 />
@@ -314,123 +361,125 @@ const Advisor = () => {
                   onClick={handleSendMessage}
                   disabled={!inputValue.trim() || isLoading}
                   size="icon"
-                  className="shrink-0 rounded-full w-9 h-9"
+                  className="absolute right-2 bottom-2 rounded-full w-10 h-10 bg-primary hover:bg-primary/90 disabled:opacity-30"
                 >
                   {isLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   ) : (
-                    <Send className="w-4 h-4" />
+                    <Send className="w-5 h-5" />
+                  )}
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-3">
+                AI Career Advisor may make mistakes. Verify important information.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Messages View - Gemini Style */
+        <div className="flex-1 flex flex-col min-h-0">
+          <ScrollArea className="flex-1">
+            <div className="max-w-3xl mx-auto py-8 px-4 pb-32">
+              {messages.map((message, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    "mb-8 animate-fade-in",
+                    message.role === "user" ? "flex justify-end" : ""
+                  )}
+                >
+                  {message.role === "assistant" ? (
+                    /* AI Message - Left aligned with avatar */
+                    <div className="flex gap-4">
+                      <Avatar className="w-8 h-8 shrink-0 mt-1">
+                        <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground">
+                          <Sparkles className="w-4 h-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-2">
+                        <p className="text-xs font-medium text-muted-foreground">Career Advisor</p>
+                        <div className="prose prose-sm max-w-none text-foreground">
+                          <p className="text-[15px] leading-7 whitespace-pre-wrap">
+                            {formatMessage(message.content)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* User Message - Right aligned bubble */
+                    <div className="flex gap-3 items-end max-w-[85%]">
+                      <div className="bg-primary text-primary-foreground rounded-3xl rounded-br-lg px-5 py-3">
+                        <p className="text-[15px] leading-relaxed whitespace-pre-wrap">
+                          {message.content}
+                        </p>
+                      </div>
+                      <Avatar className="w-7 h-7 shrink-0">
+                        <AvatarFallback className="bg-muted text-muted-foreground text-xs">
+                          <User className="w-3.5 h-3.5" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Typing Indicator - Gemini Style */}
+              {isLoading && (
+                <div className="flex gap-4 animate-fade-in">
+                  <Avatar className="w-8 h-8 shrink-0 mt-1">
+                    <AvatarFallback className="bg-gradient-to-br from-primary to-primary/60 text-primary-foreground">
+                      <Sparkles className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Career Advisor</p>
+                    <div className="flex items-center gap-1 py-3">
+                      <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce [animation-delay:-0.3s]" />
+                      <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce [animation-delay:-0.15s]" />
+                      <span className="w-2 h-2 rounded-full bg-primary/60 animate-bounce" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
+
+          {/* Input Area - Fixed at Bottom */}
+          <div className="fixed bottom-0 left-0 right-0 md:left-[--sidebar-width] bg-gradient-to-t from-background via-background to-transparent pt-8 pb-6 px-4">
+            <div className="max-w-3xl mx-auto">
+              <div className="relative bg-card border border-border rounded-3xl shadow-lg hover:shadow-xl transition-shadow">
+                <Textarea
+                  ref={textareaRef}
+                  value={inputValue}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Ask a follow up..."
+                  className="w-full min-h-[56px] max-h-[200px] resize-none border-0 rounded-3xl focus-visible:ring-0 focus-visible:ring-offset-0 py-4 pl-5 pr-14 text-base bg-transparent"
+                  rows={1}
+                  disabled={isLoading}
+                />
+                <Button
+                  onClick={handleSendMessage}
+                  disabled={!inputValue.trim() || isLoading}
+                  size="icon"
+                  className="absolute right-2 bottom-2 rounded-full w-10 h-10 bg-primary hover:bg-primary/90 disabled:opacity-30"
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <Send className="w-5 h-5" />
                   )}
                 </Button>
               </div>
             </div>
           </div>
-        ) : (
-          /* Messages with Input at Bottom */
-          <>
-            <ScrollArea className="flex-1">
-              <div className="max-w-3xl mx-auto py-6 px-4">
-                {messages.map((message, index) => (
-                  <div
-                    key={index}
-                    className={cn(
-                      "flex gap-4 mb-6",
-                      message.role === "user" ? "flex-row-reverse" : "flex-row"
-                    )}
-                  >
-                    {/* Avatar */}
-                    <Avatar className={cn(
-                      "w-8 h-8 shrink-0",
-                      message.role === "assistant" && "bg-gradient-to-br from-primary to-primary/60"
-                    )}>
-                      <AvatarFallback className={cn(
-                        message.role === "assistant" 
-                          ? "bg-transparent text-primary-foreground" 
-                          : "bg-muted text-muted-foreground"
-                      )}>
-                        {message.role === "assistant" ? (
-                          <Sparkles className="w-4 h-4" />
-                        ) : (
-                          <User className="w-4 h-4" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
-
-                    {/* Message Content */}
-                    <div className={cn(
-                      "flex-1 max-w-[85%]",
-                      message.role === "user" && "flex justify-end"
-                    )}>
-                      <div
-                        className={cn(
-                          "rounded-2xl px-4 py-3",
-                          message.role === "user"
-                            ? "bg-primary text-primary-foreground rounded-tr-sm"
-                            : "text-foreground rounded-tl-sm"
-                        )}
-                      >
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                          {formatMessage(message.content)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Loading indicator */}
-                {isLoading && (
-                  <div className="flex gap-4 mb-6">
-                    <Avatar className="w-8 h-8 shrink-0 bg-gradient-to-br from-primary to-primary/60">
-                      <AvatarFallback className="bg-transparent text-primary-foreground">
-                        <Sparkles className="w-4 h-4" />
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="flex items-center gap-1 px-4 py-3 rounded-2xl rounded-tl-sm">
-                      <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.3s]" />
-                      <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce [animation-delay:-0.15s]" />
-                      <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" />
-                    </div>
-                  </div>
-                )}
-
-                <div ref={messagesEndRef} />
-              </div>
-            </ScrollArea>
-
-            {/* Input Area - Fixed at Bottom */}
-            <div className="border-t border-border bg-card/50 backdrop-blur-sm p-4">
-              <div className="max-w-3xl mx-auto">
-                <div className="relative flex items-end gap-2">
-                  <Textarea
-                    ref={textareaRef}
-                    value={inputValue}
-                    onChange={handleTextareaChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="Ask me anything about your career..."
-                    className="flex-1 min-h-[44px] max-h-[200px] resize-none border border-border rounded-2xl focus-visible:ring-1 focus-visible:ring-primary py-3 px-4 text-sm"
-                    rows={1}
-                    disabled={isLoading}
-                  />
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!inputValue.trim() || isLoading}
-                    size="icon"
-                    className="shrink-0 rounded-full w-9 h-9"
-                  >
-                    {isLoading ? (
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4" />
-                    )}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
-  };
+};
 
 export default Advisor;
