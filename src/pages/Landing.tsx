@@ -1,15 +1,14 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import sigmaLogo from "@/assets/sigma-logo.png";
 import { 
-  Sparkles, 
   Plus, 
   Mic, 
   ArrowUp, 
   Briefcase, 
   GraduationCap, 
   Target, 
-  TrendingUp, 
   FileText, 
   Users,
   ChevronDown
@@ -53,7 +52,11 @@ const Landing = () => {
 
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-end">
+        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <img src={sigmaLogo} alt="Sigma" className="w-8 h-8" />
+            <span className="font-bold text-xl text-foreground">Sigma</span>
+          </div>
           <Button 
             variant="default" 
             onClick={() => navigate("/auth")}
@@ -199,6 +202,10 @@ const Landing = () => {
       <section className="relative z-10 py-20 px-6 bg-muted/30">
         <div className="container mx-auto max-w-5xl">
           <div className="text-center mb-12">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <img src={sigmaLogo} alt="Sigma" className="w-10 h-10" />
+              <span className="text-3xl md:text-4xl font-bold text-foreground">Sigma</span>
+            </div>
             <h2 className="text-2xl md:text-3xl font-bold text-foreground mb-3">
               Your AI Career Companion
             </h2>
@@ -234,8 +241,8 @@ const Landing = () => {
       <footer className="relative z-10 py-6 px-6 border-t border-border bg-background">
         <div className="container mx-auto flex items-center justify-between text-muted-foreground text-sm">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-primary" />
-            <span>AI Career Advisor</span>
+            <img src={sigmaLogo} alt="Sigma" className="w-5 h-5" />
+            <span>Sigma Career Advisor</span>
           </div>
           <span>© 2025 All rights reserved.</span>
         </div>
