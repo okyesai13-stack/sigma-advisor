@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import sigmaLogo from "@/assets/sigma-logo.png";
 import { 
   Plus, 
@@ -11,12 +13,15 @@ import {
   Target, 
   FileText, 
   Users,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from "lucide-react";
 
 const Landing = () => {
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState<string | null>(null);
 
   const suggestionChips = [
     { icon: "🎯", text: "How to switch careers in tech" },
@@ -29,9 +34,64 @@ const Landing = () => {
     { icon: "🌟", text: "Building a portfolio for beginners" },
   ];
 
-  const handleSubmit = () => {
-    if (inputValue.trim()) {
-      navigate("/auth");
+  const handleSubmit = async () => {
+    if (!inputValue.trim() || isLoading) return;
+    
+    setIsLoading(true);
+    setAiResponse(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("landing-chat", {
+        body: { message: inputValue.trim() },
+      });
+      
+      if (error) {
+        console.error("Chat error:", error);
+        toast.error("Failed to get response. Please try again.");
+        return;
+      }
+      
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      
+      setAiResponse(data.response);
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleChipClick = async (chipText: string) => {
+    setInputValue(chipText);
+    setIsLoading(true);
+    setAiResponse(null);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke("landing-chat", {
+        body: { message: chipText },
+      });
+      
+      if (error) {
+        console.error("Chat error:", error);
+        toast.error("Failed to get response. Please try again.");
+        return;
+      }
+      
+      if (data?.error) {
+        toast.error(data.error);
+        return;
+      }
+      
+      setAiResponse(data.response);
+    } catch (err) {
+      console.error("Unexpected error:", err);
+      toast.error("Something went wrong. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -156,18 +216,46 @@ const Landing = () => {
                 <Button
                   size="icon"
                   className={`rounded-full h-10 w-10 transition-all duration-200 ${
-                    inputValue.trim() 
+                    inputValue.trim() && !isLoading
                       ? "bg-primary text-primary-foreground hover:bg-primary/90" 
                       : "bg-muted text-muted-foreground"
                   }`}
                   onClick={handleSubmit}
-                  disabled={!inputValue.trim()}
+                  disabled={!inputValue.trim() || isLoading}
                 >
-                  <ArrowUp className="w-5 h-5" />
+                  {isLoading ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <ArrowUp className="w-5 h-5" />
+                  )}
                 </Button>
               </div>
             </div>
           </div>
+
+          {/* AI Response Card */}
+          {aiResponse && (
+            <div className="mt-6 w-full max-w-2xl p-6 bg-card border border-border rounded-2xl shadow-md animate-fade-in">
+              <div className="flex items-start gap-3">
+                <img src={sigmaLogo} alt="Sigma" className="w-8 h-8 mt-1" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-primary mb-2">Sigma</p>
+                  <p className="text-foreground whitespace-pre-wrap leading-relaxed">{aiResponse}</p>
+                </div>
+              </div>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground text-center">
+                  Want more personalized advice?{" "}
+                  <button 
+                    onClick={() => navigate("/auth")}
+                    className="text-primary hover:underline font-medium"
+                  >
+                    Sign up for free
+                  </button>
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Suggestion Chips */}
@@ -179,8 +267,9 @@ const Landing = () => {
             {suggestionChips.map((chip, index) => (
               <button
                 key={index}
-                onClick={() => navigate("/auth")}
-                className="group flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 hover:shadow-md"
+                onClick={() => handleChipClick(chip.text)}
+                disabled={isLoading}
+                className="group flex items-center gap-2 px-4 py-2.5 bg-card border border-border rounded-full text-sm text-muted-foreground hover:text-foreground hover:border-primary/30 hover:bg-accent/50 transition-all duration-200 hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span>{chip.icon}</span>
                 <span>{chip.text}</span>
