@@ -184,7 +184,12 @@ export class SigmaAgentService {
       });
       
       if (error) throw error;
-      if (!data.ok && !data.success) throw new Error(data.error || 'Learning plan generation failed');
+      
+      // Handle both response formats: { success, data } and { learningJourney }
+      const learningData = data.data || data.learningJourney;
+      if (!data.ok && !data.success && !learningData) {
+        throw new Error(data.error || 'Learning plan generation failed');
+      }
 
       await supabase.rpc('update_sigma_state_flag', {
         p_user_id: this.userId,
@@ -194,7 +199,7 @@ export class SigmaAgentService {
 
       return {
         success: true,
-        data: data.data,
+        data: learningData,
         nextStep: 'project_ideas'
       };
     } catch (error) {
