@@ -197,7 +197,7 @@ Output format:
 
     console.log("Successfully generated learning journey for", skillName);
 
-    return new Response(JSON.stringify({ learningJourney: insertedJourney }), {
+    return new Response(JSON.stringify({ success: true, ok: true, data: insertedJourney }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
