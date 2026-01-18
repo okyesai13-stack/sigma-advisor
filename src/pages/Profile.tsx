@@ -11,6 +11,8 @@ import {
   Home,
   FolderKanban,
   BookOpen,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -25,6 +27,17 @@ import {
   ProjectCard,
   CourseCard,
 } from "@/components/portfolio";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface UserProfile {
   goal_type: string;
@@ -83,6 +96,8 @@ const Profile = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const { signOut } = useAuth();
 
   const [profile, setProfile] = useState<UserProfile>({
     goal_type: "",
@@ -307,6 +322,44 @@ const Profile = () => {
     });
   };
 
+  const handleDeleteAccount = async () => {
+    if (!user) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      const { data, error } = await supabase.functions.invoke("delete-account");
+      
+      if (error) {
+        console.error("Error deleting account:", error);
+        toast({
+          title: "Error",
+          description: "Failed to delete account. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      toast({
+        title: "Account Deleted",
+        description: "Your account has been permanently deleted.",
+      });
+      
+      // Sign out and redirect to landing page
+      await signOut();
+      navigate("/");
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -490,6 +543,79 @@ const Profile = () => {
                 ))}
               </div>
             </PortfolioSection>
+          </div>
+
+          {/* Delete Account Section */}
+          <div className="mt-8 pt-6 border-t border-border">
+            <div className="bg-destructive/5 border border-destructive/20 rounded-xl p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 bg-destructive/10 rounded-lg">
+                    <AlertTriangle className="w-5 h-5 text-destructive" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-destructive text-sm sm:text-base">Delete Account</h3>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                      Permanently delete your account and all associated data. This action cannot be undone.
+                    </p>
+                  </div>
+                </div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="gap-2 shrink-0"
+                      disabled={isDeleting}
+                    >
+                      {isDeleting ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                      Delete Account
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="w-5 h-5" />
+                        Delete Account Permanently?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription className="space-y-2">
+                        <p>
+                          This action <strong>cannot be undone</strong>. This will permanently delete:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 text-sm">
+                          <li>Your profile and personal information</li>
+                          <li>All education, experience, and certifications</li>
+                          <li>Your resume analysis and career advice</li>
+                          <li>All projects and learning journeys</li>
+                          <li>Job recommendations and interview preparations</li>
+                          <li>Your entire account and login credentials</li>
+                        </ul>
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={handleDeleteAccount}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        {isDeleting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Deleting...
+                          </>
+                        ) : (
+                          "Yes, Delete My Account"
+                        )}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </div>
           </div>
 
           {/* Saving indicator */}
