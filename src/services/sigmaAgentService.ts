@@ -49,23 +49,71 @@ export class SigmaAgentService {
 
   async executeCareerAnalysis(): Promise<AgentExecutionResult> {
     try {
+      // First try to get resume data
       const { data: resumeData } = await supabase
         .from('resume_analysis')
         .select('id, parsed_data')
         .eq('user_id', this.userId)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (!resumeData?.parsed_data) {
-        throw new Error('No resume data found for analysis');
+      let requestBody: any = { userId: this.userId };
+      let resumeAnalysisId: string | null = null;
+
+      if (resumeData?.parsed_data) {
+        // Use resume data if available
+        requestBody.parsedData = resumeData.parsed_data;
+        resumeAnalysisId = resumeData.id;
+        console.log('Using resume data for career analysis');
+      } else {
+        // Fallback: Fetch profile data from individual tables
+        console.log('No resume data found, fetching profile data from tables');
+
+        const [profileResult, educationResult, experienceResult, certificationResult] = await Promise.all([
+          supabase.from('users_profile').select('*').eq('id', this.userId).maybeSingle(),
+          supabase.from('education_details').select('*').eq('user_id', this.userId),
+          supabase.from('experience_details').select('*').eq('user_id', this.userId),
+          supabase.from('certifications').select('*').eq('user_id', this.userId)
+        ]);
+
+        const profile = profileResult.data;
+        const education = educationResult.data || [];
+        const experience = experienceResult.data || [];
+        const certifications = certificationResult.data || [];
+
+        // Check if we have any meaningful data
+        if (!profile && education.length === 0 && experience.length === 0 && certifications.length === 0) {
+          throw new Error('No profile data found. Please complete your profile or upload a resume first.');
+        }
+
+        // Build profile data object for the edge function
+        requestBody.profileData = {
+          profile: profile || {},
+          education: education.map(edu => ({
+            degree: edu.degree,
+            field: edu.field,
+            institution: edu.institution,
+            graduation_year: edu.graduation_year
+          })),
+          experience: experience.map(exp => ({
+            company: exp.company,
+            role: exp.role,
+            skills: exp.skills || [],
+            start_year: exp.start_year,
+            end_year: exp.end_year
+          })),
+          certifications: certifications.map(cert => ({
+            title: cert.title,
+            issuer: cert.issuer,
+            year: cert.year
+          }))
+        };
+        console.log('Built profile data for analysis:', requestBody.profileData);
       }
 
       const { data, error } = await supabase.functions.invoke('resume-career-advice', {
-        body: {
-          parsedData: resumeData.parsed_data,
-          userId: this.userId
-        }
+        body: requestBody
       });
       
       if (error) throw error;
@@ -87,7 +135,7 @@ export class SigmaAgentService {
           .from('resume_career_advice')
           .insert({
             user_id: this.userId,
-            resume_analysis_id: resumeData.id,
+            resume_analysis_id: resumeAnalysisId,
             career_advice: careerAdvice,
             selected_role: null
           });
