@@ -984,11 +984,25 @@ const Setup = () => {
                         <Button
                           type="button"
                           variant="hero"
-                          onClick={() => navigate('/sigma')}
+                          onClick={async () => {
+                            const success = await saveProfileToSupabase();
+                            if (success) {
+                              toast({
+                                title: "Success",
+                                description: "Profile saved! Starting career analysis...",
+                              });
+                              navigate('/sigma');
+                            }
+                          }}
+                          disabled={isSubmitting}
                           className="gap-2"
                         >
-                          <Rocket className="w-4 h-4" />
-                          Start Career Analysis
+                          {isSubmitting ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Rocket className="w-4 h-4" />
+                          )}
+                          {isSubmitting ? "Saving..." : "Start Career Analysis"}
                         </Button>
                         <Button
                           type="button"
