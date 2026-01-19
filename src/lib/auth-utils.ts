@@ -21,11 +21,19 @@ export const createUserProfile = async (user: User) => {
       return { success: false, error: checkError };
     }
 
+    // Extract display name from email (e.g., "john.doe@gmail.com" -> "John Doe")
+    const emailPrefix = user.email?.split('@')[0] || '';
+    const displayName = emailPrefix
+      .split(/[._-]/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+
     // Create new profile using upsert to handle race conditions
     const { data: profile, error } = await supabase
       .from('users_profile')
       .upsert({
         id: user.id,
+        display_name: displayName || null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }, { 
