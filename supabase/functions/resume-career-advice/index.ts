@@ -28,11 +28,12 @@ serve(async (req) => {
       throw new Error("User not authenticated");
     }
 
-    const { parsedData, userId } = await req.json();
-    console.log("Generating career advice from resume for user:", user.id);
+    const { parsedData, profileData, userId } = await req.json();
+    console.log("Generating career advice for user:", user.id);
 
-    if (!parsedData) {
-      throw new Error("No parsed resume data provided");
+    // Check if we have either resume data or profile data
+    if (!parsedData && !profileData) {
+      throw new Error("No resume or profile data provided");
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -40,10 +41,57 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const prompt = `You are an expert career advisor. Based on the resume data provided, analyze and recommend career paths.
+    // Build the data section based on what's available
+    let dataSection = "";
+    if (parsedData) {
+      dataSection = `Resume Data:
+${JSON.stringify(parsedData, null, 2)}`;
+      console.log("Using parsed resume data for analysis");
+    } else if (profileData) {
+      // Format profile data for the AI
+      const { profile, education, experience, certifications } = profileData;
+      
+      let profileText = "Profile Data:\n";
+      
+      if (profile) {
+        profileText += `\nUser Type: ${profile.user_type || 'Not specified'}`;
+        profileText += `\nGoal: ${profile.goal_type || 'Not specified'} - ${profile.goal_description || ''}`;
+        profileText += `\nInterests: ${(profile.interests || []).join(', ') || 'Not specified'}`;
+        profileText += `\nHobbies: ${(profile.hobbies || []).join(', ') || 'Not specified'}`;
+        profileText += `\nActivities: ${(profile.activities || []).join(', ') || 'Not specified'}`;
+      }
+      
+      if (education && education.length > 0) {
+        profileText += "\n\nEducation:";
+        education.forEach((edu: any, i: number) => {
+          profileText += `\n${i + 1}. ${edu.degree || 'Degree'} in ${edu.field || 'Field'} from ${edu.institution || 'Institution'} (${edu.graduation_year || 'Year'})`;
+        });
+      }
+      
+      if (experience && experience.length > 0) {
+        profileText += "\n\nWork Experience:";
+        experience.forEach((exp: any, i: number) => {
+          profileText += `\n${i + 1}. ${exp.role || 'Role'} at ${exp.company || 'Company'} (${exp.start_year || ''} - ${exp.end_year || 'Present'})`;
+          if (exp.skills && exp.skills.length > 0) {
+            profileText += `\n   Skills: ${exp.skills.join(', ')}`;
+          }
+        });
+      }
+      
+      if (certifications && certifications.length > 0) {
+        profileText += "\n\nCertifications:";
+        certifications.forEach((cert: any, i: number) => {
+          profileText += `\n${i + 1}. ${cert.title || 'Certification'} from ${cert.issuer || 'Issuer'} (${cert.year || 'Year'})`;
+        });
+      }
+      
+      dataSection = profileText;
+      console.log("Using profile data for analysis:", profileText);
+    }
 
-Resume Data:
-${JSON.stringify(parsedData, null, 2)}
+    const prompt = `You are an expert career advisor. Based on the candidate data provided, analyze and recommend career paths.
+
+${dataSection}
 
 Generate exactly 5 career recommendations with the following structure for each:
 {
@@ -65,6 +113,7 @@ Consider the candidate's:
 - Work experience
 - Skills mentioned
 - Any certifications
+- Interests and goals
 
 Return ONLY valid JSON, no markdown or additional text.`;
 
