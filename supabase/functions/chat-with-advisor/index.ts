@@ -152,9 +152,16 @@ serve(async (req: Request) => {
       ? `\n\n🎤 INTERVIEW HISTORY:\n${interviews.map(i => `- ${i.interview_type}: Score ${i.score}/100`).join("\n")}`
       : "";
 
-    // Derive user's first name from email or use friendly default
-    const userName = user.email?.split('@')[0]?.split('.')[0] || 'there';
-    const capitalizedName = userName.charAt(0).toUpperCase() + userName.slice(1);
+    // Get user's name from profile display_name, fallback to email extraction
+    let capitalizedName = 'there';
+    if (profile?.display_name) {
+      // Use the first word of display_name (first name)
+      capitalizedName = profile.display_name.split(' ')[0];
+    } else if (user.email) {
+      // Fallback: extract from email
+      const emailName = user.email.split('@')[0]?.split(/[._-]/)[0] || 'there';
+      capitalizedName = emailName.charAt(0).toUpperCase() + emailName.slice(1).toLowerCase();
+    }
 
     // Calculate progress metrics
     const totalSkills = skillValidations.length;
