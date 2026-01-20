@@ -197,9 +197,9 @@ const Setup = () => {
   };
 
   const goals = [
-    { id: "learn", label: "Learn", icon: BookOpen, description: "Acquire new skills and knowledge" },
-    { id: "job", label: "Job", icon: Target, description: "Find your dream career opportunity" },
-    { id: "startup", label: "Startup", icon: Rocket, description: "Build and launch your own venture" },
+    { id: "learn", label: "Learn", icon: BookOpen, description: "Acquire new skills and knowledge", locked: false },
+    { id: "job", label: "Job", icon: Target, description: "Find your dream career opportunity", locked: false },
+    { id: "startup", label: "Startup", icon: Rocket, description: "Build and launch your own venture", locked: true },
   ];
 
   const addInterest = () => {
@@ -719,26 +719,42 @@ const Setup = () => {
                 {goals.map((g) => (
                   <button
                     key={g.id}
-                    onClick={() => setGoal(g.id)}
-                    className={`p-6 rounded-xl border-2 transition-all duration-200 text-left group ${
-                      goal === g.id
-                        ? "border-primary bg-accent"
-                        : "border-border hover:border-primary/50 hover:bg-accent/50"
+                    onClick={() => !g.locked && setGoal(g.id)}
+                    disabled={g.locked}
+                    className={`p-6 rounded-xl border-2 transition-all duration-200 text-left group relative ${
+                      g.locked
+                        ? "border-border bg-muted/50 cursor-not-allowed opacity-60"
+                        : goal === g.id
+                          ? "border-primary bg-accent"
+                          : "border-border hover:border-primary/50 hover:bg-accent/50"
                     }`}
                   >
+                    {g.locked && (
+                      <Badge className="absolute top-3 right-3 bg-primary/20 text-primary border-primary/30 text-xs">
+                        Soon
+                      </Badge>
+                    )}
                     <div
                       className={`w-12 h-12 rounded-xl flex items-center justify-center mb-4 transition-colors ${
-                        goal === g.id ? "bg-gradient-hero" : "bg-muted group-hover:bg-primary/10"
+                        g.locked
+                          ? "bg-muted"
+                          : goal === g.id 
+                            ? "bg-gradient-hero" 
+                            : "bg-muted group-hover:bg-primary/10"
                       }`}
                     >
                       <g.icon
                         className={`w-6 h-6 ${
-                          goal === g.id ? "text-primary-foreground" : "text-muted-foreground group-hover:text-primary"
+                          g.locked
+                            ? "text-muted-foreground/50"
+                            : goal === g.id 
+                              ? "text-primary-foreground" 
+                              : "text-muted-foreground group-hover:text-primary"
                         }`}
                       />
                     </div>
-                    <h3 className="font-semibold text-foreground mb-1">{g.label}</h3>
-                    <p className="text-sm text-muted-foreground">{g.description}</p>
+                    <h3 className={`font-semibold mb-1 ${g.locked ? "text-muted-foreground" : "text-foreground"}`}>{g.label}</h3>
+                    <p className={`text-sm ${g.locked ? "text-muted-foreground/70" : "text-muted-foreground"}`}>{g.description}</p>
                   </button>
                 ))}
               </div>
