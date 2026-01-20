@@ -1151,16 +1151,27 @@ const Dashboard = () => {
     };
   };
 
-  if (guardLoading || isLoading) {
+if (guardLoading || isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="bg-card border border-border rounded-xl p-8 shadow-lg">
-          <div className="flex items-center gap-4">
-            <Loader2 className="w-6 h-6 animate-spin text-primary" />
-            <div>
-              <h3 className="font-semibold text-foreground">Loading your career dashboard...</h3>
-              <p className="text-sm text-muted-foreground">Gathering your progress data</p>
+      <div className="min-h-screen bg-background">
+        {/* Skeleton Header */}
+        <header className="sticky top-0 z-40 border-b border-border bg-card/80 backdrop-blur-md">
+          <div className="container mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
+            <div className="min-w-0 flex-1 pl-12 md:pl-0 space-y-2">
+              <div className="h-6 w-40 bg-muted animate-pulse rounded" />
+              <div className="h-4 w-64 bg-muted/60 animate-pulse rounded hidden sm:block" />
             </div>
+            <div className="h-9 w-24 bg-muted animate-pulse rounded-md" />
+          </div>
+        </header>
+        
+        <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-8 max-w-7xl space-y-6">
+          {/* Skeleton Cards */}
+          <div className="h-48 bg-card border border-border rounded-xl animate-pulse" />
+          <div className="h-32 bg-card border border-border rounded-xl animate-pulse" />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="h-64 bg-card border border-border rounded-xl animate-pulse" />
+            <div className="h-64 bg-card border border-border rounded-xl animate-pulse" />
           </div>
         </div>
       </div>
@@ -1169,6 +1180,14 @@ const Dashboard = () => {
 
   const stats = getProgressStats();
 
+  // Get time-based greeting
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
   return (
     <div className="min-h-screen bg-background">
       {/* 1️⃣ HEADER SECTION (Sticky) */}
@@ -1176,12 +1195,14 @@ const Dashboard = () => {
         <div className="container mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           {/* Add left padding on mobile to avoid sidebar trigger overlap */}
           <div className="min-w-0 flex-1 pl-12 md:pl-0">
-            <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">Career Dashboard</h1>
+            <h1 className="text-lg sm:text-xl font-bold text-foreground truncate">
+              {getGreeting()}, <span className="text-primary">{user?.email?.split('@')[0] || 'there'}</span>! 👋
+            </h1>
             <p className="text-xs sm:text-sm text-muted-foreground hidden sm:block">Your complete career progress at a glance</p>
           </div>
           <Button 
             onClick={() => navigate('/advisor')}
-            className="gap-1 sm:gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-xs sm:text-sm px-3 sm:px-4"
+            className="gap-1 sm:gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-xs sm:text-sm px-3 sm:px-4 shadow-lg hover:shadow-xl transition-all duration-200"
             size="sm"
           >
             <MessageCircle className="w-3 h-3 sm:w-4 sm:h-4" />
@@ -1194,9 +1215,29 @@ const Dashboard = () => {
       <ScrollArea className="h-[calc(100vh-3.5rem)] sm:h-[calc(100vh-4rem)]">
         <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-3 sm:py-4 lg:py-8 max-w-7xl space-y-4 sm:space-y-6 lg:space-y-8">
           
+          {/* Quick Navigation Pills - Visible on Desktop */}
+          <div className="hidden lg:flex items-center gap-2 flex-wrap animate-fade-in">
+            {[
+              { id: 'career-match', label: 'Career Match', icon: Briefcase },
+              { id: 'skill-analysis', label: 'Skills', icon: Award },
+              { id: 'learning', label: 'Learning', icon: BookOpen },
+              { id: 'projects', label: 'Projects', icon: FolderKanban },
+              { id: 'jobs', label: 'Jobs', icon: Target },
+            ].map((section) => (
+              <button
+                key={section.id}
+                onClick={() => document.getElementById(section.id)?.scrollIntoView({ behavior: 'smooth' })}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground rounded-full transition-all duration-200 border border-transparent hover:border-border"
+              >
+                <section.icon className="w-3.5 h-3.5" />
+                {section.label}
+              </button>
+            ))}
+          </div>
+          
           {/* 1️⃣ CAREER MATCH SECTION - Moved to top */}
-          <section id="career-match">
-            <Card>
+          <section id="career-match" className="animate-fade-in">
+            <Card className="overflow-hidden border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -1440,14 +1481,19 @@ const Dashboard = () => {
 
           {/* Next Best Action Highlight */}
           {nextBestAction !== 'complete' && (
-            <Card className="border-primary/30 bg-gradient-to-r from-primary/10 to-accent/10 shadow-lg">
-              <CardContent className="p-4 sm:p-6">
+            <Card className="border-primary/30 bg-gradient-to-r from-primary/5 via-primary/10 to-accent/5 shadow-lg animate-fade-in overflow-hidden relative">
+              {/* Decorative gradient overlay */}
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent pointer-events-none" />
+              <CardContent className="p-4 sm:p-6 relative">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20 flex items-center justify-center animate-pulse flex-shrink-0">
-                    <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-br from-primary/30 to-primary/10 flex items-center justify-center flex-shrink-0 shadow-inner">
+                    <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-primary animate-pulse" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-foreground mb-1 text-sm sm:text-base">Next Best Action</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-foreground text-sm sm:text-base">Next Best Action</h3>
+                      <Badge variant="secondary" className="text-xs bg-primary/10 text-primary border-primary/20">Recommended</Badge>
+                    </div>
                     <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
                       {nextBestAction === 'career_analysis' && 'Complete your career analysis to get personalized recommendations'}
                       {nextBestAction === 'skill_validation' && 'Validate your skills for your selected career path'}
@@ -1457,7 +1503,7 @@ const Dashboard = () => {
                     </p>
                   </div>
                   <Button 
-                    className="gap-2 w-full sm:w-auto flex-shrink-0"
+                    className="gap-2 w-full sm:w-auto flex-shrink-0 shadow-md hover:shadow-lg transition-all duration-200"
                     size="sm"
                     onClick={() => {
                       if (nextBestAction === 'career_analysis') navigate('/sigma');
@@ -1476,12 +1522,14 @@ const Dashboard = () => {
           )}
 
           {/* 2️⃣ OVERVIEW SECTION */}
-          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2">
+          <div className="grid gap-4 sm:gap-6 lg:grid-cols-2 animate-fade-in" style={{ animationDelay: '0.1s' }}>
             {/* 🧩 Overview Card (Left – Primary) */}
-            <Card className="lg:col-span-1">
+            <Card className="lg:col-span-1 border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Target className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Target className="w-4 h-4 text-primary" />
+                  </div>
                   Career Overview
                 </CardTitle>
               </CardHeader>
@@ -1541,10 +1589,12 @@ const Dashboard = () => {
             </Card>
 
             {/* 📊 Progress Summary (Right) */}
-            <Card className="lg:col-span-1">
+            <Card className="lg:col-span-1 border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <TrendingUp className="w-4 h-4 text-primary" />
+                  </div>
                   Progress Summary
                 </CardTitle>
               </CardHeader>
@@ -1585,11 +1635,13 @@ const Dashboard = () => {
           </div>
 
           {/* 4️⃣ SKILL ANALYSIS SECTION */}
-          <section id="skill-analysis">
-            <Card>
+          <section id="skill-analysis" className="animate-fade-in" style={{ animationDelay: '0.15s' }}>
+            <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Award className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Award className="w-4 h-4 text-primary" />
+                  </div>
                   Skill Analysis
                 </CardTitle>
               </CardHeader>
@@ -1861,11 +1913,13 @@ const Dashboard = () => {
           </section>
 
           {/* 5️⃣ LEARNING SECTION */}
-          <section id="learning">
-            <Card>
+          <section id="learning" className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <BookOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <BookOpen className="w-4 h-4 text-primary" />
+                  </div>
                   Learning Journey
                 </CardTitle>
               </CardHeader>
@@ -2253,11 +2307,13 @@ const Dashboard = () => {
           </section>
 
           {/* 6️⃣ PROJECT SECTION */}
-          <section id="projects">
-            <Card>
+          <section id="projects" className="animate-fade-in" style={{ animationDelay: '0.25s' }}>
+            <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <FolderKanban className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <FolderKanban className="w-4 h-4 text-primary" />
+                  </div>
                   Projects Portfolio
                 </CardTitle>
               </CardHeader>
@@ -2339,11 +2395,13 @@ const Dashboard = () => {
           </section>
 
           {/* 7️⃣ JOB SECTION */}
-          <section id="jobs">
-            <Card>
+          <section id="jobs" className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
+            <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
               <CardHeader className="pb-3 sm:pb-4">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                  <Briefcase className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Briefcase className="w-4 h-4 text-primary" />
+                  </div>
                   Job Recommendations
                 </CardTitle>
               </CardHeader>
