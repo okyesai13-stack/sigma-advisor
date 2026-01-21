@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Sparkles } from 'lucide-react';
 import { SigmaAgentController, SigmaAgentTimeline } from '@/components/sigma-agent';
 
 const Sigma = () => {
@@ -37,54 +37,21 @@ const Sigma = () => {
             className="gap-2"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Setup
+            Back
           </Button>
-          <h1 className="text-lg font-semibold text-foreground">Sigma Career Agent</h1>
-          <div className="w-24" /> {/* Spacer */}
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" />
+            <h1 className="text-lg font-semibold text-foreground">Sigma AI Agent</h1>
+          </div>
+          <div className="w-20" />
         </div>
       </div>
 
       {/* Main Content */}
-      <main className="container mx-auto px-6 py-8 max-w-4xl">
-        <div className="text-center mb-8">
-          <h2 className="text-2xl font-bold mb-2">AI Career Analysis & Planning</h2>
-          <p className="text-muted-foreground">
-            Sigma will automatically guide you through career analysis, skill validation, 
-            learning plans, and interview preparation.
-          </p>
-        </div>
-
+      <main className="container mx-auto px-6 py-8">
         <SigmaAgentController>
           {(props) => (
-            <>
-              {/* Ask Sigma Button - Show after career analysis is completed */}
-              {props.agentState.career_analysis_completed && (
-                <div className="mb-6">
-                  <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-accent/10">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h3 className="font-semibold text-foreground mb-1">Ready to Chat?</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Ask Sigma questions about your career analysis and get personalized advice.
-                          </p>
-                        </div>
-                        <Button
-                          onClick={() => navigate('/advisor')}
-                          className="gap-2"
-                          variant="default"
-                        >
-                          <MessageSquare className="w-4 h-4" />
-                          Ask Sigma
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-              
-              <SigmaAgentTimeline {...props} />
-            </>
+            <SigmaAgentTimeline {...props} />
           )}
         </SigmaAgentController>
       </main>
