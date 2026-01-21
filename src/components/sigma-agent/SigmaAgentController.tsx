@@ -12,11 +12,7 @@ export interface AgentState {
   skill_validation_completed: boolean;
   learning_plan_completed: boolean;
   project_guidance_completed: boolean;
-  project_plan_completed: boolean;
-  project_build_completed: boolean;
-  resume_completed: boolean;
   job_matching_completed: boolean;
-  interview_completed: boolean;
 }
 
 export interface AgentStep {
@@ -34,6 +30,7 @@ export interface AgentControllerProps {
     executeStep: (stepId: string, userSelection?: any) => Promise<void>;
     isExecuting: boolean;
     canExecute: (stepId: string) => boolean;
+    statusMessage: string;
   }) => React.ReactNode;
 }
 
@@ -47,17 +44,12 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
     skill_validation_completed: false,
     learning_plan_completed: false,
     project_guidance_completed: false,
-    project_plan_completed: false,
-    project_build_completed: false,
-    resume_completed: false,
     job_matching_completed: false,
-    interview_completed: false,
   });
 
   const [currentStep, setCurrentStep] = useState<AgentStep | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
-  // Store the selected project from project_plan step to use in project_build
-  const [lastSelectedProject, setLastSelectedProject] = useState<any>(null);
+  const [statusMessage, setStatusMessage] = useState('Initializing...');
 
   useEffect(() => {
     if (user) {
@@ -65,55 +57,46 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
     }
   }, [user]);
 
-  // Auto-execution logic
+  // Auto-execution logic for fully autonomous flow
   useEffect(() => {
     if (!currentStep || !user || isExecuting) return;
 
-    // Auto-execute project_ideas after learning plan
+    // Auto-execute skill validation after career analysis (goal-based, no selection needed)
+    if (currentStep.id === 'skill_validation' && 
+        currentStep.status === 'pending' && 
+        agentState.career_analysis_completed && 
+        !agentState.skill_validation_completed) {
+      setStatusMessage('Validating your skills against career goal...');
+      const timer = setTimeout(() => executeStep('skill_validation'), 1500);
+      return () => clearTimeout(timer);
+    }
+
+    // Auto-execute learning plan after skill validation
+    if (currentStep.id === 'learning_plan' && 
+        currentStep.status === 'pending' && 
+        agentState.skill_validation_completed && 
+        !agentState.learning_plan_completed) {
+      setStatusMessage('Generating personalized learning plan...');
+      const timer = setTimeout(() => executeStep('learning_plan'), 1500);
+      return () => clearTimeout(timer);
+    }
+
+    // Auto-execute project ideas after learning plan
     if (currentStep.id === 'project_ideas' && 
         currentStep.status === 'pending' && 
         agentState.learning_plan_completed && 
         !agentState.project_guidance_completed) {
+      setStatusMessage('Creating project recommendations...');
       const timer = setTimeout(() => executeStep('project_ideas'), 1500);
       return () => clearTimeout(timer);
     }
 
-    // Auto-execute project_build after project plan - use the stored selected project
-    if (currentStep.id === 'project_build' && 
-        currentStep.status === 'pending' && 
-        agentState.project_plan_completed &&
-        !agentState.project_build_completed) {
-      
-      // First priority: use lastSelectedProject stored from project_plan step
-      // Second priority: use data from currentStep
-      // Third priority: will be fetched in the service
-      const projectToUse = lastSelectedProject || currentStep.data?.selectedProject;
-      
-      if (projectToUse) {
-        console.log('Auto-executing project_build with project:', projectToUse.id, projectToUse.title);
-        const timer = setTimeout(() => executeStep('project_build', projectToUse), 2000);
-        return () => clearTimeout(timer);
-      } else {
-        console.log('Auto-executing project_build without specific project selection');
-        const timer = setTimeout(() => executeStep('project_build'), 2000);
-        return () => clearTimeout(timer);
-      }
-    }
-
-    // Auto-execute resume_upgrade after project build
-    if (currentStep.id === 'resume_upgrade' && 
-        currentStep.status === 'pending' && 
-        agentState.project_build_completed &&
-        !agentState.resume_completed) {
-      const timer = setTimeout(() => executeStep('resume_upgrade'), 1500);
-      return () => clearTimeout(timer);
-    }
-
-    // Auto-execute job_matching after resume
+    // Auto-execute job matching after project ideas
     if (currentStep.id === 'job_matching' && 
         currentStep.status === 'pending' && 
-        agentState.resume_completed &&
+        agentState.project_guidance_completed &&
         !agentState.job_matching_completed) {
+      setStatusMessage('Finding job matches for you...');
       const timer = setTimeout(() => executeStep('job_matching'), 1500);
       return () => clearTimeout(timer);
     }
@@ -123,6 +106,8 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
     if (!user) return;
 
     try {
+      setStatusMessage('Loading your progress...');
+      
       const { data: resumeData } = await supabase
         .from('resume_analysis')
         .select('id, parsed_data')
@@ -141,22 +126,20 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
         skill_validation_completed: Boolean((journeyData as any)?.skill_validation_completed),
         learning_plan_completed: Boolean((journeyData as any)?.learning_plan_completed),
         project_guidance_completed: Boolean((journeyData as any)?.project_guidance_completed),
-        project_plan_completed: Boolean((journeyData as any)?.project_plan_completed),
-        project_build_completed: Boolean((journeyData as any)?.project_build_completed),
-        resume_completed: Boolean((journeyData as any)?.resume_completed),
         job_matching_completed: Boolean((journeyData as any)?.job_matching_completed),
-        interview_completed: Boolean((journeyData as any)?.interview_completed),
       };
 
       setAgentState(newState);
       await determineCurrentStep(newState);
     } catch (error) {
       console.error('Error loading agent state:', error);
+      setStatusMessage('Error loading state');
     }
   };
 
   const determineCurrentStep = async (state: AgentState) => {
     if (!state.resume_uploaded || !state.resume_parsed) {
+      setStatusMessage('Resume required to begin');
       setCurrentStep({
         id: 'entry_gate',
         name: 'Resume Required',
@@ -166,202 +149,23 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
     }
 
     if (!state.career_analysis_completed) {
+      setStatusMessage('Ready to analyze your career path');
       setCurrentStep({ id: 'career_analysis', name: 'Career Analysis', status: 'pending' });
     } else if (!state.skill_validation_completed) {
-      const careerData = await loadCareerMatches();
-      setCurrentStep({ id: 'skill_validation', name: 'Skill Validation', status: 'pending', data: careerData });
+      setStatusMessage('Preparing skill validation...');
+      setCurrentStep({ id: 'skill_validation', name: 'Skill Validation', status: 'pending' });
     } else if (!state.learning_plan_completed) {
-      const skillData = await loadSkillValidationData();
-      setCurrentStep({ id: 'learning_plan', name: 'Learning Plan', status: 'pending', data: skillData });
+      setStatusMessage('Creating your learning plan...');
+      setCurrentStep({ id: 'learning_plan', name: 'Learning Plan', status: 'pending' });
     } else if (!state.project_guidance_completed) {
+      setStatusMessage('Generating project ideas...');
       setCurrentStep({ id: 'project_ideas', name: 'Project Ideas', status: 'pending' });
-    } else if (!state.project_plan_completed) {
-      const projectData = await loadProjectIdeas();
-      setCurrentStep({ id: 'project_plan', name: 'Project Planning', status: 'pending', data: projectData });
-    } else if (!state.project_build_completed) {
-      const selectedProjectData = await loadSelectedProject();
-      setCurrentStep({ id: 'project_build', name: 'Build Tools', status: 'pending', data: selectedProjectData });
-    } else if (!state.resume_completed) {
-      setCurrentStep({ id: 'resume_upgrade', name: 'Resume Upgrade', status: 'pending' });
     } else if (!state.job_matching_completed) {
+      setStatusMessage('Finding matching jobs...');
       setCurrentStep({ id: 'job_matching', name: 'Job Matching', status: 'pending' });
-    } else if (!state.interview_completed) {
-      const jobData = await loadJobRecommendations();
-      setCurrentStep({ id: 'interview_prep', name: 'Interview Prep', status: 'pending', data: jobData });
     } else {
+      setStatusMessage('Career journey complete!');
       setCurrentStep({ id: 'completed', name: 'Journey Complete', status: 'completed' });
-    }
-  };
-
-  const loadCareerMatches = async () => {
-    try {
-      // Load from resume_career_advice table (where career analysis results are stored)
-      const { data: careerAdvice, error } = await supabase
-        .from('resume_career_advice')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Error loading career advice:', error);
-        return { careerMatches: [] };
-      }
-
-      if (careerAdvice?.career_advice) {
-        const advice = careerAdvice.career_advice as any;
-        const roles = advice?.roles || [];
-        
-        console.log('Loaded career matches from resume_career_advice:', roles);
-        
-        return { 
-          careerMatches: roles.map((role: any, index: number) => ({
-            id: role.id || `role_${index}`,
-            role: role.role,
-            domain: role.domain,
-            match_score: role.match_score || 0,
-            rationale: role.rationale,
-            required_skills: role.required_skills || [],
-            growth_potential: role.growth_potential
-          }))
-        };
-      }
-      return { careerMatches: [] };
-    } catch (error) {
-      console.error('Error loading career matches:', error);
-      return { careerMatches: [] };
-    }
-  };
-
-  const loadSkillValidationData = async () => {
-    try {
-      const { data: skillValidation } = await supabase
-        .from('skill_validations')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      return { skillValidation };
-    } catch (error) {
-      console.error('Error loading skill validation data:', error);
-      return { skillValidation: null };
-    }
-  };
-
-  const loadProjectIdeas = async () => {
-    try {
-      const { data: projectIdeas } = await supabase
-        .from('project_ideas')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      return { projects: projectIdeas || [] };
-    } catch (error) {
-      console.error('Error loading project ideas:', error);
-      return { projects: [] };
-    }
-  };
-
-  const loadJobRecommendations = async () => {
-    try {
-      const { data: jobRecommendations } = await supabase
-        .from('ai_job_recommendations')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      return { jobs: jobRecommendations || [] };
-    } catch (error) {
-      console.error('Error loading job recommendations:', error);
-      return { jobs: [] };
-    }
-  };
-
-  const loadSelectedProject = async () => {
-    try {
-      // Strategy 1: Check project with selected_project = true flag
-      const { data: selectedProjectFlag } = await supabase
-        .from('project_ideas')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('selected_project', true)
-        .order('updated_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (selectedProjectFlag) {
-        console.log('Found selected project by flag:', selectedProjectFlag.id, selectedProjectFlag.title);
-        const selectedProject = {
-          id: selectedProjectFlag.id,
-          title: selectedProjectFlag.title,
-          description: selectedProjectFlag.description,
-          problem: selectedProjectFlag.problem,
-          domain: selectedProjectFlag.domain
-        };
-        return { selectedProject };
-      }
-      
-      // Strategy 2: Get the most recent project detail to find the selected project
-      const { data: projectDetail } = await supabase
-        .from('project_detail')
-        .select(`
-          project_id,
-          project_ideas (
-            id,
-            title,
-            description,
-            problem,
-            domain
-          )
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (projectDetail?.project_ideas) {
-        console.log('Found selected project from project_detail:', projectDetail.project_ideas.id);
-        const selectedProject = {
-          id: projectDetail.project_ideas.id,
-          title: projectDetail.project_ideas.title,
-          description: projectDetail.project_ideas.description,
-          problem: projectDetail.project_ideas.problem,
-          domain: projectDetail.project_ideas.domain
-        };
-        return { selectedProject };
-      }
-      
-      // Strategy 3: If no project_detail found, get the most recent project idea
-      const { data: recentProject } = await supabase
-        .from('project_ideas')
-        .select('*')
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (recentProject) {
-        console.log('Using most recent project as fallback:', recentProject.id);
-        const selectedProject = {
-          id: recentProject.id,
-          title: recentProject.title,
-          description: recentProject.description,
-          problem: recentProject.problem,
-          domain: recentProject.domain
-        };
-        return { selectedProject };
-      }
-      
-      return { selectedProject: null };
-    } catch (error) {
-      console.error('Error loading selected project:', error);
-      return { selectedProject: null };
     }
   };
 
@@ -376,6 +180,16 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
     setIsExecuting(true);
     setCurrentStep(prev => prev ? { ...prev, status: 'executing' } : null);
 
+    // Set appropriate status message
+    const statusMessages: Record<string, string> = {
+      career_analysis: 'Analyzing your resume and identifying career paths...',
+      skill_validation: 'Validating your skills against career requirements...',
+      learning_plan: 'Generating your personalized learning roadmap...',
+      project_ideas: 'Creating project recommendations to build your portfolio...',
+      job_matching: 'Finding the best job matches for your profile...'
+    };
+    setStatusMessage(statusMessages[stepId] || 'Processing...');
+
     try {
       const service = createSigmaService(user.id);
       let result;
@@ -385,36 +199,16 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
           result = await service.executeCareerAnalysis();
           break;
         case 'skill_validation':
-          result = await service.executeSkillValidation(userSelection);
+          result = await service.executeSkillValidationGoalBased();
           break;
         case 'learning_plan':
-          result = await service.executeLearningPlan(userSelection);
+          result = await service.executeLearningPlanAuto();
           break;
         case 'project_ideas':
           result = await service.executeProjectIdeas();
           break;
-        case 'project_plan':
-          // Store the selected project for use in the next step (project_build)
-          if (userSelection) {
-            console.log('Storing selected project for project_build:', userSelection.id, userSelection.title);
-            setLastSelectedProject(userSelection);
-          }
-          result = await service.executeProjectPlan(userSelection);
-          break;
-        case 'project_build':
-          // Use the passed selection, or fall back to lastSelectedProject
-          const projectForBuild = userSelection || lastSelectedProject;
-          console.log('Executing project_build with project:', projectForBuild?.id, projectForBuild?.title);
-          result = await service.executeProjectBuild(projectForBuild);
-          break;
-        case 'resume_upgrade':
-          result = await service.executeResumeUpgrade();
-          break;
         case 'job_matching':
           result = await service.executeJobMatching();
-          break;
-        case 'interview_prep':
-          result = await service.executeInterviewPrep(userSelection);
           break;
         default:
           throw new Error(`Unknown step: ${stepId}`);
@@ -423,19 +217,21 @@ const SigmaAgentController: React.FC<AgentControllerProps> = ({ children }) => {
       if (!result.success) throw new Error(result.error);
 
       setCurrentStep(prev => prev ? { ...prev, status: 'completed', data: result.data } : null);
-      toast.success(`${stepId.replace('_', ' ')} completed!`);
+      setStatusMessage(`${stepId.replace('_', ' ')} completed!`);
+      toast.success(`Step completed successfully!`);
       
       setTimeout(() => loadAgentState(), 500);
     } catch (error) {
       console.error(`Error executing step ${stepId}:`, error);
       setCurrentStep(prev => prev ? { ...prev, status: 'pending', error: error instanceof Error ? error.message : 'Unknown error' } : null);
+      setStatusMessage('Error occurred. Click to retry.');
       toast.error(`Failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsExecuting(false);
     }
   };
 
-  return <>{children({ agentState, currentStep, executeStep, isExecuting, canExecute })}</>;
+  return <>{children({ agentState, currentStep, executeStep, isExecuting, canExecute, statusMessage })}</>;
 };
 
 export default SigmaAgentController;
