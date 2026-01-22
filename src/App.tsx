@@ -16,6 +16,7 @@ import Sigma from "./pages/Sigma";
 import Projects from "./pages/Projects";
 import Interview from "./pages/Interview";
 import Resume from "./pages/Resume";
+import Goals from "./pages/Goals";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -70,6 +71,12 @@ const App = () => (
             <Route path="/resume" element={
               <ProtectedRoute>
                 <Resume />
+              </ProtectedRoute>
+            } />
+
+            <Route path="/goals" element={
+              <ProtectedRoute>
+                <Goals />
               </ProtectedRoute>
             } />
 
