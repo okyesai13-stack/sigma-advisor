@@ -89,31 +89,96 @@ ${JSON.stringify(parsedData, null, 2)}`;
       console.log("Using profile data for analysis:", profileText);
     }
 
-    const prompt = `You are an expert career advisor. Based on the candidate data provided, analyze and recommend career paths.
+    // Extract user's goal from profile data
+    let userGoal = "";
+    let currentRole = "";
+    if (profileData?.profile) {
+      userGoal = profileData.profile.goal_description || profileData.profile.goal_type || "";
+    }
+    if (parsedData?.experience && parsedData.experience.length > 0) {
+      currentRole = parsedData.experience[0]?.role || parsedData.experience[0]?.title || "";
+    } else if (profileData?.experience && profileData.experience.length > 0) {
+      currentRole = profileData.experience[0]?.role || "";
+    }
+
+    console.log("User goal:", userGoal, "Current role:", currentRole);
+
+    const prompt = `You are an expert career advisor and career path strategist. Based on the candidate data provided, create a strategic 3-step career progression plan to help them achieve their ultimate career goal.
 
 ${dataSection}
 
-Generate exactly 5 career recommendations with the following structure for each:
+USER'S CAREER GOAL: ${userGoal || "Not specified - infer from their background"}
+CURRENT ROLE: ${currentRole || "Entry-level or transitioning"}
+
+YOUR TASK:
+Create exactly 3 career roles that form a logical progression path from the user's current position to their ultimate goal. These roles should be:
+
+1. SHORT-TERM ROLE (0-1 year): The immediate next step from their current position. This should be achievable with their current skills and experience, possibly requiring minimal upskilling.
+
+2. MID-TERM ROLE (1-3 years): An intermediate position that bridges the gap between entry-level and their goal. This role should build upon the short-term role and develop skills needed for the long-term goal.
+
+3. LONG-TERM ROLE (3-5 years): Their ultimate career goal or the closest realistic version of it based on their trajectory.
+
+IMPORTANT RULES:
+- Each role must logically lead to the next
+- Consider the user's current skills, education, and experience
+- The long-term role should align with or BE their stated goal
+- If no goal is stated, infer the most ambitious but realistic goal based on their profile
+- Include specific job titles, not generic ones
+- Each role should show clear progression (e.g., Junior → Senior → Lead/Manager)
+
+Return the response in this exact JSON structure:
 {
   "roles": [
     {
-      "id": "unique_id",
-      "role": "Job Title",
+      "id": "short_term",
+      "role": "Specific Job Title",
+      "term": "short",
+      "term_label": "Short-term (0-1 year)",
       "domain": "Industry/Domain",
-      "match_score": 85,
-      "rationale": "2-3 sentences explaining why this role is a good fit",
+      "match_score": 90,
+      "rationale": "2-3 sentences explaining why this is the right immediate next step and how it builds toward the goal",
       "required_skills": ["skill1", "skill2", "skill3"],
-      "growth_potential": "high|medium|low"
+      "skills_to_develop": ["new_skill1", "new_skill2"],
+      "growth_potential": "high",
+      "alignment_to_goal": "How this role connects to achieving the ultimate goal"
+    },
+    {
+      "id": "mid_term",
+      "role": "Specific Job Title",
+      "term": "mid",
+      "term_label": "Mid-term (1-3 years)",
+      "domain": "Industry/Domain",
+      "match_score": 75,
+      "rationale": "2-3 sentences explaining why this is the right intermediate step",
+      "required_skills": ["skill1", "skill2", "skill3"],
+      "skills_to_develop": ["new_skill1", "new_skill2"],
+      "growth_potential": "high",
+      "alignment_to_goal": "How this role connects to achieving the ultimate goal"
+    },
+    {
+      "id": "long_term",
+      "role": "Specific Job Title (THE GOAL)",
+      "term": "long",
+      "term_label": "Long-term (3-5 years)",
+      "domain": "Industry/Domain",
+      "match_score": 60,
+      "rationale": "2-3 sentences explaining why this is the achievable version of their goal",
+      "required_skills": ["skill1", "skill2", "skill3"],
+      "skills_to_develop": ["new_skill1", "new_skill2"],
+      "growth_potential": "high",
+      "alignment_to_goal": "This IS the ultimate career goal"
     }
-  ]
+  ],
+  "career_summary": "A brief 2-3 sentence summary of the overall career path strategy",
+  "total_timeline": "Estimated 3-5 years to reach ultimate goal"
 }
 
-Consider the candidate's:
-- Education background
-- Work experience
-- Skills mentioned
-- Any certifications
-- Interests and goals
+EXAMPLE:
+If current role is "Junior Data Analyst" and goal is "Senior Data Scientist Manager":
+- Short-term: "Senior Data Analyst" or "Data Analyst II"
+- Mid-term: "Data Scientist" or "Senior Data Scientist"
+- Long-term: "Senior Data Scientist Manager" or "Lead Data Scientist"
 
 Return ONLY valid JSON, no markdown or additional text.`;
 
@@ -166,12 +231,12 @@ Return ONLY valid JSON, no markdown or additional text.`;
       console.error("Failed to parse AI response:", parseError);
       careerAdvice = {
         roles: [
-          { id: "1", role: "Software Developer", domain: "Technology", match_score: 85, rationale: "Based on technical skills in resume.", required_skills: ["JavaScript", "Python", "SQL"], growth_potential: "high" },
-          { id: "2", role: "Data Analyst", domain: "Analytics", match_score: 78, rationale: "Analytical background suggests data aptitude.", required_skills: ["Excel", "SQL", "Python"], growth_potential: "high" },
-          { id: "3", role: "Product Manager", domain: "Technology", match_score: 72, rationale: "Cross-functional experience indicates PM potential.", required_skills: ["Communication", "Strategy", "Technical Understanding"], growth_potential: "high" },
-          { id: "4", role: "UX Designer", domain: "Design", match_score: 68, rationale: "Creative problem-solving abilities evident.", required_skills: ["Figma", "User Research", "Prototyping"], growth_potential: "medium" },
-          { id: "5", role: "Business Analyst", domain: "Business", match_score: 65, rationale: "Business acumen and analytical thinking.", required_skills: ["Requirements Analysis", "SQL", "Communication"], growth_potential: "medium" }
-        ]
+          { id: "short_term", role: "Senior Data Analyst", term: "short", term_label: "Short-term (0-1 year)", domain: "Analytics", match_score: 90, rationale: "This is the natural next step from your current position, leveraging your existing analytical skills.", required_skills: ["Excel", "SQL", "Data Visualization"], skills_to_develop: ["Advanced SQL", "Python basics"], growth_potential: "high", alignment_to_goal: "Builds foundation for data science transition" },
+          { id: "mid_term", role: "Data Scientist", term: "mid", term_label: "Mid-term (1-3 years)", domain: "Data Science", match_score: 75, rationale: "After building stronger technical skills, you can transition into a data science role.", required_skills: ["Python", "Machine Learning", "Statistics"], skills_to_develop: ["Deep Learning", "ML Ops"], growth_potential: "high", alignment_to_goal: "Core data science experience needed for senior roles" },
+          { id: "long_term", role: "Senior Data Scientist Manager", term: "long", term_label: "Long-term (3-5 years)", domain: "Data Science Leadership", match_score: 65, rationale: "With technical expertise and experience, you can move into leadership.", required_skills: ["Team Leadership", "Strategic Thinking", "Advanced ML"], skills_to_develop: ["People Management", "Business Strategy"], growth_potential: "high", alignment_to_goal: "This is your ultimate career goal" }
+        ],
+        career_summary: "A strategic 3-5 year path from analyst to senior data science leadership.",
+        total_timeline: "3-5 years"
       };
     }
 
