@@ -154,10 +154,10 @@ export class SigmaAgentService {
     }
   }
 
-  // Goal-based skill validation - automatically uses career goal, no role selection needed
+  // Goal-based skill validation - automatically uses SHORT-TERM career goal
   async executeSkillValidationGoalBased(): Promise<AgentExecutionResult> {
     try {
-      // Get the career advice to find the top recommended role
+      // Get the career advice to find the SHORT-TERM role specifically
       const { data: careerAdvice } = await supabase
         .from('resume_career_advice')
         .select('career_advice')
@@ -166,19 +166,31 @@ export class SigmaAgentService {
         .limit(1)
         .maybeSingle();
 
-      const roles = (careerAdvice?.career_advice as any)?.roles || [];
-      const topRole = roles[0];
+      // Check for new career_matches structure first, then fall back to old roles structure
+      const careerData = careerAdvice?.career_advice as any;
+      const careerMatches = careerData?.career_matches || [];
+      const oldRoles = careerData?.roles || [];
 
-      const role = topRole?.role || 'Software Developer';
-      const domain = topRole?.domain || null;
+      // Find the short-term role from career_matches (new structure)
+      let shortTermRole = careerMatches.find((r: any) => r.progression_stage === 'short_term');
+      
+      // Fall back to old structure if needed
+      if (!shortTermRole && oldRoles.length > 0) {
+        shortTermRole = oldRoles.find((r: any) => r.term === 'short') || oldRoles[0];
+      }
 
-      console.log('Goal-based skill validation for:', role, domain);
+      // Extract role and domain
+      const role = shortTermRole?.role || 'Software Developer';
+      const domain = shortTermRole?.domain || null;
+
+      console.log('Goal-based skill validation for SHORT-TERM role:', role, domain);
 
       const { data, error } = await supabase.functions.invoke('validate-skills', {
         body: { 
           role: role.trim(),
           domain: domain?.trim() || null,
-          career_id: null
+          career_id: null,
+          progression_stage: 'short_term'
         }
       });
       

@@ -2,13 +2,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: corsHeaders });
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -41,11 +41,43 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
+    // Fetch user's goal from users_profile table
+    const { data: userProfile } = await supabaseClient
+      .from('users_profile')
+      .select('goal_type, goal_description, interests, hobbies, activities, user_type, display_name')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    const userGoal = userProfile?.goal_description || userProfile?.goal_type || "";
+    const userType = userProfile?.user_type || "professional";
+    const userName = userProfile?.display_name || "User";
+    const interests = userProfile?.interests || [];
+    const hobbies = userProfile?.hobbies || [];
+
+    console.log("User goal:", userGoal, "User type:", userType);
+
     // Build the data section based on what's available
     let dataSection = "";
+    let currentRole = "";
+    let userSkills: string[] = [];
+    
     if (parsedData) {
+      // Extract skills from parsed resume
+      userSkills = parsedData.skills || [];
+      
+      // Extract current role from experience
+      if (parsedData.experience && parsedData.experience.length > 0) {
+        currentRole = parsedData.experience[0]?.role || parsedData.experience[0]?.title || "";
+      }
+      
       dataSection = `Resume Data:
-${JSON.stringify(parsedData, null, 2)}`;
+Name: ${parsedData.name || 'Not specified'}
+Current/Recent Role: ${currentRole || 'Not specified'}
+Skills: ${userSkills.join(', ') || 'Not specified'}
+Education: ${parsedData.education?.map((e: any) => `${e.degree} in ${e.field || e.major || ''} from ${e.institution || e.school || ''}`).join('; ') || 'Not specified'}
+Experience: ${parsedData.experience?.map((e: any) => `${e.role || e.title} at ${e.company} (${e.duration || e.startDate + ' - ' + (e.endDate || 'Present')})`).join('; ') || 'Not specified'}
+Projects: ${parsedData.projects?.map((p: any) => p.name || p.title).join(', ') || 'Not specified'}
+Certifications: ${parsedData.certifications?.join(', ') || 'None'}`;
       console.log("Using parsed resume data for analysis");
     } else if (profileData) {
       // Format profile data for the AI
@@ -70,9 +102,11 @@ ${JSON.stringify(parsedData, null, 2)}`;
       
       if (experience && experience.length > 0) {
         profileText += "\n\nWork Experience:";
+        currentRole = experience[0]?.role || "";
         experience.forEach((exp: any, i: number) => {
           profileText += `\n${i + 1}. ${exp.role || 'Role'} at ${exp.company || 'Company'} (${exp.start_year || ''} - ${exp.end_year || 'Present'})`;
           if (exp.skills && exp.skills.length > 0) {
+            userSkills = [...userSkills, ...exp.skills];
             profileText += `\n   Skills: ${exp.skills.join(', ')}`;
           }
         });
@@ -86,176 +120,251 @@ ${JSON.stringify(parsedData, null, 2)}`;
       }
       
       dataSection = profileText;
-      console.log("Using profile data for analysis:", profileText);
+      console.log("Using profile data for analysis");
     }
 
-    // Extract user's goal from profile data
-    let userGoal = "";
-    let currentRole = "";
-    if (profileData?.profile) {
-      userGoal = profileData.profile.goal_description || profileData.profile.goal_type || "";
-    }
-    if (parsedData?.experience && parsedData.experience.length > 0) {
-      currentRole = parsedData.experience[0]?.role || parsedData.experience[0]?.title || "";
-    } else if (profileData?.experience && profileData.experience.length > 0) {
-      currentRole = profileData.experience[0]?.role || "";
-    }
+    const systemPrompt = `You are an expert AI Career Advisor specializing in helping students and professionals create structured career progression paths. Your job is to analyze the user's current position and their ultimate career goal, then create a THREE-STAGE career roadmap:
 
-    console.log("User goal:", userGoal, "Current role:", currentRole);
+1. **SHORT-TERM ROLE (0-12 months)**: The immediate next step from their current position. This should be achievable within a year with their current skills.
+2. **MID-TERM ROLE (1-3 years)**: An intermediate position that bridges the gap between their current level and ultimate goal.
+3. **LONG-TERM ROLE (3-5 years)**: The user's ultimate career goal or the closest achievable version of it.
 
-    const prompt = `You are an expert career advisor and career path strategist. Based on the candidate data provided, create a strategic 3-step career progression plan to help them achieve their ultimate career goal.
+CRITICAL RULES:
+- The three roles MUST form a clear career progression ladder toward the user's stated goal
+- Short-term role should be immediately achievable with current skills
+- Mid-term role should require skills developed from short-term role
+- Long-term role should BE or closely align with the user's stated goal
+- Consider realistic timelines based on industry standards`;
+
+    const userPrompt = `Create a structured career progression path for this user:
+
+USER'S ULTIMATE CAREER GOAL: "${userGoal || 'Not specified - infer from their background'}"
+CURRENT ROLE: ${currentRole || 'Entry-level or transitioning'}
+USER TYPE: ${userType}
+NAME: ${userName}
+INTERESTS: ${interests.join(', ') || 'Not specified'}
+HOBBIES: ${hobbies.join(', ') || 'Not specified'}
 
 ${dataSection}
 
-USER'S CAREER GOAL: ${userGoal || "Not specified - infer from their background"}
-CURRENT ROLE: ${currentRole || "Entry-level or transitioning"}
+CRITICAL INSTRUCTION: The user's ultimate career goal is "${userGoal}". 
 
-YOUR TASK:
-Create exactly 3 career roles that form a logical progression path from the user's current position to their ultimate goal. These roles should be:
+Based on their current experience and skills, create exactly THREE career roles that form a logical progression path to achieve this goal:
 
-1. SHORT-TERM ROLE (0-1 year): The immediate next step from their current position. This should be achievable with their current skills and experience, possibly requiring minimal upskilling.
+1. SHORT-TERM ROLE (0-12 months): What role can they get NOW or within 1 year? This should be at or slightly above their current level.
+2. MID-TERM ROLE (1-3 years): What intermediate role will prepare them for their ultimate goal?
+3. LONG-TERM ROLE (3-5 years): Their ultimate goal "${userGoal}" or the closest realistic version of it.
 
-2. MID-TERM ROLE (1-3 years): An intermediate position that bridges the gap between entry-level and their goal. This role should build upon the short-term role and develop skills needed for the long-term goal.
-
-3. LONG-TERM ROLE (3-5 years): Their ultimate career goal or the closest realistic version of it based on their trajectory.
-
-IMPORTANT RULES:
-- Each role must logically lead to the next
-- Consider the user's current skills, education, and experience
-- The long-term role should align with or BE their stated goal
-- If no goal is stated, infer the most ambitious but realistic goal based on their profile
-- Include specific job titles, not generic ones
-- Each role should show clear progression (e.g., Junior → Senior → Lead/Manager)
-
-Return the response in this exact JSON structure:
+Return the response in this EXACT JSON format:
 {
-  "roles": [
+  "career_matches": [
     {
-      "id": "short_term",
-      "role": "Specific Job Title",
-      "term": "short",
-      "term_label": "Short-term (0-1 year)",
-      "domain": "Industry/Domain",
-      "match_score": 90,
-      "rationale": "2-3 sentences explaining why this is the right immediate next step and how it builds toward the goal",
-      "required_skills": ["skill1", "skill2", "skill3"],
-      "skills_to_develop": ["new_skill1", "new_skill2"],
-      "growth_potential": "high",
-      "alignment_to_goal": "How this role connects to achieving the ultimate goal"
+      "role": "Short-term Role Title",
+      "domain": "Domain/Industry",
+      "progression_stage": "short_term",
+      "timeline": "0-12 months",
+      "top_skills": ["skill1", "skill2", "skill3", "skill4", "skill5"],
+      "match_score": 85,
+      "why_fit": "Why this role is the right first step toward their goal",
+      "salary_range": "Expected salary range",
+      "growth_potential": "High",
+      "skills_to_develop": ["skill1", "skill2"],
+      "key_milestones": ["milestone1", "milestone2"],
+      "alignment_to_goal": "How this role connects to achieving ${userGoal}"
     },
     {
-      "id": "mid_term",
-      "role": "Specific Job Title",
-      "term": "mid",
-      "term_label": "Mid-term (1-3 years)",
-      "domain": "Industry/Domain",
-      "match_score": 75,
-      "rationale": "2-3 sentences explaining why this is the right intermediate step",
-      "required_skills": ["skill1", "skill2", "skill3"],
-      "skills_to_develop": ["new_skill1", "new_skill2"],
-      "growth_potential": "high",
-      "alignment_to_goal": "How this role connects to achieving the ultimate goal"
+      "role": "Mid-term Role Title",
+      "domain": "Domain/Industry", 
+      "progression_stage": "mid_term",
+      "timeline": "1-3 years",
+      "top_skills": ["skill1", "skill2", "skill3", "skill4", "skill5"],
+      "match_score": 70,
+      "why_fit": "Why this role bridges the gap to their goal",
+      "salary_range": "Expected salary range",
+      "growth_potential": "High",
+      "skills_to_develop": ["skill1", "skill2"],
+      "key_milestones": ["milestone1", "milestone2"],
+      "prerequisites": "What they need from short-term role",
+      "alignment_to_goal": "How this role prepares them for ${userGoal}"
     },
     {
-      "id": "long_term",
-      "role": "Specific Job Title (THE GOAL)",
-      "term": "long",
-      "term_label": "Long-term (3-5 years)",
-      "domain": "Industry/Domain",
+      "role": "${userGoal || 'Ultimate Goal Role'}",
+      "domain": "Domain/Industry",
+      "progression_stage": "long_term", 
+      "timeline": "3-5 years",
+      "top_skills": ["skill1", "skill2", "skill3", "skill4", "skill5"],
       "match_score": 60,
-      "rationale": "2-3 sentences explaining why this is the achievable version of their goal",
-      "required_skills": ["skill1", "skill2", "skill3"],
-      "skills_to_develop": ["new_skill1", "new_skill2"],
-      "growth_potential": "high",
-      "alignment_to_goal": "This IS the ultimate career goal"
+      "why_fit": "How this achieves their ultimate career goal",
+      "salary_range": "Expected salary range",
+      "growth_potential": "High",
+      "skills_to_develop": ["skill1", "skill2"],
+      "key_milestones": ["milestone1", "milestone2"],
+      "prerequisites": "What they need from mid-term role",
+      "alignment_to_goal": "This IS their ultimate career goal"
     }
   ],
-  "career_summary": "A brief 2-3 sentence summary of the overall career path strategy",
-  "total_timeline": "Estimated 3-5 years to reach ultimate goal"
+  "skill_analysis": {
+    "current_strengths": ["skill1", "skill2"],
+    "short_term_gaps": ["skills needed for first role"],
+    "mid_term_gaps": ["skills needed for second role"],
+    "long_term_gaps": ["skills needed for ultimate goal"]
+  },
+  "career_roadmap": {
+    "short_term": "0-12 months: Specific goals and actions for short-term role",
+    "mid_term": "1-3 years: Specific goals and transitions for mid-term role", 
+    "long_term": "3-5 years: Achieving ${userGoal}"
+  },
+  "overall_assessment": "A paragraph summarizing the career path from current position to ultimate goal"
 }
 
-EXAMPLE:
-If current role is "Junior Data Analyst" and goal is "Senior Data Scientist Manager":
-- Short-term: "Senior Data Analyst" or "Data Analyst II"
-- Mid-term: "Data Scientist" or "Senior Data Scientist"
-- Long-term: "Senior Data Scientist Manager" or "Lead Data Scientist"
+IMPORTANT: 
+- The THREE roles MUST form a logical progression ladder
+- Short-term role should be immediately achievable
+- Mid-term role should require skills from short-term role
+- Long-term role should be "${userGoal}" or closest realistic version
+- Be specific and actionable`;
 
-Return ONLY valid JSON, no markdown or additional text.`;
+    console.log('Generating career progression path for user goal:', userGoal);
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      method: 'POST',
       headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: 'google/gemini-2.5-flash',
         messages: [
-          { role: "system", content: "You are an expert career advisor. Return only valid JSON." },
-          { role: "user", content: prompt }
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
         ],
+        temperature: 0.7,
+        max_tokens: 4000,
       }),
     });
 
-    if (!aiResponse.ok) {
-      const errorText = await aiResponse.text();
-      console.error("Lovable AI error:", aiResponse.status, errorText);
-      if (aiResponse.status === 429) {
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('AI API error:', response.status, errorText);
+      if (response.status === 429) {
         return new Response(JSON.stringify({ success: false, error: "Rate limit exceeded. Please try again later." }), {
           status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (aiResponse.status === 402) {
+      if (response.status === 402) {
         return new Response(JSON.stringify({ success: false, error: "AI credits exhausted. Please add credits to continue." }), {
           status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      throw new Error("AI API error");
+      throw new Error(`AI analysis failed: ${response.status}`);
     }
 
-    const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content || "";
-    console.log("AI career advice response received");
-
+    const aiResponse = await response.json();
+    const responseText = aiResponse.choices?.[0]?.message?.content || '{}';
+    
+    // Clean markdown if present
+    let cleanJson = responseText.trim();
+    if (cleanJson.startsWith('```json')) {
+      cleanJson = cleanJson.replace(/```json\n?/g, '').replace(/```\n?$/g, '');
+    } else if (cleanJson.startsWith('```')) {
+      cleanJson = cleanJson.replace(/```\n?/g, '');
+    }
+    
     let careerAdvice;
     try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        careerAdvice = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found in response");
-      }
+      careerAdvice = JSON.parse(cleanJson);
     } catch (parseError) {
       console.error("Failed to parse AI response:", parseError);
+      // Provide fallback structure
       careerAdvice = {
-        roles: [
-          { id: "short_term", role: "Senior Data Analyst", term: "short", term_label: "Short-term (0-1 year)", domain: "Analytics", match_score: 90, rationale: "This is the natural next step from your current position, leveraging your existing analytical skills.", required_skills: ["Excel", "SQL", "Data Visualization"], skills_to_develop: ["Advanced SQL", "Python basics"], growth_potential: "high", alignment_to_goal: "Builds foundation for data science transition" },
-          { id: "mid_term", role: "Data Scientist", term: "mid", term_label: "Mid-term (1-3 years)", domain: "Data Science", match_score: 75, rationale: "After building stronger technical skills, you can transition into a data science role.", required_skills: ["Python", "Machine Learning", "Statistics"], skills_to_develop: ["Deep Learning", "ML Ops"], growth_potential: "high", alignment_to_goal: "Core data science experience needed for senior roles" },
-          { id: "long_term", role: "Senior Data Scientist Manager", term: "long", term_label: "Long-term (3-5 years)", domain: "Data Science Leadership", match_score: 65, rationale: "With technical expertise and experience, you can move into leadership.", required_skills: ["Team Leadership", "Strategic Thinking", "Advanced ML"], skills_to_develop: ["People Management", "Business Strategy"], growth_potential: "high", alignment_to_goal: "This is your ultimate career goal" }
+        career_matches: [
+          {
+            role: currentRole ? `Senior ${currentRole}` : "Junior Developer",
+            domain: "Technology",
+            progression_stage: "short_term",
+            timeline: "0-12 months",
+            top_skills: userSkills.slice(0, 5),
+            match_score: 85,
+            why_fit: "This is a natural progression from your current position.",
+            salary_range: "Competitive",
+            growth_potential: "High",
+            skills_to_develop: ["Leadership", "Advanced Technical Skills"],
+            key_milestones: ["Complete key projects", "Gain certifications"],
+            alignment_to_goal: "First step toward your career goal"
+          },
+          {
+            role: "Mid-level Position",
+            domain: "Technology",
+            progression_stage: "mid_term",
+            timeline: "1-3 years",
+            top_skills: userSkills.slice(0, 5),
+            match_score: 70,
+            why_fit: "Bridges the gap between current position and goal.",
+            salary_range: "Competitive",
+            growth_potential: "High",
+            skills_to_develop: ["Management", "Strategy"],
+            key_milestones: ["Lead team projects", "Mentor juniors"],
+            prerequisites: "Experience from short-term role",
+            alignment_to_goal: "Preparation for senior role"
+          },
+          {
+            role: userGoal || "Senior Manager",
+            domain: "Technology",
+            progression_stage: "long_term",
+            timeline: "3-5 years",
+            top_skills: userSkills.slice(0, 5),
+            match_score: 60,
+            why_fit: "Your ultimate career goal.",
+            salary_range: "Competitive",
+            growth_potential: "High",
+            skills_to_develop: ["Executive Leadership", "Business Strategy"],
+            key_milestones: ["Build and lead department", "Drive organizational success"],
+            prerequisites: "Experience from mid-term role",
+            alignment_to_goal: "This is your ultimate career goal"
+          }
         ],
-        career_summary: "A strategic 3-5 year path from analyst to senior data science leadership.",
-        total_timeline: "3-5 years"
+        skill_analysis: {
+          current_strengths: userSkills.slice(0, 3),
+          short_term_gaps: ["Communication", "Project Management"],
+          mid_term_gaps: ["Leadership", "Strategy"],
+          long_term_gaps: ["Executive Presence", "Business Acumen"]
+        },
+        career_roadmap: {
+          short_term: "0-12 months: Build foundation and gain experience",
+          mid_term: "1-3 years: Develop leadership and advance",
+          long_term: `3-5 years: Achieve ${userGoal || 'your ultimate career goal'}`
+        },
+        overall_assessment: `Based on your profile, you have a clear path to achieve ${userGoal || 'your career goals'} through structured progression.`
       };
     }
 
-    console.log("Successfully generated career advice");
+    console.log('Successfully generated career progression path');
+    console.log('Roles generated:', careerAdvice.career_matches?.map((m: any) => `${m.progression_stage}: ${m.role}`));
 
-    return new Response(JSON.stringify({ 
-      success: true, 
-      careerAdvice 
-    }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        success: true,
+        careerAdvice
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200,
+      }
+    );
+
   } catch (error) {
-    console.error("Error in resume-career-advice:", error);
-    return new Response(JSON.stringify({ 
-      success: false, 
-      error: error instanceof Error ? error.message : "Unknown error" 
-    }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error('Error in resume-career-advice:', error);
+    return new Response(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error occurred'
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      }
+    );
   }
 });
