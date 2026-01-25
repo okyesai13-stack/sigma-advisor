@@ -18,6 +18,9 @@ verify_jwt = false
 [functions.job-matching]
 verify_jwt = false
 
+[functions.advisor-chat]
+verify_jwt = false
+
 [functions.landing-chat]
 verify_jwt = false
 
