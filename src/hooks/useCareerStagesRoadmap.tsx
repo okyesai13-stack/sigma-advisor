@@ -99,8 +99,9 @@ export const useCareerStagesRoadmap = () => {
                 // Need to extract goal based on goal_type or description
                 // For now, let's use goal_description or a default
                 let goal = profileResult.data.goal_description;
-                if (careerResult.data?.career_advice?.roles) {
-                    const longTermRole = careerResult.data.career_advice.roles.find((r: any) => r.term === 'long');
+                const careerAdviceData = careerResult.data?.career_advice as Record<string, any> | null;
+                if (careerAdviceData?.roles) {
+                    const longTermRole = (careerAdviceData.roles as any[]).find((r: any) => r.term === 'long');
                     if (longTermRole) goal = longTermRole.role;
                 }
                 setUserGoal(goal);
