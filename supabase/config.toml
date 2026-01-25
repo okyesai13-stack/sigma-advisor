@@ -1,5 +1,29 @@
 project_id = "chxelpkvtnlduzlkauep"
 
+[functions.upload-resume]
+verify_jwt = false
+
+[functions.career-analysis]
+verify_jwt = false
+
+[functions.skill-validation]
+verify_jwt = false
+
+[functions.learning-plan]
+verify_jwt = false
+
+[functions.project-generation]
+verify_jwt = false
+
+[functions.job-matching]
+verify_jwt = false
+
+[functions.landing-chat]
+verify_jwt = false
+
+[functions.chat-with-advisor]
+verify_jwt = false
+
 [functions.generate-career-recommendation]
 verify_jwt = false
 
@@ -21,14 +45,32 @@ verify_jwt = false
 [functions.run-ai-interview]
 verify_jwt = false
 
-[functions.chat-with-advisor]
-verify_jwt = false
-
 [functions.analyze-project]
 verify_jwt = false
 
-[functions.landing-chat]
+[functions.delete-account]
 verify_jwt = false
 
-[functions.delete-account]
+[functions.resume-parser]
+verify_jwt = false
+
+[functions.resume-career-advice]
+verify_jwt = false
+
+[functions.openrouter-ai]
+verify_jwt = false
+
+[functions.generate-job-recommendations]
+verify_jwt = false
+
+[functions.generate-project-plan]
+verify_jwt = false
+
+[functions.generate-build-tools]
+verify_jwt = false
+
+[functions.ai-resume-upgrader]
+verify_jwt = false
+
+[functions.ai-interview-prep-generator]
 verify_jwt = false
