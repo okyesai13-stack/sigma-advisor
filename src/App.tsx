@@ -10,6 +10,7 @@ import LandingNoAuth from "./pages/LandingNoAuth";
 import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
+import AdvisorNoAuth from "./pages/AdvisorNoAuth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/setup" element={<SetupNoAuth />} />
             <Route path="/sigma" element={<SigmaNoAuth />} />
             <Route path="/dashboard" element={<DashboardNoAuth />} />
+            <Route path="/advisor" element={<AdvisorNoAuth />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
