@@ -50,20 +50,23 @@ User Skills: ${userSkills.slice(0, 10).join(', ')}
 Readiness Score: ${readinessScore}%
 Location: India
 
-Return JSON array:
+Return JSON array with REAL job posting URLs from LinkedIn, Naukri, Indeed, or company career pages:
 [
   {
     "job_title": "Job Title",
-    "company_name": "Company Name",
+    "company_name": "Real Company Name",
     "career_role": "${targetRole}",
-    "job_description": "Brief description",
+    "job_description": "Brief description of the role and responsibilities",
     "location": "City, India",
     "relevance_score": 85,
     "skill_tags": ["skill1", "skill2"],
     "required_skills": ["skill1", "skill2", "skill3"],
-    "domain": "${domain}"
+    "domain": "${domain}",
+    "job_url": "https://www.linkedin.com/jobs/view/... or https://www.naukri.com/job-listings/..."
   }
-]`;
+]
+
+Generate realistic job URLs that follow the pattern of actual job boards. Include companies like TCS, Infosys, Wipro, Google, Microsoft, Amazon, etc.`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -74,7 +77,7 @@ Return JSON array:
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
         messages: [
-          { role: 'system', content: 'You are a job matching expert. Return only valid JSON array.' },
+          { role: 'system', content: 'You are a job matching expert. Return only valid JSON array with realistic job URLs.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -115,6 +118,8 @@ Return JSON array:
           skill_tags: job.skill_tags || [],
           required_skills: job.required_skills || [],
           domain: job.domain || domain,
+          job_url: job.job_url || null,
+          is_saved: false,
         })
         .select()
         .single();

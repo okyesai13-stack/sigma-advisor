@@ -251,6 +251,63 @@ export type Database = {
           },
         ]
       }
+      interview_preparation_result: {
+        Row: {
+          behavioral_questions: Json | null
+          company_name: string
+          company_specific_questions: Json | null
+          created_at: string | null
+          id: string
+          job_id: string
+          job_title: string
+          key_talking_points: string[] | null
+          preparation_tips: string[] | null
+          resume_id: string
+          technical_questions: Json | null
+        }
+        Insert: {
+          behavioral_questions?: Json | null
+          company_name: string
+          company_specific_questions?: Json | null
+          created_at?: string | null
+          id?: string
+          job_id: string
+          job_title: string
+          key_talking_points?: string[] | null
+          preparation_tips?: string[] | null
+          resume_id: string
+          technical_questions?: Json | null
+        }
+        Update: {
+          behavioral_questions?: Json | null
+          company_name?: string
+          company_specific_questions?: Json | null
+          created_at?: string | null
+          id?: string
+          job_id?: string
+          job_title?: string
+          key_talking_points?: string[] | null
+          preparation_tips?: string[] | null
+          resume_id?: string
+          technical_questions?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_preparation_result_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_matching_result"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_preparation_result_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resume_store"
+            referencedColumns: ["resume_id"]
+          },
+        ]
+      }
       job_matching_result: {
         Row: {
           career_role: string
@@ -258,9 +315,11 @@ export type Database = {
           created_at: string
           domain: string | null
           id: string
+          is_saved: boolean | null
           job_description: string | null
           job_link: string | null
           job_title: string
+          job_url: string | null
           location: string | null
           relevance_score: number | null
           required_skills: string[] | null
@@ -273,9 +332,11 @@ export type Database = {
           created_at?: string
           domain?: string | null
           id?: string
+          is_saved?: boolean | null
           job_description?: string | null
           job_link?: string | null
           job_title: string
+          job_url?: string | null
           location?: string | null
           relevance_score?: number | null
           required_skills?: string[] | null
@@ -288,9 +349,11 @@ export type Database = {
           created_at?: string
           domain?: string | null
           id?: string
+          is_saved?: boolean | null
           job_description?: string | null
           job_link?: string | null
           job_title?: string
+          job_url?: string | null
           location?: string | null
           relevance_score?: number | null
           required_skills?: string[] | null
@@ -528,32 +591,41 @@ export type Database = {
       project_ideas_result: {
         Row: {
           budget: number | null
+          complexity: string | null
           created_at: string
           description: string | null
           domain: string | null
+          estimated_time: string | null
           id: string
           problem: string | null
           resume_id: string
+          skills_demonstrated: string[] | null
           title: string
         }
         Insert: {
           budget?: number | null
+          complexity?: string | null
           created_at?: string
           description?: string | null
           domain?: string | null
+          estimated_time?: string | null
           id?: string
           problem?: string | null
           resume_id: string
+          skills_demonstrated?: string[] | null
           title: string
         }
         Update: {
           budget?: number | null
+          complexity?: string | null
           created_at?: string
           description?: string | null
           domain?: string | null
+          estimated_time?: string | null
           id?: string
           problem?: string | null
           resume_id?: string
+          skills_demonstrated?: string[] | null
           title?: string
         }
         Relationships: [
@@ -805,6 +877,57 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "skill_validation_result_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resume_store"
+            referencedColumns: ["resume_id"]
+          },
+        ]
+      }
+      smart_analysis_result: {
+        Row: {
+          company_analysis: Json | null
+          created_at: string | null
+          id: string
+          job_id: string
+          overall_score: number | null
+          recommendations: string[] | null
+          resume_fit_analysis: Json | null
+          resume_id: string
+          role_analysis: Json | null
+        }
+        Insert: {
+          company_analysis?: Json | null
+          created_at?: string | null
+          id?: string
+          job_id: string
+          overall_score?: number | null
+          recommendations?: string[] | null
+          resume_fit_analysis?: Json | null
+          resume_id: string
+          role_analysis?: Json | null
+        }
+        Update: {
+          company_analysis?: Json | null
+          created_at?: string | null
+          id?: string
+          job_id?: string
+          overall_score?: number | null
+          recommendations?: string[] | null
+          resume_fit_analysis?: Json | null
+          resume_id?: string
+          role_analysis?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "smart_analysis_result_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_matching_result"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "smart_analysis_result_resume_id_fkey"
             columns: ["resume_id"]
             isOneToOne: false
             referencedRelation: "resume_store"

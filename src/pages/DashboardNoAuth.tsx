@@ -7,6 +7,18 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import { 
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@/components/ui/sheet';
+import { 
   Sparkles, 
   Target,
   TrendingUp,
@@ -19,6 +31,14 @@ import {
   RefreshCw,
   MapPin,
   ExternalLink,
+  ChevronDown,
+  Bookmark,
+  BookmarkCheck,
+  Video,
+  GraduationCap,
+  FileSearch,
+  Brain,
+  Send,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -42,7 +62,8 @@ interface LearningPlan {
   id: string;
   skill_name: string;
   career_title: string;
-  learning_steps: any[];
+  recommended_courses: { name: string; platform: string; url: string; duration: string; level?: string }[];
+  recommended_videos: { title: string; channel: string; url: string; duration: string }[];
   status: string;
 }
 
@@ -51,6 +72,9 @@ interface Project {
   title: string;
   description: string;
   domain: string;
+  complexity: string;
+  skills_demonstrated: string[];
+  estimated_time: string;
 }
 
 interface Job {
@@ -60,6 +84,8 @@ interface Job {
   location: string;
   relevance_score: number;
   skill_tags: string[];
+  job_url: string | null;
+  is_saved: boolean;
 }
 
 const DashboardNoAuth = () => {
@@ -73,6 +99,8 @@ const DashboardNoAuth = () => {
   const [learningPlans, setLearningPlans] = useState<LearningPlan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
+  const [showSavedJobs, setShowSavedJobs] = useState(false);
 
   useEffect(() => {
     if (!resumeId) {
@@ -128,9 +156,56 @@ const DashboardNoAuth = () => {
     navigate('/');
   };
 
+  const toggleSaveJob = async (jobId: string, currentSaved: boolean) => {
+    try {
+      await supabase
+        .from('job_matching_result')
+        .update({ is_saved: !currentSaved })
+        .eq('id', jobId);
+      
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, is_saved: !currentSaved } : j));
+      toast({
+        title: currentSaved ? "Job unsaved" : "Job saved",
+        description: currentSaved ? "Removed from saved jobs" : "Added to saved jobs",
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update job",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleInterviewPrep = (jobId: string) => {
+    navigate(`/interview-prep?jobId=${jobId}`);
+  };
+
+  const handleSmartAnalysis = (jobId: string) => {
+    navigate(`/smart-analysis?jobId=${jobId}`);
+  };
+
+  const toggleSkillExpand = (skillId: string) => {
+    setExpandedSkills(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(skillId)) {
+        newSet.delete(skillId);
+      } else {
+        newSet.add(skillId);
+      }
+      return newSet;
+    });
+  };
+
   const shortTermRole = careerRoles.find(r => r.progression_stage === 'short_term');
   const midTermRole = careerRoles.find(r => r.progression_stage === 'mid_term');
   const longTermRole = careerRoles.find(r => r.progression_stage === 'long_term');
+
+  const savedJobs = jobs.filter(j => j.is_saved);
+  const complexityOrder = ['beginner', 'intermediate', 'expert'];
+  const sortedProjects = [...projects].sort((a, b) => 
+    complexityOrder.indexOf(a.complexity) - complexityOrder.indexOf(b.complexity)
+  );
 
   if (isLoading) {
     return (
@@ -178,14 +253,14 @@ const DashboardNoAuth = () => {
           </h2>
           <div className="grid md:grid-cols-3 gap-4">
             {[
-              { role: shortTermRole, icon: Clock, color: 'emerald', label: 'Short Term' },
-              { role: midTermRole, icon: TrendingUp, color: 'amber', label: 'Mid Term' },
-              { role: longTermRole, icon: Target, color: 'violet', label: 'Long Term' },
-            ].map(({ role, icon: Icon, color, label }) => (
-              <Card key={label} className={`border-l-4 border-l-${color}-500`}>
+              { role: shortTermRole, icon: Clock, label: 'Short Term', borderColor: 'border-l-emerald-500' },
+              { role: midTermRole, icon: TrendingUp, label: 'Mid Term', borderColor: 'border-l-amber-500' },
+              { role: longTermRole, icon: Target, label: 'Long Term', borderColor: 'border-l-violet-500' },
+            ].map(({ role, icon: Icon, label, borderColor }) => (
+              <Card key={label} className={`border-l-4 ${borderColor}`}>
                 <CardContent className="pt-4">
                   <div className="flex items-center gap-2 mb-2">
-                    <Icon className={`w-4 h-4 text-${color}-500`} />
+                    <Icon className="w-4 h-4 text-muted-foreground" />
                     <Badge variant="outline">{label}</Badge>
                   </div>
                   {role ? (
@@ -223,30 +298,30 @@ const DashboardNoAuth = () => {
                 
                 <div className="grid md:grid-cols-3 gap-4 mt-6">
                   <div>
-                    <p className="text-sm font-medium text-green-600 mb-2">Strong Skills</p>
+                    <p className="text-sm font-medium text-primary mb-2">Strong Skills</p>
                     <div className="flex flex-wrap gap-1">
                       {skillValidation.matched_skills.strong.slice(0, 5).map((skill, i) => (
-                        <Badge key={i} variant="outline" className="text-green-600 border-green-200 bg-green-50">
+                        <Badge key={i} variant="outline" className="border-primary/30 bg-primary/5">
                           {skill}
                         </Badge>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-amber-600 mb-2">Partial Skills</p>
+                    <p className="text-sm font-medium text-muted-foreground mb-2">Partial Skills</p>
                     <div className="flex flex-wrap gap-1">
                       {skillValidation.matched_skills.partial.slice(0, 5).map((skill, i) => (
-                        <Badge key={i} variant="outline" className="text-amber-600 border-amber-200 bg-amber-50">
+                        <Badge key={i} variant="outline">
                           {skill}
                         </Badge>
                       ))}
                     </div>
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-red-600 mb-2">Missing Skills</p>
+                    <p className="text-sm font-medium text-destructive mb-2">Missing Skills</p>
                     <div className="flex flex-wrap gap-1">
                       {(skillValidation.missing_skills as string[]).slice(0, 5).map((skill, i) => (
-                        <Badge key={i} variant="outline" className="text-red-600 border-red-200 bg-red-50">
+                        <Badge key={i} variant="outline" className="border-destructive/30 bg-destructive/5 text-destructive">
                           {skill}
                         </Badge>
                       ))}
@@ -258,33 +333,98 @@ const DashboardNoAuth = () => {
           </section>
         )}
 
-        {/* Learning Plans */}
+        {/* Learning Plans with Dropdown */}
         {learningPlans.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
-              Learning Plans
+              Learning Resources
             </h2>
             <div className="grid md:grid-cols-3 gap-4">
               {learningPlans.map((plan) => (
                 <Card key={plan.id}>
-                  <CardContent className="pt-4">
-                    <h3 className="font-semibold">{plan.skill_name}</h3>
-                    <p className="text-sm text-muted-foreground mb-2">For: {plan.career_title}</p>
-                    <Badge variant={plan.status === 'completed' ? 'default' : 'secondary'}>
-                      {plan.status}
-                    </Badge>
-                    {plan.learning_steps && (
-                      <p className="text-sm mt-2">{(plan.learning_steps as any[]).length} steps</p>
-                    )}
-                  </CardContent>
+                  <Collapsible open={expandedSkills.has(plan.id)} onOpenChange={() => toggleSkillExpand(plan.id)}>
+                    <CardContent className="pt-4">
+                      <CollapsibleTrigger className="w-full text-left">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold">{plan.skill_name}</h3>
+                            <p className="text-sm text-muted-foreground">For: {plan.career_title}</p>
+                          </div>
+                          <ChevronDown className={`w-5 h-5 transition-transform ${expandedSkills.has(plan.id) ? 'rotate-180' : ''}`} />
+                        </div>
+                        <div className="flex gap-2 mt-2">
+                          <Badge variant="outline" className="text-xs">
+                            <GraduationCap className="w-3 h-3 mr-1" />
+                            {(plan.recommended_courses as any[])?.length || 0} Courses
+                          </Badge>
+                          <Badge variant="outline" className="text-xs">
+                            <Video className="w-3 h-3 mr-1" />
+                            {(plan.recommended_videos as any[])?.length || 0} Videos
+                          </Badge>
+                        </div>
+                      </CollapsibleTrigger>
+                      
+                      <CollapsibleContent className="mt-4 space-y-4">
+                        {/* Courses */}
+                        {(plan.recommended_courses as any[])?.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium mb-2 flex items-center gap-1">
+                              <GraduationCap className="w-4 h-4" /> Courses
+                            </p>
+                            <ul className="space-y-2">
+                              {(plan.recommended_courses as any[]).map((course: any, i: number) => (
+                                <li key={i}>
+                                  <a 
+                                    href={course.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                                  >
+                                    {course.name}
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                  <p className="text-xs text-muted-foreground">{course.platform} • {course.duration}</p>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                        
+                        {/* Videos */}
+                        {(plan.recommended_videos as any[])?.length > 0 && (
+                          <div>
+                            <p className="text-sm font-medium mb-2 flex items-center gap-1">
+                              <Video className="w-4 h-4" /> Videos
+                            </p>
+                            <ul className="space-y-2">
+                              {(plan.recommended_videos as any[]).map((video: any, i: number) => (
+                                <li key={i}>
+                                  <a 
+                                    href={video.url} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer"
+                                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                                  >
+                                    {video.title}
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                  <p className="text-xs text-muted-foreground">{video.channel} • {video.duration}</p>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </CollapsibleContent>
+                    </CardContent>
+                  </Collapsible>
                 </Card>
               ))}
             </div>
           </section>
         )}
 
-        {/* Project Ideas */}
+        {/* Project Ideas by Complexity */}
         {projects.length > 0 && (
           <section className="mb-8">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -292,12 +432,31 @@ const DashboardNoAuth = () => {
               Portfolio Projects
             </h2>
             <div className="grid md:grid-cols-3 gap-4">
-              {projects.map((project) => (
-                <Card key={project.id}>
+              {sortedProjects.map((project) => (
+                <Card key={project.id} className={`
+                  ${project.complexity === 'beginner' ? 'border-l-4 border-l-emerald-500' : ''}
+                  ${project.complexity === 'intermediate' ? 'border-l-4 border-l-amber-500' : ''}
+                  ${project.complexity === 'expert' ? 'border-l-4 border-l-red-500' : ''}
+                `}>
                   <CardContent className="pt-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <Badge variant={
+                        project.complexity === 'beginner' ? 'outline' : 
+                        project.complexity === 'intermediate' ? 'secondary' : 'default'
+                      } className={`capitalize ${
+                        project.complexity === 'beginner' ? 'border-emerald-500 text-emerald-600' : ''
+                      }`}>
+                        {project.complexity}
+                      </Badge>
+                      <span className="text-xs text-muted-foreground">{project.estimated_time}</span>
+                    </div>
                     <h3 className="font-semibold">{project.title}</h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{project.description}</p>
-                    <Badge variant="outline" className="mt-2">{project.domain}</Badge>
+                    <p className="text-sm text-muted-foreground line-clamp-2 mt-1">{project.description}</p>
+                    <div className="flex flex-wrap gap-1 mt-3">
+                      {project.skills_demonstrated?.slice(0, 3).map((skill, i) => (
+                        <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>
+                      ))}
+                    </div>
                   </CardContent>
                 </Card>
               ))}
@@ -305,19 +464,57 @@ const DashboardNoAuth = () => {
           </section>
         )}
 
-        {/* Job Matches */}
+        {/* Job Matches with Actions */}
         {jobs.length > 0 && (
           <section className="mb-8">
-            <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-primary" />
-              Job Matches
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-primary" />
+                Job Matches
+              </h2>
+              <Sheet open={showSavedJobs} onOpenChange={setShowSavedJobs}>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <BookmarkCheck className="w-4 h-4 mr-2" />
+                    View Saved ({savedJobs.length})
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>Saved Jobs</SheetTitle>
+                  </SheetHeader>
+                  <div className="mt-4 space-y-4">
+                    {savedJobs.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-8">No saved jobs yet</p>
+                    ) : (
+                      savedJobs.map((job) => (
+                        <Card key={job.id}>
+                          <CardContent className="pt-4">
+                            <h3 className="font-semibold">{job.job_title}</h3>
+                            <p className="text-sm text-muted-foreground">{job.company_name}</p>
+                            <p className="text-xs text-muted-foreground">{job.location}</p>
+                            <div className="flex gap-2 mt-3">
+                              <Button size="sm" variant="outline" onClick={() => handleInterviewPrep(job.id)}>
+                                Prep
+                              </Button>
+                              <Button size="sm" variant="outline" onClick={() => handleSmartAnalysis(job.id)}>
+                                Analyze
+                              </Button>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      ))
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+            </div>
             <div className="grid md:grid-cols-2 gap-4">
               {jobs.slice(0, 6).map((job) => (
                 <Card key={job.id}>
                   <CardContent className="pt-4">
                     <div className="flex justify-between items-start">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-semibold">{job.job_title}</h3>
                         <p className="text-sm text-muted-foreground">{job.company_name}</p>
                         <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
@@ -325,12 +522,56 @@ const DashboardNoAuth = () => {
                           {job.location}
                         </div>
                       </div>
-                      <Badge className="bg-primary/10 text-primary">{job.relevance_score}%</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge className="bg-primary/10 text-primary">{job.relevance_score}%</Badge>
+                        <Button 
+                          variant="ghost" 
+                          size="icon"
+                          onClick={() => toggleSaveJob(job.id, job.is_saved)}
+                        >
+                          {job.is_saved ? (
+                            <BookmarkCheck className="w-5 h-5 text-primary" />
+                          ) : (
+                            <Bookmark className="w-5 h-5" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-1 mt-3">
                       {job.skill_tags?.slice(0, 4).map((tag, i) => (
                         <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
                       ))}
+                    </div>
+                    {/* Action Buttons */}
+                    <div className="flex gap-2 mt-4 pt-3 border-t border-border/50">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleInterviewPrep(job.id)}
+                      >
+                        <FileSearch className="w-4 h-4 mr-1" />
+                        Interview Prep
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => handleSmartAnalysis(job.id)}
+                      >
+                        <Brain className="w-4 h-4 mr-1" />
+                        Smart Analysis
+                      </Button>
+                      {job.job_url && (
+                        <Button 
+                          size="sm" 
+                          variant="default"
+                          asChild
+                        >
+                          <a href={job.job_url} target="_blank" rel="noopener noreferrer">
+                            <Send className="w-4 h-4 mr-1" />
+                            Apply
+                          </a>
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
