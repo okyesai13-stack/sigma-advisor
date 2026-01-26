@@ -198,96 +198,6 @@ export type Database = {
         }
         Relationships: []
       }
-      certifications: {
-        Row: {
-          created_at: string | null
-          id: string
-          issuer: string | null
-          title: string | null
-          user_id: string
-          year: number | null
-        }
-        Insert: {
-          created_at?: string | null
-          id?: string
-          issuer?: string | null
-          title?: string | null
-          user_id: string
-          year?: number | null
-        }
-        Update: {
-          created_at?: string | null
-          id?: string
-          issuer?: string | null
-          title?: string | null
-          user_id?: string
-          year?: number | null
-        }
-        Relationships: []
-      }
-      education_details: {
-        Row: {
-          created_at: string | null
-          degree: string | null
-          field: string | null
-          graduation_year: number | null
-          id: string
-          institution: string | null
-          user_id: string
-        }
-        Insert: {
-          created_at?: string | null
-          degree?: string | null
-          field?: string | null
-          graduation_year?: number | null
-          id?: string
-          institution?: string | null
-          user_id: string
-        }
-        Update: {
-          created_at?: string | null
-          degree?: string | null
-          field?: string | null
-          graduation_year?: number | null
-          id?: string
-          institution?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      experience_details: {
-        Row: {
-          company: string | null
-          created_at: string | null
-          end_year: number | null
-          id: string
-          role: string | null
-          skills: string[] | null
-          start_year: number | null
-          user_id: string
-        }
-        Insert: {
-          company?: string | null
-          created_at?: string | null
-          end_year?: number | null
-          id?: string
-          role?: string | null
-          skills?: string[] | null
-          start_year?: number | null
-          user_id: string
-        }
-        Update: {
-          company?: string | null
-          created_at?: string | null
-          end_year?: number | null
-          id?: string
-          role?: string | null
-          skills?: string[] | null
-          start_year?: number | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       interview_preparation: {
         Row: {
           company: string | null
@@ -656,59 +566,6 @@ export type Database = {
           },
         ]
       }
-      project_resources: {
-        Row: {
-          created_at: string
-          description: string | null
-          id: string
-          metadata: Json | null
-          name: string
-          project_id: string
-          quantity: number
-          resource: string
-          type: string
-          unit_cost: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          name: string
-          project_id: string
-          quantity?: number
-          resource: string
-          type: string
-          unit_cost?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          created_at?: string
-          description?: string | null
-          id?: string
-          metadata?: Json | null
-          name?: string
-          project_id?: string
-          quantity?: number
-          resource?: string
-          type?: string
-          unit_cost?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_resources_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "project_ideas"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       resume_analysis: {
         Row: {
           created_at: string
@@ -866,30 +723,6 @@ export type Database = {
           },
         ]
       }
-      selected_career: {
-        Row: {
-          career_title: string
-          id: string
-          industry: string | null
-          selected_at: string | null
-          user_id: string
-        }
-        Insert: {
-          career_title: string
-          id?: string
-          industry?: string | null
-          selected_at?: string | null
-          user_id: string
-        }
-        Update: {
-          career_title?: string
-          id?: string
-          industry?: string | null
-          selected_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
       sigma_journey_state: {
         Row: {
           career_analysis_completed: boolean | null
@@ -978,51 +811,6 @@ export type Database = {
             referencedColumns: ["resume_id"]
           },
         ]
-      }
-      skill_validations: {
-        Row: {
-          career_id: string | null
-          created_at: string
-          domain: string | null
-          id: string
-          level: string | null
-          matched_skills: Json | null
-          missing_skills: Json | null
-          readiness_score: number
-          recommended_next_step: string
-          role: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          career_id?: string | null
-          created_at?: string
-          domain?: string | null
-          id?: string
-          level?: string | null
-          matched_skills?: Json | null
-          missing_skills?: Json | null
-          readiness_score?: number
-          recommended_next_step?: string
-          role: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          career_id?: string | null
-          created_at?: string
-          domain?: string | null
-          id?: string
-          level?: string | null
-          matched_skills?: Json | null
-          missing_skills?: Json | null
-          readiness_score?: number
-          recommended_next_step?: string
-          role?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       user_learning_journey: {
         Row: {
