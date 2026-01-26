@@ -1,6 +1,11 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { useResume } from "@/contexts/ResumeContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Sparkles, 
   ArrowRight, 
@@ -9,16 +14,87 @@ import {
   Rocket,
   Zap,
   CheckCircle2,
+  Search,
+  Loader2,
 } from "lucide-react";
 
 const LandingNoAuth = () => {
   const navigate = useNavigate();
+  const { setResumeId, setGoal, setGoalType, setUserType } = useResume();
+  const { toast } = useToast();
+  const [resumeIdInput, setResumeIdInput] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
   const features = [
     { icon: Brain, title: "AI Career Analysis", description: "Get personalized career paths powered by Gemini 3" },
     { icon: Target, title: "Skill Validation", description: "See exactly where you stand and what to improve" },
     { icon: Rocket, title: "Learning Roadmap", description: "Step-by-step plan to reach your dream role" },
   ];
+
+  const handleViewResults = async () => {
+    const trimmedId = resumeIdInput.trim();
+    if (!trimmedId) {
+      toast({
+        title: "Resume ID Required",
+        description: "Please enter your resume ID to view your results.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      // Verify the resume exists and fetch its data
+      const { data: resume, error } = await supabase
+        .from('resume_store')
+        .select('resume_id, goal, goal_type, user_type')
+        .eq('resume_id', trimmedId)
+        .maybeSingle();
+
+      if (error) {
+        throw error;
+      }
+
+      if (!resume) {
+        toast({
+          title: "Resume Not Found",
+          description: "No results found for this Resume ID. Please check and try again.",
+          variant: "destructive",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Set the context with the retrieved data
+      setResumeId(resume.resume_id);
+      if (resume.goal) setGoal(resume.goal);
+      if (resume.goal_type) setGoalType(resume.goal_type);
+      if (resume.user_type) setUserType(resume.user_type);
+
+      toast({
+        title: "Resume Found!",
+        description: "Loading your career analysis results...",
+      });
+
+      // Navigate to dashboard
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error fetching resume:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch results. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleViewResults();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
@@ -70,6 +146,46 @@ const LandingNoAuth = () => {
           <p className="text-sm text-muted-foreground mt-4">
             Takes less than 2 minutes • Completely free
           </p>
+        </div>
+
+        {/* View Previous Results Section */}
+        <div className="mt-16 max-w-xl mx-auto">
+          <div className="p-6 rounded-2xl bg-card border border-border/50 shadow-lg">
+            <div className="flex items-center gap-2 mb-4">
+              <Search className="w-5 h-5 text-primary" />
+              <h3 className="text-lg font-semibold">View Previous Results</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Already have a Resume ID? Enter it below to view your career analysis, learning plans, projects, and job matches.
+            </p>
+            <div className="flex gap-3">
+              <Input
+                placeholder="Enter your Resume ID (e.g., res_abc123...)"
+                value={resumeIdInput}
+                onChange={(e) => setResumeIdInput(e.target.value)}
+                onKeyPress={handleKeyPress}
+                className="flex-1"
+                disabled={isLoading}
+              />
+              <Button 
+                onClick={handleViewResults}
+                disabled={isLoading}
+                className="gap-2"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    View Results
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Features */}
