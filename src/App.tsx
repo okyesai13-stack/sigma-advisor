@@ -11,6 +11,8 @@ import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
 import AdvisorNoAuth from "./pages/AdvisorNoAuth";
+import InterviewPrepNoAuth from "./pages/InterviewPrepNoAuth";
+import SmartAnalysisNoAuth from "./pages/SmartAnalysisNoAuth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +31,8 @@ const App = () => (
             <Route path="/sigma" element={<SigmaNoAuth />} />
             <Route path="/dashboard" element={<DashboardNoAuth />} />
             <Route path="/advisor" element={<AdvisorNoAuth />} />
+            <Route path="/interview-prep" element={<InterviewPrepNoAuth />} />
+            <Route path="/smart-analysis" element={<SmartAnalysisNoAuth />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -31,20 +31,10 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    // Get career analysis for context
-    const { data: careerData } = await supabase
-      .from('career_analysis_result')
-      .select('career_roles')
-      .eq('resume_id', resume_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     const missingSkills = (skillData?.missing_skills as any[]) || [];
     const targetRole = skillData?.target_role || 'Professional';
     
     if (missingSkills.length === 0) {
-      // No missing skills, mark as complete
       await supabase.rpc('update_journey_state_flag', {
         p_resume_id: resume_id,
         p_flag_name: 'learning_plan_completed',
@@ -62,29 +52,28 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Generate learning plans for top 3 missing skills
+    // Generate learning recommendations for top 3 missing skills
     const skillsToLearn = missingSkills.slice(0, 3);
     const learningPlans = [];
 
     for (const skill of skillsToLearn) {
       const skillName = typeof skill === 'string' ? skill : skill.name || skill;
 
-      const prompt = `Create a learning plan for: ${skillName}
+      const prompt = `Create learning resource recommendations for: ${skillName}
 Target Role: ${targetRole}
 
-Return JSON:
+Return JSON with ONLY courses and videos (no learning steps):
 {
   "skill_name": "${skillName}",
-  "learning_steps": [
-    {"step": 1, "title": "Step title", "description": "What to do", "duration": "1-2 weeks"}
-  ],
   "recommended_courses": [
-    {"name": "Course name", "platform": "Coursera/Udemy/etc", "url": "https://...", "duration": "X hours"}
+    {"name": "Course name", "platform": "Coursera/Udemy/YouTube/etc", "url": "https://actual-course-url", "duration": "X hours", "level": "beginner/intermediate/advanced"}
   ],
   "recommended_videos": [
-    {"title": "Video title", "channel": "Channel name", "url": "https://youtube.com/..."}
+    {"title": "Video title", "channel": "Channel name", "url": "https://youtube.com/watch?v=...", "duration": "X minutes"}
   ]
-}`;
+}
+
+Include 3-5 real courses and 3-5 real YouTube videos with actual working URLs.`;
 
       const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
@@ -95,7 +84,7 @@ Return JSON:
         body: JSON.stringify({
           model: 'google/gemini-3-flash-preview',
           messages: [
-            { role: 'system', content: 'You are a learning advisor. Return only valid JSON.' },
+            { role: 'system', content: 'You are a learning advisor. Return only valid JSON with real course and video URLs.' },
             { role: 'user', content: prompt }
           ],
           temperature: 0.6,
@@ -113,14 +102,14 @@ Return JSON:
         try {
           const plan = JSON.parse(content.trim());
           
-          // Store in database
+          // Store in database - only courses and videos, no learning_steps
           const { data: inserted } = await supabase
             .from('learning_plan_result')
             .insert({
               resume_id: resume_id,
               skill_name: skillName,
               career_title: targetRole,
-              learning_steps: plan.learning_steps || [],
+              learning_steps: [], // Empty - not used anymore
               recommended_courses: plan.recommended_courses || [],
               recommended_videos: plan.recommended_videos || [],
               status: 'not_started',

@@ -37,6 +37,7 @@ serve(async (req) => {
     const targetRole = shortTermRole?.role || resumeData?.goal || 'Software Developer';
     const domain = shortTermRole?.domain || 'Technology';
     const missingSkills = (skillData?.missing_skills as any[]) || [];
+    const currentSkills = (resumeData?.parsed_data?.skills || []).slice(0, 10);
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -46,18 +47,41 @@ serve(async (req) => {
     const prompt = `Generate 3 portfolio project ideas for someone targeting: ${targetRole}
 Domain: ${domain}
 Skills to demonstrate: ${missingSkills.slice(0, 5).join(', ') || 'General skills'}
-Current skills: ${(resumeData?.parsed_data?.skills || []).slice(0, 5).join(', ')}
+Current skills: ${currentSkills.join(', ')}
+
+Generate exactly 3 projects - one for each complexity level:
+1. BEGINNER level - Simple project for newcomers
+2. INTERMEDIATE level - Moderate complexity with real-world application
+3. EXPERT level - Advanced project showcasing mastery
 
 Return JSON array:
 [
   {
     "title": "Project Name",
-    "description": "What the project does",
+    "description": "What the project does and its impact",
     "problem": "What problem it solves",
     "domain": "${domain}",
-    "skills_demonstrated": ["skill1", "skill2"],
-    "complexity": "beginner/intermediate/advanced",
-    "estimated_time": "2-4 weeks"
+    "skills_demonstrated": ["skill1", "skill2", "skill3"],
+    "complexity": "beginner",
+    "estimated_time": "1-2 weeks"
+  },
+  {
+    "title": "Project Name",
+    "description": "What the project does and its impact",
+    "problem": "What problem it solves",
+    "domain": "${domain}",
+    "skills_demonstrated": ["skill1", "skill2", "skill3"],
+    "complexity": "intermediate",
+    "estimated_time": "3-4 weeks"
+  },
+  {
+    "title": "Project Name",
+    "description": "What the project does and its impact",
+    "problem": "What problem it solves",
+    "domain": "${domain}",
+    "skills_demonstrated": ["skill1", "skill2", "skill3"],
+    "complexity": "expert",
+    "estimated_time": "6-8 weeks"
   }
 ]`;
 
@@ -70,7 +94,7 @@ Return JSON array:
       body: JSON.stringify({
         model: 'google/gemini-3-flash-preview',
         messages: [
-          { role: 'system', content: 'You are a project advisor. Return only valid JSON array.' },
+          { role: 'system', content: 'You are a project advisor. Return only valid JSON array with exactly 3 projects at different complexity levels.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -106,6 +130,9 @@ Return JSON array:
           description: project.description,
           problem: project.problem,
           domain: project.domain || domain,
+          complexity: project.complexity || 'intermediate',
+          skills_demonstrated: project.skills_demonstrated || [],
+          estimated_time: project.estimated_time || '2-4 weeks',
           budget: 15000,
         })
         .select()
