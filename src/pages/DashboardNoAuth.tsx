@@ -101,6 +101,8 @@ const DashboardNoAuth = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
   const [showSavedJobs, setShowSavedJobs] = useState(false);
+  const [interviewPrepJobIds, setInterviewPrepJobIds] = useState<Set<string>>(new Set());
+  const [smartAnalysisJobIds, setSmartAnalysisJobIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!resumeId) {
@@ -115,12 +117,14 @@ const DashboardNoAuth = () => {
     setIsLoading(true);
 
     try {
-      const [careerRes, skillRes, learningRes, projectRes, jobRes] = await Promise.all([
+      const [careerRes, skillRes, learningRes, projectRes, jobRes, interviewRes, smartRes] = await Promise.all([
         supabase.from('career_analysis_result').select('career_roles').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('skill_validation_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId),
         supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId),
         supabase.from('job_matching_result').select('*').eq('resume_id', resumeId).order('relevance_score', { ascending: false }),
+        supabase.from('interview_preparation_result').select('job_id').eq('resume_id', resumeId),
+        supabase.from('smart_analysis_result').select('job_id').eq('resume_id', resumeId),
       ]);
 
       if (careerRes.data?.career_roles) {
@@ -137,6 +141,12 @@ const DashboardNoAuth = () => {
       }
       if (jobRes.data) {
         setJobs(jobRes.data as unknown as Job[]);
+      }
+      if (interviewRes.data) {
+        setInterviewPrepJobIds(new Set(interviewRes.data.map(r => r.job_id)));
+      }
+      if (smartRes.data) {
+        setSmartAnalysisJobIds(new Set(smartRes.data.map(r => r.job_id)));
       }
 
     } catch (error) {
@@ -494,11 +504,19 @@ const DashboardNoAuth = () => {
                             <p className="text-sm text-muted-foreground">{job.company_name}</p>
                             <p className="text-xs text-muted-foreground">{job.location}</p>
                             <div className="flex gap-2 mt-3">
-                              <Button size="sm" variant="outline" onClick={() => handleInterviewPrep(job.id)}>
-                                Prep
+                              <Button 
+                                size="sm" 
+                                variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"}
+                                onClick={() => handleInterviewPrep(job.id)}
+                              >
+                                {interviewPrepJobIds.has(job.id) ? 'View' : 'Prep'}
                               </Button>
-                              <Button size="sm" variant="outline" onClick={() => handleSmartAnalysis(job.id)}>
-                                Analyze
+                              <Button 
+                                size="sm" 
+                                variant={smartAnalysisJobIds.has(job.id) ? "default" : "outline"}
+                                onClick={() => handleSmartAnalysis(job.id)}
+                              >
+                                {smartAnalysisJobIds.has(job.id) ? 'View' : 'Analyze'}
                               </Button>
                             </div>
                           </CardContent>
@@ -546,24 +564,24 @@ const DashboardNoAuth = () => {
                     <div className="flex gap-2 mt-4 pt-3 border-t border-border/50">
                       <Button 
                         size="sm" 
-                        variant="outline"
+                        variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"}
                         onClick={() => handleInterviewPrep(job.id)}
                       >
                         <FileSearch className="w-4 h-4 mr-1" />
-                        Interview Prep
+                        {interviewPrepJobIds.has(job.id) ? 'View Prep' : 'Interview Prep'}
                       </Button>
                       <Button 
                         size="sm" 
-                        variant="outline"
+                        variant={smartAnalysisJobIds.has(job.id) ? "default" : "outline"}
                         onClick={() => handleSmartAnalysis(job.id)}
                       >
                         <Brain className="w-4 h-4 mr-1" />
-                        Smart Analysis
+                        {smartAnalysisJobIds.has(job.id) ? 'View Analysis' : 'Smart Analysis'}
                       </Button>
                       {job.job_url && (
                         <Button 
                           size="sm" 
-                          variant="default"
+                          variant="outline"
                           asChild
                         >
                           <a href={job.job_url} target="_blank" rel="noopener noreferrer">
