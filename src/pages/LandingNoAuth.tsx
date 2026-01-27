@@ -132,9 +132,7 @@ const LandingNoAuth = () => {
             <ArrowRight className="w-5 h-5" />
           </Button>
 
-          <p className="text-sm text-muted-foreground mt-4">
-            Takes less than 2 minutes • Completely free
-          </p>
+          <p className="text-sm text-muted-foreground mt-4">Takes less than 2 minutes • Get your personalized career Idea</p>
         </div>
 
         {/* View Previous Results Section */}
