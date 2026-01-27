@@ -42,6 +42,8 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+import CareerAnalysisSection from '@/components/dashboard/CareerAnalysisSection';
+
 interface CareerRole {
   role: string;
   domain: string;
@@ -49,6 +51,19 @@ interface CareerRole {
   timeline: string;
   match_score: number;
   salary_range: string;
+}
+
+interface CareerRoadmap {
+  short_term?: string;
+  mid_term?: string;
+  long_term?: string;
+}
+
+interface SkillAnalysisData {
+  current_strengths?: string[];
+  short_term_gaps?: string[];
+  mid_term_gaps?: string[];
+  long_term_gaps?: string[];
 }
 
 interface SkillValidation {
@@ -95,6 +110,9 @@ const DashboardNoAuth = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [careerRoles, setCareerRoles] = useState<CareerRole[]>([]);
+  const [overallAssessment, setOverallAssessment] = useState<string | null>(null);
+  const [careerRoadmap, setCareerRoadmap] = useState<CareerRoadmap | null>(null);
+  const [skillAnalysisData, setSkillAnalysisData] = useState<SkillAnalysisData | null>(null);
   const [skillValidation, setSkillValidation] = useState<SkillValidation | null>(null);
   const [learningPlans, setLearningPlans] = useState<LearningPlan[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -118,7 +136,7 @@ const DashboardNoAuth = () => {
 
     try {
       const [careerRes, skillRes, learningRes, projectRes, jobRes, interviewRes, smartRes] = await Promise.all([
-        supabase.from('career_analysis_result').select('career_roles').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('career_analysis_result').select('career_roles, overall_assessment, career_roadmap, skill_analysis').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('skill_validation_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
         supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId),
         supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId),
@@ -127,8 +145,13 @@ const DashboardNoAuth = () => {
         supabase.from('smart_analysis_result').select('job_id').eq('resume_id', resumeId),
       ]);
 
-      if (careerRes.data?.career_roles) {
-        setCareerRoles(careerRes.data.career_roles as unknown as CareerRole[]);
+      if (careerRes.data) {
+        if (careerRes.data.career_roles) {
+          setCareerRoles(careerRes.data.career_roles as unknown as CareerRole[]);
+        }
+        setOverallAssessment(careerRes.data.overall_assessment || null);
+        setCareerRoadmap(careerRes.data.career_roadmap as CareerRoadmap | null);
+        setSkillAnalysisData(careerRes.data.skill_analysis as SkillAnalysisData | null);
       }
       if (skillRes.data) {
         setSkillValidation(skillRes.data as unknown as SkillValidation);
@@ -254,6 +277,13 @@ const DashboardNoAuth = () => {
           <h1 className="text-2xl font-bold mb-2">Your Career Roadmap</h1>
           <p className="text-muted-foreground">Goal: {goal}</p>
         </div>
+
+        {/* Career Analysis Insights Section */}
+        <CareerAnalysisSection 
+          overallAssessment={overallAssessment}
+          careerRoadmap={careerRoadmap}
+          skillAnalysis={skillAnalysisData}
+        />
 
         {/* Career Progression */}
         <section className="mb-8">
