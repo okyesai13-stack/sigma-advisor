@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { resume_id, message, conversation_history } = await req.json();
+    const { resume_id, message } = await req.json();
 
     if (!resume_id) {
       throw new Error('No resume_id provided');
@@ -25,6 +25,23 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Save user message to chat history
+    await supabase.from('chat_history').insert({
+      resume_id,
+      role: 'user',
+      content: message
+    });
+
+    // Fetch conversation history from database
+    const { data: historyData } = await supabase
+      .from('chat_history')
+      .select('role, content')
+      .eq('resume_id', resume_id)
+      .order('created_at', { ascending: true })
+      .limit(20);
+
+    const conversationHistory = historyData || [];
 
     // Fetch all context data in parallel
     const [
@@ -126,13 +143,13 @@ NEVER USE:
 
 Be genuinely helpful and specific to their situation.`;
 
-    // Build conversation history for context
-    const historyMessages = (conversation_history || []).map((msg: any) => ({
+    // Build messages array from conversation history (exclude the just-added user message since it's in historyData)
+    const historyMessages = conversationHistory.slice(0, -1).map((msg: any) => ({
       role: msg.role === 'assistant' ? 'assistant' : 'user',
       content: msg.content,
     }));
 
-    console.log('Advisor chat for resume:', resume_id);
+    console.log('Advisor chat for resume:', resume_id, 'History messages:', historyMessages.length);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -183,7 +200,14 @@ Be genuinely helpful and specific to their situation.`;
       .replace(/\n{3,}/g, '\n\n')
       .trim();
 
-    console.log('Advisor response generated for:', resume_id);
+    // Save assistant response to chat history
+    await supabase.from('chat_history').insert({
+      resume_id,
+      role: 'assistant',
+      content: responseText
+    });
+
+    console.log('Advisor response saved for:', resume_id);
 
     return new Response(
       JSON.stringify({

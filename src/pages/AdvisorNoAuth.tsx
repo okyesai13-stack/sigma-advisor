@@ -80,13 +80,41 @@ const AdvisorNoAuth = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (!resumeId) {
       navigate('/setup');
+      return;
     }
+
+    // Load chat history from database
+    const loadChatHistory = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('chat_history')
+          .select('role, content')
+          .eq('resume_id', resumeId)
+          .order('created_at', { ascending: true });
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          setMessages(data.map(msg => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content
+          })));
+        }
+      } catch (error) {
+        console.error('Failed to load chat history:', error);
+      } finally {
+        setIsLoadingHistory(false);
+      }
+    };
+
+    loadChatHistory();
   }, [resumeId, navigate]);
 
   const scrollToBottom = () => {
@@ -114,8 +142,7 @@ const AdvisorNoAuth = () => {
       const { data, error } = await supabase.functions.invoke("advisor-chat", {
         body: { 
           message: messageToSend, 
-          resume_id: resumeId,
-          conversation_history: messages.slice(-10) // Send last 10 messages for context
+          resume_id: resumeId
         },
       });
 
@@ -158,8 +185,12 @@ const AdvisorNoAuth = () => {
     textareaRef.current?.focus();
   };
 
-  if (!resumeId) {
-    return null;
+  if (!resumeId || isLoadingHistory) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
   }
 
   return (
