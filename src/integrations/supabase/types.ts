@@ -52,6 +52,30 @@ export type Database = {
           },
         ]
       }
+      chat_history: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          resume_id: string
+          role: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          resume_id: string
+          role: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          resume_id?: string
+          role?: string
+        }
+        Relationships: []
+      }
       interview_preparation_result: {
         Row: {
           behavioral_questions: Json | null
