@@ -52,11 +52,10 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Generate learning recommendations for top 3 missing skills
+    // Generate learning recommendations for top 3 missing skills in PARALLEL
     const skillsToLearn = missingSkills.slice(0, 3);
-    const learningPlans = [];
-
-    for (const skill of skillsToLearn) {
+    
+    const generatePlanForSkill = async (skill: any) => {
       const skillName = typeof skill === 'string' ? skill : skill.name || skill;
 
       const prompt = `Create learning resource recommendations for: ${skillName}
@@ -73,25 +72,30 @@ Return JSON with ONLY courses and videos (no learning steps):
   ]
 }
 
-Include 3-5 real courses and 3-5 real YouTube videos with actual working URLs.`;
+Include 2-3 real courses and 2-3 real YouTube videos with actual working URLs.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
-          messages: [
-            { role: 'system', content: 'You are a learning advisor. Return only valid JSON with real course and video URLs.' },
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.6,
-        }),
-      });
+      try {
+        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-3-flash-preview',
+            messages: [
+              { role: 'system', content: 'You are a learning advisor. Return only valid JSON with real course and video URLs. Be concise.' },
+              { role: 'user', content: prompt }
+            ],
+            temperature: 0.5,
+          }),
+        });
 
-      if (response.ok) {
+        if (!response.ok) {
+          console.error('AI request failed for skill:', skillName);
+          return null;
+        }
+
         const aiResponse = await response.json();
         let content = aiResponse.choices?.[0]?.message?.content || '{}';
         
@@ -99,32 +103,33 @@ Include 3-5 real courses and 3-5 real YouTube videos with actual working URLs.`;
           content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
         }
 
-        try {
-          const plan = JSON.parse(content.trim());
-          
-          // Store in database - only courses and videos, no learning_steps
-          const { data: inserted } = await supabase
-            .from('learning_plan_result')
-            .insert({
-              resume_id: resume_id,
-              skill_name: skillName,
-              career_title: targetRole,
-              learning_steps: [], // Empty - not used anymore
-              recommended_courses: plan.recommended_courses || [],
-              recommended_videos: plan.recommended_videos || [],
-              status: 'not_started',
-            })
-            .select()
-            .single();
+        const plan = JSON.parse(content.trim());
+        
+        // Store in database
+        const { data: inserted } = await supabase
+          .from('learning_plan_result')
+          .insert({
+            resume_id: resume_id,
+            skill_name: skillName,
+            career_title: targetRole,
+            learning_steps: [],
+            recommended_courses: plan.recommended_courses || [],
+            recommended_videos: plan.recommended_videos || [],
+            status: 'not_started',
+          })
+          .select()
+          .single();
 
-          if (inserted) {
-            learningPlans.push(inserted);
-          }
-        } catch (parseError) {
-          console.error('Failed to parse learning plan for:', skillName);
-        }
+        return inserted;
+      } catch (error) {
+        console.error('Failed to generate learning plan for:', skillName, error);
+        return null;
       }
-    }
+    };
+
+    // Run all AI calls in parallel
+    const results = await Promise.all(skillsToLearn.map(generatePlanForSkill));
+    const learningPlans = results.filter(Boolean);
 
     // Update journey state
     await supabase.rpc('update_journey_state_flag', {
