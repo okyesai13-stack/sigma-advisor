@@ -458,6 +458,33 @@ export type Database = {
           },
         ]
       }
+      upgraded_resume_result: {
+        Row: {
+          created_at: string
+          generated_at: string
+          id: string
+          resume_data: Json
+          resume_id: string
+          target_role: string | null
+        }
+        Insert: {
+          created_at?: string
+          generated_at?: string
+          id?: string
+          resume_data?: Json
+          resume_id: string
+          target_role?: string | null
+        }
+        Update: {
+          created_at?: string
+          generated_at?: string
+          id?: string
+          resume_data?: Json
+          resume_id?: string
+          target_role?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

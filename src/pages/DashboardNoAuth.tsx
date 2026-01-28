@@ -39,6 +39,7 @@ import {
   FileSearch,
   Brain,
   Send,
+  FileUp,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -627,6 +628,23 @@ const DashboardNoAuth = () => {
             </div>
           </section>
         )}
+
+        {/* Resume Upgrade CTA */}
+        <Card className="bg-gradient-to-r from-violet-500/10 to-primary/10 mb-8">
+          <CardContent className="py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 justify-center md:justify-start">
+                <FileUp className="w-6 h-6 text-primary" />
+                Upgrade Your Resume
+              </h2>
+              <p className="text-muted-foreground">Generate an ATS-optimized resume based on your analysis</p>
+            </div>
+            <Button size="lg" onClick={() => navigate('/resume-upgrade')} className="gap-2">
+              <Sparkles className="w-5 h-5" />
+              Build Resume
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Chat with Advisor CTA */}
         <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
