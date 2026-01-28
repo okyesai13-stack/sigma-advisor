@@ -29,3 +29,6 @@ verify_jwt = false
 
 [functions.smart-analysis]
 verify_jwt = false
+
+[functions.resume-upgrade]
+verify_jwt = false
