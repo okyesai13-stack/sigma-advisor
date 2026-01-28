@@ -12,7 +12,6 @@ const LandingNoAuth = () => {
   const {
     setResumeId,
     setGoal,
-    setGoalType,
     setUserType
   } = useResume();
   const {
@@ -49,7 +48,7 @@ const LandingNoAuth = () => {
       const {
         data: resume,
         error
-      } = await supabase.from('resume_store').select('resume_id, goal, goal_type, user_type').eq('resume_id', trimmedId).maybeSingle();
+      } = await supabase.from('resume_store').select('resume_id, goal, user_type').eq('resume_id', trimmedId).maybeSingle();
       if (error) {
         throw error;
       }
@@ -66,7 +65,6 @@ const LandingNoAuth = () => {
       // Set the context with the retrieved data
       setResumeId(resume.resume_id);
       if (resume.goal) setGoal(resume.goal);
-      if (resume.goal_type) setGoalType(resume.goal_type);
       if (resume.user_type) setUserType(resume.user_type);
       toast({
         title: "Resume Found!",

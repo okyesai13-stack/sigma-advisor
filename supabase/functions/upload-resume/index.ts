@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { resumeText, fileName, goal, goalType, userType, parsedData } = await req.json();
+    const { resumeText, fileName, goal, userType, parsedData } = await req.json();
 
     if (!resumeText) {
       throw new Error('No resume text provided');
@@ -86,7 +86,6 @@ Return ONLY valid JSON with this exact structure:
         resume_text: resumeText.slice(0, 50000), // Limit text size
         parsed_data: finalParsedData,
         goal: goal || null,
-        goal_type: goalType || 'job',
         user_type: userType || 'student',
         file_name: fileName || 'resume.pdf',
       })
