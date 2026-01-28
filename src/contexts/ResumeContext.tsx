@@ -5,8 +5,6 @@ interface ResumeContextType {
   setResumeId: (id: string | null) => void;
   goal: string | null;
   setGoal: (goal: string | null) => void;
-  goalType: string;
-  setGoalType: (type: string) => void;
   userType: string;
   setUserType: (type: string) => void;
   isReady: boolean;
@@ -17,13 +15,11 @@ const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'sigma_resume_id';
 const GOAL_KEY = 'sigma_goal';
-const GOAL_TYPE_KEY = 'sigma_goal_type';
 const USER_TYPE_KEY = 'sigma_user_type';
 
 export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const [resumeId, setResumeIdState] = useState<string | null>(null);
   const [goal, setGoalState] = useState<string | null>(null);
-  const [goalType, setGoalTypeState] = useState<string>('job');
   const [userType, setUserTypeState] = useState<string>('student');
   const [isReady, setIsReady] = useState(false);
 
@@ -31,12 +27,10 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const storedResumeId = sessionStorage.getItem(STORAGE_KEY);
     const storedGoal = sessionStorage.getItem(GOAL_KEY);
-    const storedGoalType = sessionStorage.getItem(GOAL_TYPE_KEY);
     const storedUserType = sessionStorage.getItem(USER_TYPE_KEY);
     
     if (storedResumeId) setResumeIdState(storedResumeId);
     if (storedGoal) setGoalState(storedGoal);
-    if (storedGoalType) setGoalTypeState(storedGoalType);
     if (storedUserType) setUserTypeState(storedUserType);
     
     setIsReady(true);
@@ -60,11 +54,6 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const setGoalType = (type: string) => {
-    setGoalTypeState(type);
-    sessionStorage.setItem(GOAL_TYPE_KEY, type);
-  };
-
   const setUserType = (type: string) => {
     setUserTypeState(type);
     sessionStorage.setItem(USER_TYPE_KEY, type);
@@ -73,11 +62,9 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const clearSession = () => {
     setResumeIdState(null);
     setGoalState(null);
-    setGoalTypeState('job');
     setUserTypeState('student');
     sessionStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(GOAL_KEY);
-    sessionStorage.removeItem(GOAL_TYPE_KEY);
     sessionStorage.removeItem(USER_TYPE_KEY);
   };
 
@@ -87,8 +74,6 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
       setResumeId,
       goal,
       setGoal,
-      goalType,
-      setGoalType,
       userType,
       setUserType,
       isReady,

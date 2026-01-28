@@ -26,7 +26,7 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVe
 const SetupNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setResumeId, setGoal, goal, goalType, setGoalType, userType, setUserType } = useResume();
+  const { setResumeId, setGoal, goal, userType, setUserType } = useResume();
 
   const [step, setStep] = useState<'goal' | 'resume'>('goal');
   const [goalText, setGoalText] = useState(goal || '');
@@ -119,7 +119,6 @@ const SetupNoAuth = () => {
             resumeText: resumeText.slice(0, 20000),
             fileName: file.name,
             goal: goalText,
-            goalType: goalType,
             userType: userType,
           }),
         }
@@ -215,38 +214,20 @@ const SetupNoAuth = () => {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>I am a</Label>
-                  <div className="flex gap-2">
-                    {['student', 'professional'].map((type) => (
-                      <Button
-                        key={type}
-                        variant={userType === type ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setUserType(type)}
-                        className="flex-1 capitalize"
-                      >
-                        {type}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Goal Type</Label>
-                  <div className="flex gap-2">
-                    {['job', 'learn', 'startup'].map((type) => (
-                      <Button
-                        key={type}
-                        variant={goalType === type ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setGoalType(type)}
-                        className="flex-1 capitalize"
-                      >
-                        {type}
-                      </Button>
-                    ))}
-                  </div>
+              <div className="space-y-2">
+                <Label>I am a</Label>
+                <div className="flex gap-2">
+                  {['student', 'professional'].map((type) => (
+                    <Button
+                      key={type}
+                      variant={userType === type ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setUserType(type)}
+                      className="flex-1 capitalize"
+                    >
+                      {type}
+                    </Button>
+                  ))}
                 </div>
               </div>
             </div>
