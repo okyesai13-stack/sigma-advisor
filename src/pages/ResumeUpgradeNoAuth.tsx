@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
+import { ResumeEditorPanel } from '@/components/resume-builder/ResumeEditorPanel';
 import { 
   Sparkles, 
   ArrowLeft, 
@@ -87,6 +88,19 @@ const ResumeUpgradeNoAuth = () => {
   const [existingResumeId, setExistingResumeId] = useState<string | null>(null);
   const [scale, setScale] = useState(0.75);
   const [editingField, setEditingField] = useState<string | null>(null);
+  const [sectionVisibility, setSectionVisibility] = useState({
+    personalDetails: true,
+    summary: true,
+    skills: true,
+    experience: true,
+    projects: true,
+    education: true,
+    certifications: true,
+  });
+
+  const toggleSectionVisibility = (section: keyof typeof sectionVisibility) => {
+    setSectionVisibility(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   useEffect(() => {
     if (!resumeId) {
@@ -309,8 +323,8 @@ const ResumeUpgradeNoAuth = () => {
         ) : (
           /* Resume Preview */
           <div className="flex flex-col lg:flex-row gap-6">
-            {/* Controls Panel */}
-            <div className="lg:w-72 shrink-0 space-y-4">
+            {/* Left Panel - Editor */}
+            <div className="lg:w-80 shrink-0 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto">
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Actions</CardTitle>
@@ -336,6 +350,13 @@ const ResumeUpgradeNoAuth = () => {
                 </CardContent>
               </Card>
 
+              <ResumeEditorPanel
+                resumeData={resumeData}
+                onUpdate={setResumeData}
+                visibility={sectionVisibility}
+                onVisibilityChange={toggleSectionVisibility}
+              />
+
               <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">Tips</CardTitle>
@@ -350,7 +371,7 @@ const ResumeUpgradeNoAuth = () => {
             </div>
 
             {/* Resume Preview */}
-            <div className="flex-1 overflow-auto bg-slate-100 rounded-lg p-6">
+            <div className="flex-1 overflow-auto bg-muted/50 rounded-lg p-6">
               <div 
                 className="mx-auto transition-transform duration-200"
                 style={{ 
@@ -366,73 +387,79 @@ const ResumeUpgradeNoAuth = () => {
                   style={{ fontFamily: 'Georgia, serif', color: '#1a1a1a' }}
                 >
                   {/* Header Section */}
-                  <header className="text-center mb-6 pb-4 border-b-2 border-primary">
-                    <EditableText 
-                      value={resumeData.header.name}
-                      onSave={(v) => updateField('header.name', v)}
-                      className="text-3xl font-bold tracking-tight"
-                    />
-                    <EditableText 
-                      value={resumeData.header.title}
-                      onSave={(v) => updateField('header.title', v)}
-                      className="text-lg text-primary font-medium mt-1"
-                    />
-                    <div className="flex items-center justify-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
-                      <span className="flex items-center gap-1">
-                        <Mail className="w-3 h-3" />
-                        {resumeData.header.contact.email}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {resumeData.header.contact.phone}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {resumeData.header.contact.location}
-                      </span>
-                      {resumeData.header.contact.linkedin && (
+                  {sectionVisibility.personalDetails && (
+                    <header className="text-center mb-6 pb-4 border-b-2 border-primary">
+                      <EditableText 
+                        value={resumeData.header.name}
+                        onSave={(v) => updateField('header.name', v)}
+                        className="text-3xl font-bold tracking-tight"
+                      />
+                      <EditableText 
+                        value={resumeData.header.title}
+                        onSave={(v) => updateField('header.title', v)}
+                        className="text-lg text-primary font-medium mt-1"
+                      />
+                      <div className="flex items-center justify-center gap-4 mt-3 text-sm text-muted-foreground flex-wrap">
                         <span className="flex items-center gap-1">
-                          <Linkedin className="w-3 h-3" />
-                          {resumeData.header.contact.linkedin}
+                          <Mail className="w-3 h-3" />
+                          {resumeData.header.contact.email}
                         </span>
-                      )}
-                    </div>
-                  </header>
+                        <span className="flex items-center gap-1">
+                          <Phone className="w-3 h-3" />
+                          {resumeData.header.contact.phone}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {resumeData.header.contact.location}
+                        </span>
+                        {resumeData.header.contact.linkedin && (
+                          <span className="flex items-center gap-1">
+                            <Linkedin className="w-3 h-3" />
+                            {resumeData.header.contact.linkedin}
+                          </span>
+                        )}
+                      </div>
+                    </header>
+                  )}
 
                   {/* Summary */}
-                  <section className="mb-6">
-                    <SectionTitle icon={User} title="Professional Summary" />
-                    <EditableText 
-                      value={resumeData.summary}
-                      onSave={(v) => updateField('summary', v)}
-                      className="text-sm leading-relaxed text-justify"
-                      multiline
-                    />
-                  </section>
+                  {sectionVisibility.summary && (
+                    <section className="mb-6">
+                      <SectionTitle icon={User} title="Professional Summary" />
+                      <EditableText 
+                        value={resumeData.summary}
+                        onSave={(v) => updateField('summary', v)}
+                        className="text-sm leading-relaxed text-justify"
+                        multiline
+                      />
+                    </section>
+                  )}
 
                   {/* Skills */}
-                  <section className="mb-6">
-                    <SectionTitle icon={Wrench} title="Skills" />
-                    <div className="space-y-1 text-sm">
-                      <div className="flex gap-2">
-                        <span className="font-semibold min-w-24">Technical:</span>
-                        <span>{resumeData.skills.technical.join(', ')}</span>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className="font-semibold min-w-24">Tools:</span>
-                        <span>{resumeData.skills.tools.join(', ')}</span>
-                      </div>
-                      {resumeData.skills.domain.length > 0 && (
+                  {sectionVisibility.skills && (
+                    <section className="mb-6">
+                      <SectionTitle icon={Wrench} title="Skills" />
+                      <div className="space-y-1 text-sm">
                         <div className="flex gap-2">
-                          <span className="font-semibold min-w-24">Domain:</span>
-                          <span>{resumeData.skills.domain.join(', ')}</span>
+                          <span className="font-semibold min-w-24">Technical:</span>
+                          <span>{resumeData.skills.technical.join(', ')}</span>
                         </div>
-                      )}
-                    </div>
-                  </section>
+                        <div className="flex gap-2">
+                          <span className="font-semibold min-w-24">Tools:</span>
+                          <span>{resumeData.skills.tools.join(', ')}</span>
+                        </div>
+                        {resumeData.skills.domain.length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="font-semibold min-w-24">Domain:</span>
+                            <span>{resumeData.skills.domain.join(', ')}</span>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  )}
 
                   {/* Work Experience */}
-                  {resumeData.work_experience.length > 0 && (
+                  {sectionVisibility.experience && resumeData.work_experience.length > 0 && (
                     <section className="mb-6">
                       <SectionTitle icon={Briefcase} title="Experience" />
                       <div className="space-y-4">
@@ -460,7 +487,7 @@ const ResumeUpgradeNoAuth = () => {
                   )}
 
                   {/* Projects */}
-                  {resumeData.projects.length > 0 && (
+                  {sectionVisibility.projects && resumeData.projects.length > 0 && (
                     <section className="mb-6">
                       <SectionTitle icon={Code} title="Projects" />
                       <div className="space-y-3">
@@ -480,7 +507,7 @@ const ResumeUpgradeNoAuth = () => {
                   )}
 
                   {/* Education */}
-                  {resumeData.education.length > 0 && (
+                  {sectionVisibility.education && resumeData.education.length > 0 && (
                     <section className="mb-6">
                       <SectionTitle icon={GraduationCap} title="Education" />
                       <div className="space-y-2">
@@ -498,7 +525,7 @@ const ResumeUpgradeNoAuth = () => {
                   )}
 
                   {/* Certifications */}
-                  {resumeData.certifications.length > 0 && (
+                  {sectionVisibility.certifications && resumeData.certifications.length > 0 && (
                     <section>
                       <SectionTitle icon={Award} title="Certifications" />
                       <div className="space-y-1">
@@ -523,7 +550,7 @@ const ResumeUpgradeNoAuth = () => {
 
 // Helper Components
 const SectionTitle = ({ icon: Icon, title }: { icon: any; title: string }) => (
-  <h2 className="text-lg font-bold border-b border-gray-200 pb-1 mb-3 flex items-center gap-2">
+  <h2 className="text-lg font-bold border-b border-border pb-1 mb-3 flex items-center gap-2">
     <Icon className="w-4 h-4 text-primary" />
     {title}
   </h2>
