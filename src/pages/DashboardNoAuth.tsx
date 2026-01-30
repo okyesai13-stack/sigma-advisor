@@ -40,6 +40,8 @@ import {
   Brain,
   Send,
   FileUp,
+  Mic,
+  TrendingUp as TrendingUpIcon,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -592,7 +594,7 @@ const DashboardNoAuth = () => {
                       ))}
                     </div>
                     {/* Action Buttons */}
-                    <div className="flex gap-2 mt-4 pt-3 border-t border-border/50">
+                    <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/50">
                       <Button 
                         size="sm" 
                         variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"}
@@ -600,6 +602,15 @@ const DashboardNoAuth = () => {
                       >
                         <FileSearch className="w-4 h-4 mr-1" />
                         {interviewPrepJobIds.has(job.id) ? 'View Prep' : 'Interview Prep'}
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => navigate(`/mock-interview?jobId=${job.id}`)}
+                        className="border-primary/50 text-primary hover:bg-primary/10"
+                      >
+                        <Mic className="w-4 h-4 mr-1" />
+                        Mock Interview
                       </Button>
                       <Button 
                         size="sm" 
@@ -628,6 +639,23 @@ const DashboardNoAuth = () => {
             </div>
           </section>
         )}
+
+        {/* Career Trajectory CTA */}
+        <Card className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 mb-8">
+          <CardContent className="py-8 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 justify-center md:justify-start">
+                <TrendingUpIcon className="w-6 h-6 text-emerald-500" />
+                5-Year Career Trajectory
+              </h2>
+              <p className="text-muted-foreground">Visualize your career growth, salary projections, and skill milestones</p>
+            </div>
+            <Button size="lg" onClick={() => navigate('/career-trajectory')} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+              <TrendingUpIcon className="w-5 h-5" />
+              View Trajectory
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* Resume Upgrade CTA */}
         <Card className="bg-gradient-to-r from-violet-500/10 to-primary/10 mb-8">
