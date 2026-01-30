@@ -52,6 +52,36 @@ export type Database = {
           },
         ]
       }
+      career_trajectory_result: {
+        Row: {
+          created_at: string
+          id: string
+          industry_insights: Json | null
+          resume_id: string
+          salary_projections: Json | null
+          skill_milestones: Json | null
+          trajectory_data: Json
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          industry_insights?: Json | null
+          resume_id: string
+          salary_projections?: Json | null
+          skill_milestones?: Json | null
+          trajectory_data?: Json
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          industry_insights?: Json | null
+          resume_id?: string
+          salary_projections?: Json | null
+          skill_milestones?: Json | null
+          trajectory_data?: Json
+        }
+        Relationships: []
+      }
       chat_history: {
         Row: {
           content: string
@@ -277,6 +307,74 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "resume_store"
             referencedColumns: ["resume_id"]
+          },
+        ]
+      }
+      mock_interview_session: {
+        Row: {
+          answers: Json | null
+          company_name: string
+          completed_at: string | null
+          created_at: string
+          current_question_index: number | null
+          id: string
+          improvements: string[] | null
+          interview_type: string
+          job_id: string | null
+          job_title: string
+          overall_feedback: string | null
+          overall_score: number | null
+          questions: Json | null
+          resume_id: string
+          status: string
+          strengths: string[] | null
+          total_questions: number | null
+        }
+        Insert: {
+          answers?: Json | null
+          company_name: string
+          completed_at?: string | null
+          created_at?: string
+          current_question_index?: number | null
+          id?: string
+          improvements?: string[] | null
+          interview_type?: string
+          job_id?: string | null
+          job_title: string
+          overall_feedback?: string | null
+          overall_score?: number | null
+          questions?: Json | null
+          resume_id: string
+          status?: string
+          strengths?: string[] | null
+          total_questions?: number | null
+        }
+        Update: {
+          answers?: Json | null
+          company_name?: string
+          completed_at?: string | null
+          created_at?: string
+          current_question_index?: number | null
+          id?: string
+          improvements?: string[] | null
+          interview_type?: string
+          job_id?: string | null
+          job_title?: string
+          overall_feedback?: string | null
+          overall_score?: number | null
+          questions?: Json | null
+          resume_id?: string
+          status?: string
+          strengths?: string[] | null
+          total_questions?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mock_interview_session_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "job_matching_result"
+            referencedColumns: ["id"]
           },
         ]
       }
