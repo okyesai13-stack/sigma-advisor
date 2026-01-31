@@ -9,7 +9,6 @@ import {
   FileUp, 
   TrendingUp, 
   Brain,
-  Mic,
   ChevronRight,
   Zap,
 } from 'lucide-react';
@@ -59,19 +58,6 @@ const GuidanceSection = () => {
       badge: 'AI Powered',
       badgeVariant: 'outline' as const,
     },
-    {
-      id: 'interview',
-      title: 'Mock Interview',
-      description: 'Practice with AI-driven interview simulation',
-      icon: Mic,
-      gradient: 'from-amber-500/20 via-orange-500/10 to-red-500/20',
-      iconColor: 'text-amber-500',
-      borderColor: 'border-amber-500/30',
-      hoverBg: 'hover:bg-amber-500/5',
-      action: () => navigate('/mock-interview'),
-      badge: 'New',
-      badgeVariant: 'destructive' as const,
-    },
   ];
 
   return (
@@ -86,7 +72,7 @@ const GuidanceSection = () => {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid sm:grid-cols-3 gap-4">
         {guidanceOptions.map((option, index) => (
           <motion.div
             key={option.id}
