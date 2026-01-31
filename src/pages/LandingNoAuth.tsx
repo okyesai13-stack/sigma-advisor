@@ -114,10 +114,10 @@ const LandingNoAuth = () => {
           </Badge>
           
           <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            AI Career Clarity
+            Sigma Astrology
             <br />
             <span className="bg-gradient-to-r from-primary via-primary/80 to-primary/60 bg-clip-text text-transparent">
-              In One Flow
+              For Your Career Goal
             </span>
           </h1>
           
