@@ -29,7 +29,7 @@ const LandingNoAuth = () => {
     description: "See exactly where you stand and what to improve"
   }, {
     icon: Rocket,
-    title: "Learning Roadmap",
+    title: "Career Roadmap",
     description: "Step-by-step plan to reach your dream role"
   }];
   const handleViewResults = async () => {
