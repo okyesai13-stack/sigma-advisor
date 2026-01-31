@@ -46,6 +46,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 import CareerAnalysisSection from '@/components/dashboard/CareerAnalysisSection';
+import GuidanceSection from '@/components/dashboard/GuidanceSection';
 
 interface CareerRole {
   role: string;
@@ -281,12 +282,46 @@ const DashboardNoAuth = () => {
           <p className="text-muted-foreground">Goal: {goal}</p>
         </div>
 
+        {/* Quick Actions / Guidance Section - Now at the top */}
+        <GuidanceSection />
+
         {/* Career Analysis Insights Section */}
         <CareerAnalysisSection 
           overallAssessment={overallAssessment}
           careerRoadmap={careerRoadmap}
           skillAnalysis={skillAnalysisData}
         />
+
+        {/* 5-Year Career Trajectory - Moved above Career Progression */}
+        <section className="mb-8">
+          <Card className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border-emerald-500/20 overflow-hidden">
+            <CardContent className="py-6 px-6">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
+                    <TrendingUpIcon className="w-7 h-7 text-emerald-500" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
+                      5-Year Career Trajectory
+                      <Badge variant="secondary" className="text-xs">Interactive</Badge>
+                    </h2>
+                    <p className="text-muted-foreground">Visualize your career growth with salary projections and skill milestones</p>
+                  </div>
+                </div>
+                <Button 
+                  size="lg" 
+                  onClick={() => navigate('/career-trajectory')} 
+                  className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
+                >
+                  <TrendingUpIcon className="w-5 h-5" />
+                  View Trajectory
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
 
         {/* Career Progression */}
         <section className="mb-8">
@@ -639,53 +674,6 @@ const DashboardNoAuth = () => {
             </div>
           </section>
         )}
-
-        {/* Career Trajectory CTA */}
-        <Card className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 mb-8">
-          <CardContent className="py-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left">
-              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 justify-center md:justify-start">
-                <TrendingUpIcon className="w-6 h-6 text-emerald-500" />
-                5-Year Career Trajectory
-              </h2>
-              <p className="text-muted-foreground">Visualize your career growth, salary projections, and skill milestones</p>
-            </div>
-            <Button size="lg" onClick={() => navigate('/career-trajectory')} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-              <TrendingUpIcon className="w-5 h-5" />
-              View Trajectory
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Resume Upgrade CTA */}
-        <Card className="bg-gradient-to-r from-violet-500/10 to-primary/10 mb-8">
-          <CardContent className="py-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="text-center md:text-left">
-              <h2 className="text-xl font-bold mb-2 flex items-center gap-2 justify-center md:justify-start">
-                <FileUp className="w-6 h-6 text-primary" />
-                Upgrade Your Resume
-              </h2>
-              <p className="text-muted-foreground">Generate an ATS-optimized resume based on your analysis</p>
-            </div>
-            <Button size="lg" onClick={() => navigate('/resume-upgrade')} className="gap-2">
-              <Sparkles className="w-5 h-5" />
-              Build Resume
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Chat with Advisor CTA */}
-        <Card className="bg-gradient-to-r from-primary/10 to-primary/5">
-          <CardContent className="py-8 text-center">
-            <Sparkles className="w-12 h-12 text-primary mx-auto mb-4" />
-            <h2 className="text-xl font-bold mb-2">Need More Guidance?</h2>
-            <p className="text-muted-foreground mb-4">Chat with our AI Career Advisor for personalized advice</p>
-            <Button onClick={() => navigate('/advisor')}>
-              Chat with Advisor
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </CardContent>
-        </Card>
       </main>
     </div>
   );
