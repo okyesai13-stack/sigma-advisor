@@ -68,7 +68,7 @@ const AILearningHubNoAuth = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
-  const { resumeId } = useResume();
+  const { resumeId, isReady } = useResume();
   
   const skillId = searchParams.get('skillId');
   const skillName = searchParams.get('skill');
@@ -85,12 +85,14 @@ const AILearningHubNoAuth = () => {
   const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
   
   useEffect(() => {
+    if (!isReady) return;
+    
     if (!resumeId) {
       navigate('/setup');
       return;
     }
     loadLearningData();
-  }, [resumeId, skillId]);
+  }, [resumeId, skillId, isReady]);
 
   const loadLearningData = async () => {
     if (!resumeId) return;
@@ -148,7 +150,7 @@ const AILearningHubNoAuth = () => {
     }));
   };
 
-  if (isLoading) {
+  if (!isReady || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
