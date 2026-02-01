@@ -38,3 +38,15 @@ verify_jwt = false
 
 [functions.career-trajectory]
 verify_jwt = false
+
+[functions.learning-tutor]
+verify_jwt = false
+
+[functions.learning-quiz]
+verify_jwt = false
+
+[functions.learning-mindmap]
+verify_jwt = false
+
+[functions.learning-flowchart]
+verify_jwt = false

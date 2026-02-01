@@ -392,6 +392,18 @@ const DashboardNoAuth = () => {
                       </CollapsibleTrigger>
                       
                       <CollapsibleContent className="mt-4 space-y-4">
+                        {/* Learn with AI Button */}
+                        <Button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/ai-learning?skillId=${plan.id}&skill=${encodeURIComponent(plan.skill_name)}`);
+                          }}
+                          className="w-full gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+                        >
+                          <Brain className="w-4 h-4" />
+                          Learn with AI
+                        </Button>
+
                         {/* Courses */}
                         {(plan.recommended_courses as any[])?.length > 0 && <div>
                             <p className="text-sm font-medium mb-2 flex items-center gap-1">
