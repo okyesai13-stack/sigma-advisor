@@ -466,6 +466,14 @@ const DashboardNoAuth = () => {
                     <div className="flex flex-wrap gap-1 mt-3">
                       {project.skills_demonstrated?.slice(0, 3).map((skill, i) => <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>)}
                     </div>
+                    {/* Build Button */}
+                    <Button 
+                      onClick={() => navigate(`/project-builder?projectId=${project.id}`)}
+                      className="w-full mt-4 gap-2 bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:to-primary/90"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Build with AI
+                    </Button>
                   </CardContent>
                 </Card>)}
             </div>
