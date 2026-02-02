@@ -7,7 +7,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
   ArrowLeft, 
@@ -17,7 +16,6 @@ import {
   Target,
   CheckCircle2,
   Circle,
-  Send,
   Sparkles,
   BookOpen,
   Video,
@@ -26,16 +24,17 @@ import {
   Trophy,
   Zap,
   RefreshCw,
-  HelpCircle,
   ChevronRight,
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import MindMapVisualization from '@/components/learning-hub/MindMapVisualization';
 import LearningFlowchart from '@/components/learning-hub/LearningFlowchart';
 import InteractiveQuiz from '@/components/learning-hub/InteractiveQuiz';
 import AITutorChat from '@/components/learning-hub/AITutorChat';
+import { useLearningContent } from '@/hooks/useLearningContent';
+import type { MindMapNode, LearningStep, QuizQuestion } from '@/hooks/useLearningContent';
 
 interface LearningPlan {
   id: string;
@@ -73,6 +72,20 @@ const AILearningHubNoAuth = () => {
   const skillId = searchParams.get('skillId');
   const skillName = searchParams.get('skill');
   
+  const currentSkill = skillName || 'Skill';
+  
+  // Use the learning content hook to persist data
+  const { 
+    content: savedContent, 
+    isLoading: isContentLoading,
+    saveMindMap,
+    markMindMapComplete,
+    saveFlowchart,
+    markFlowchartComplete,
+    saveQuiz,
+    saveQuizResult
+  } = useLearningContent(resumeId, skillId, currentSkill);
+  
   const [learningPlan, setLearningPlan] = useState<LearningPlan | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
@@ -83,6 +96,25 @@ const AILearningHubNoAuth = () => {
     timeSpent: 0
   });
   const [completedSections, setCompletedSections] = useState<Set<string>>(new Set());
+  
+  // Load initial completion state from saved content
+  useEffect(() => {
+    if (savedContent) {
+      const sections = new Set<string>();
+      if (savedContent.mind_map_completed) sections.add('mindmap');
+      if (savedContent.flowchart_completed) sections.add('flowchart');
+      if (savedContent.quiz_completed) sections.add('quiz');
+      setCompletedSections(sections);
+      
+      if (savedContent.quiz_score !== null) {
+        setProgress(prev => ({
+          ...prev,
+          quizScore: savedContent.quiz_score!,
+          completedTopics: sections.size
+        }));
+      }
+    }
+  }, [savedContent]);
   
   useEffect(() => {
     if (!isReady) return;
@@ -127,7 +159,7 @@ const AILearningHubNoAuth = () => {
     }
   };
 
-  const markSectionComplete = (section: string) => {
+  const markSectionComplete = async (section: string) => {
     setCompletedSections(prev => {
       const newSet = new Set(prev);
       newSet.add(section);
@@ -137,17 +169,64 @@ const AILearningHubNoAuth = () => {
       ...prev,
       completedTopics: prev.completedTopics + 1
     }));
+    
+    // Persist to database
+    try {
+      if (section === 'mindmap') {
+        await markMindMapComplete();
+      } else if (section === 'flowchart' || section.startsWith('step-')) {
+        // Mark flowchart complete when all steps or explicitly marked
+        if (section === 'flowchart') {
+          await markFlowchartComplete();
+        }
+      }
+    } catch (error) {
+      console.error('Error saving section completion:', error);
+    }
+    
     toast({
       title: "Progress Saved!",
       description: `Completed: ${section}`,
     });
   };
 
-  const updateQuizScore = (score: number) => {
+  const updateQuizScore = async (score: number) => {
     setProgress(prev => ({
       ...prev,
       quizScore: Math.max(prev.quizScore, score)
     }));
+    
+    // Save quiz result to database
+    try {
+      await saveQuizResult(score);
+    } catch (error) {
+      console.error('Error saving quiz score:', error);
+    }
+  };
+  
+  // Handlers for saving AI-generated content
+  const handleMindMapGenerated = async (data: MindMapNode) => {
+    try {
+      await saveMindMap(data);
+    } catch (error) {
+      console.error('Error saving mind map:', error);
+    }
+  };
+  
+  const handleFlowchartGenerated = async (data: LearningStep[]) => {
+    try {
+      await saveFlowchart(data);
+    } catch (error) {
+      console.error('Error saving flowchart:', error);
+    }
+  };
+  
+  const handleQuizGenerated = async (data: QuizQuestion[]) => {
+    try {
+      await saveQuiz(data);
+    } catch (error) {
+      console.error('Error saving quiz:', error);
+    }
   };
 
   if (!isReady || isLoading) {
@@ -161,7 +240,7 @@ const AILearningHubNoAuth = () => {
     );
   }
 
-  const currentSkill = skillName || learningPlan?.skill_name || 'Skill';
+  const displaySkill = skillName || learningPlan?.skill_name || 'Skill';
   const progressPercentage = (progress.completedTopics / progress.totalTopics) * 100;
 
   return (
@@ -424,6 +503,8 @@ const AILearningHubNoAuth = () => {
               skillName={currentSkill} 
               onComplete={() => markSectionComplete('mindmap')}
               isCompleted={completedSections.has('mindmap')}
+              savedData={savedContent?.mind_map_data}
+              onDataGenerated={handleMindMapGenerated}
             />
           </TabsContent>
 
@@ -433,6 +514,8 @@ const AILearningHubNoAuth = () => {
               skillName={currentSkill}
               onStepComplete={(step) => markSectionComplete(`step-${step}`)}
               completedSteps={Array.from(completedSections).filter(s => s.startsWith('step-')).map(s => parseInt(s.replace('step-', '')))}
+              savedData={savedContent?.flowchart_data}
+              onDataGenerated={handleFlowchartGenerated}
             />
           </TabsContent>
 
@@ -444,6 +527,9 @@ const AILearningHubNoAuth = () => {
                 updateQuizScore(score);
                 markSectionComplete('quiz');
               }}
+              savedData={savedContent?.quiz_data}
+              savedScore={savedContent?.quiz_score}
+              onDataGenerated={handleQuizGenerated}
             />
           </TabsContent>
 

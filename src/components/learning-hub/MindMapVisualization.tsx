@@ -6,30 +6,37 @@ import { Network, CheckCircle2, RefreshCw, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface MindMapNode {
-  id: string;
-  label: string;
-  children?: MindMapNode[];
-  description?: string;
-}
+import type { MindMapNode } from '@/hooks/useLearningContent';
 
 interface MindMapVisualizationProps {
   skillName: string;
   onComplete: () => void;
   isCompleted: boolean;
+  savedData?: MindMapNode | null;
+  onDataGenerated?: (data: MindMapNode) => void;
 }
 
-const MindMapVisualization = ({ skillName, onComplete, isCompleted }: MindMapVisualizationProps) => {
+const MindMapVisualization = ({ 
+  skillName, 
+  onComplete, 
+  isCompleted, 
+  savedData, 
+  onDataGenerated 
+}: MindMapVisualizationProps) => {
   const { toast } = useToast();
-  const [mindMapData, setMindMapData] = useState<MindMapNode | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [mindMapData, setMindMapData] = useState<MindMapNode | null>(savedData || null);
+  const [isLoading, setIsLoading] = useState(!savedData);
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set(['root']));
   const [selectedNode, setSelectedNode] = useState<MindMapNode | null>(null);
 
   useEffect(() => {
-    generateMindMap();
-  }, [skillName]);
+    if (savedData) {
+      setMindMapData(savedData);
+      setIsLoading(false);
+    } else {
+      generateMindMap();
+    }
+  }, [skillName, savedData]);
 
   const generateMindMap = async () => {
     setIsLoading(true);
@@ -42,9 +49,10 @@ const MindMapVisualization = ({ skillName, onComplete, isCompleted }: MindMapVis
 
       if (data?.mindmap) {
         setMindMapData(data.mindmap);
+        onDataGenerated?.(data.mindmap);
       } else {
         // Fallback structure
-        setMindMapData({
+        const fallbackData: MindMapNode = {
           id: 'root',
           label: skillName,
           children: [
@@ -85,7 +93,9 @@ const MindMapVisualization = ({ skillName, onComplete, isCompleted }: MindMapVis
               ]
             }
           ]
-        });
+        };
+        setMindMapData(fallbackData);
+        onDataGenerated?.(fallbackData);
       }
     } catch (error) {
       console.error('Error generating mind map:', error);
@@ -94,7 +104,7 @@ const MindMapVisualization = ({ skillName, onComplete, isCompleted }: MindMapVis
         description: "AI-generated mind map unavailable",
       });
       // Set fallback
-      setMindMapData({
+      const fallbackData: MindMapNode = {
         id: 'root',
         label: skillName,
         children: [
@@ -103,7 +113,9 @@ const MindMapVisualization = ({ skillName, onComplete, isCompleted }: MindMapVis
           { id: 'practice', label: 'Practice Projects' },
           { id: 'advanced', label: 'Advanced Topics' }
         ]
-      });
+      };
+      setMindMapData(fallbackData);
+      onDataGenerated?.(fallbackData);
     } finally {
       setIsLoading(false);
     }

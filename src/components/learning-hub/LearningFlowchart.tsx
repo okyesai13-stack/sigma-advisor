@@ -3,33 +3,39 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { GitBranch, CheckCircle2, Circle, ArrowDown, Loader2, RefreshCw } from 'lucide-react';
+import { GitBranch, CheckCircle2, Circle, Loader2, RefreshCw } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface LearningStep {
-  id: number;
-  title: string;
-  description: string;
-  duration: string;
-  resources?: string[];
-}
+import type { LearningStep } from '@/hooks/useLearningContent';
 
 interface LearningFlowchartProps {
   skillName: string;
   onStepComplete: (step: number) => void;
   completedSteps: number[];
+  savedData?: LearningStep[] | null;
+  onDataGenerated?: (data: LearningStep[]) => void;
 }
 
-const LearningFlowchart = ({ skillName, onStepComplete, completedSteps }: LearningFlowchartProps) => {
+const LearningFlowchart = ({ 
+  skillName, 
+  onStepComplete, 
+  completedSteps, 
+  savedData, 
+  onDataGenerated 
+}: LearningFlowchartProps) => {
   const { toast } = useToast();
-  const [steps, setSteps] = useState<LearningStep[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [steps, setSteps] = useState<LearningStep[]>(savedData || []);
+  const [isLoading, setIsLoading] = useState(!savedData || savedData.length === 0);
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
-    generateFlowchart();
+    if (savedData && savedData.length > 0) {
+      setSteps(savedData);
+      setIsLoading(false);
+    } else {
+      generateFlowchart();
+    }
   }, [skillName]);
 
   useEffect(() => {
@@ -49,9 +55,10 @@ const LearningFlowchart = ({ skillName, onStepComplete, completedSteps }: Learni
 
       if (data?.steps && Array.isArray(data.steps)) {
         setSteps(data.steps);
+        onDataGenerated?.(data.steps);
       } else {
         // Fallback steps
-        setSteps([
+        const fallbackSteps: LearningStep[] = [
           {
             id: 0,
             title: 'Foundation',
@@ -87,18 +94,22 @@ const LearningFlowchart = ({ skillName, onStepComplete, completedSteps }: Learni
             duration: 'Ongoing',
             resources: ['Advanced tutorials', 'Community forums']
           }
-        ]);
+        ];
+        setSteps(fallbackSteps);
+        onDataGenerated?.(fallbackSteps);
       }
     } catch (error) {
       console.error('Error generating flowchart:', error);
       // Set fallback
-      setSteps([
+      const fallbackSteps: LearningStep[] = [
         { id: 0, title: 'Learn Basics', description: 'Start with fundamentals', duration: '1 week' },
         { id: 1, title: 'Practice', description: 'Hands-on exercises', duration: '2 weeks' },
         { id: 2, title: 'Build Projects', description: 'Apply your knowledge', duration: '3 weeks' },
         { id: 3, title: 'Advanced Topics', description: 'Deep dive into complex concepts', duration: '2 weeks' },
         { id: 4, title: 'Mastery', description: 'Continuous improvement', duration: 'Ongoing' }
-      ]);
+      ];
+      setSteps(fallbackSteps);
+      onDataGenerated?.(fallbackSteps);
     } finally {
       setIsLoading(false);
     }
@@ -112,7 +123,7 @@ const LearningFlowchart = ({ skillName, onStepComplete, completedSteps }: Learni
     });
   };
 
-  const progressPercentage = (completedSteps.length / steps.length) * 100;
+  const progressPercentage = steps.length > 0 ? (completedSteps.length / steps.length) * 100 : 0;
 
   if (isLoading) {
     return (
@@ -169,7 +180,6 @@ const LearningFlowchart = ({ skillName, onStepComplete, completedSteps }: Learni
             {steps.map((step, index) => {
               const isCompleted = completedSteps.includes(step.id);
               const isCurrent = step.id === currentStep;
-              const isLocked = step.id > currentStep && !isCompleted;
 
               return (
                 <motion.div
@@ -268,7 +278,7 @@ const LearningFlowchart = ({ skillName, onStepComplete, completedSteps }: Learni
             })}
 
             {/* Completion Message */}
-            {completedSteps.length === steps.length && (
+            {completedSteps.length === steps.length && steps.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}

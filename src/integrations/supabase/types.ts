@@ -266,6 +266,62 @@ export type Database = {
           },
         ]
       }
+      learning_content: {
+        Row: {
+          created_at: string
+          flowchart_completed: boolean
+          flowchart_data: Json | null
+          id: string
+          mind_map_completed: boolean
+          mind_map_data: Json | null
+          quiz_completed: boolean
+          quiz_data: Json | null
+          quiz_score: number | null
+          resume_id: string
+          skill_id: string
+          skill_name: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          flowchart_completed?: boolean
+          flowchart_data?: Json | null
+          id?: string
+          mind_map_completed?: boolean
+          mind_map_data?: Json | null
+          quiz_completed?: boolean
+          quiz_data?: Json | null
+          quiz_score?: number | null
+          resume_id: string
+          skill_id: string
+          skill_name: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          flowchart_completed?: boolean
+          flowchart_data?: Json | null
+          id?: string
+          mind_map_completed?: boolean
+          mind_map_data?: Json | null
+          quiz_completed?: boolean
+          quiz_data?: Json | null
+          quiz_score?: number | null
+          resume_id?: string
+          skill_id?: string
+          skill_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_content_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "learning_plan_result"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       learning_plan_result: {
         Row: {
           career_title: string | null

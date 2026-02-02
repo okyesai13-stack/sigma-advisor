@@ -16,32 +16,41 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-
-interface QuizQuestion {
-  id: number;
-  question: string;
-  options: string[];
-  correctAnswer: number;
-  explanation: string;
-}
+import type { QuizQuestion } from '@/hooks/useLearningContent';
 
 interface InteractiveQuizProps {
   skillName: string;
   onComplete: (score: number) => void;
+  savedData?: QuizQuestion[] | null;
+  savedScore?: number | null;
+  onDataGenerated?: (data: QuizQuestion[]) => void;
 }
 
-const InteractiveQuiz = ({ skillName, onComplete }: InteractiveQuizProps) => {
+const InteractiveQuiz = ({ 
+  skillName, 
+  onComplete, 
+  savedData, 
+  savedScore, 
+  onDataGenerated 
+}: InteractiveQuizProps) => {
   const { toast } = useToast();
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [questions, setQuestions] = useState<QuizQuestion[]>(savedData || []);
+  const [isLoading, setIsLoading] = useState(!savedData || savedData.length === 0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [answers, setAnswers] = useState<(number | null)[]>([]);
   const [quizCompleted, setQuizCompleted] = useState(false);
+  const [bestScore, setBestScore] = useState<number | null>(savedScore || null);
 
   useEffect(() => {
-    generateQuiz();
+    if (savedData && savedData.length > 0) {
+      setQuestions(savedData);
+      setAnswers(new Array(savedData.length).fill(null));
+      setIsLoading(false);
+    } else {
+      generateQuiz();
+    }
   }, [skillName]);
 
   const generateQuiz = async () => {
@@ -62,9 +71,10 @@ const InteractiveQuiz = ({ skillName, onComplete }: InteractiveQuizProps) => {
       if (data?.questions && Array.isArray(data.questions)) {
         setQuestions(data.questions);
         setAnswers(new Array(data.questions.length).fill(null));
+        onDataGenerated?.(data.questions);
       } else {
         // Fallback questions
-        const fallbackQuestions = [
+        const fallbackQuestions: QuizQuestion[] = [
           {
             id: 0,
             question: `What is a key benefit of learning ${skillName}?`,
@@ -128,6 +138,7 @@ const InteractiveQuiz = ({ skillName, onComplete }: InteractiveQuizProps) => {
         ];
         setQuestions(fallbackQuestions);
         setAnswers(new Array(fallbackQuestions.length).fill(null));
+        onDataGenerated?.(fallbackQuestions);
       }
     } catch (error) {
       console.error('Error generating quiz:', error);
@@ -167,13 +178,19 @@ const InteractiveQuiz = ({ skillName, onComplete }: InteractiveQuizProps) => {
         ? correctCount + 1 
         : correctCount;
       const score = Math.round((finalCorrectCount / questions.length) * 100);
+      
+      // Update best score if this is better
+      if (bestScore === null || score > bestScore) {
+        setBestScore(score);
+      }
+      
       onComplete(score);
     }
   };
 
   const currentQuestion = questions[currentQuestionIndex];
   const isCorrect = selectedAnswer === currentQuestion?.correctAnswer;
-  const progressPercentage = ((currentQuestionIndex + 1) / questions.length) * 100;
+  const progressPercentage = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
   
   // Calculate final score
   const calculateScore = () => {
@@ -213,10 +230,15 @@ const InteractiveQuiz = ({ skillName, onComplete }: InteractiveQuizProps) => {
               {finalScore}%
             </span>
           </p>
-          <p className="text-muted-foreground mb-6">
+          <p className="text-muted-foreground mb-2">
             You got {answers.filter((a, i) => a === questions[i]?.correctAnswer).length} out of {questions.length} questions correct
           </p>
-          <div className="flex justify-center gap-4">
+          {bestScore !== null && bestScore !== finalScore && (
+            <p className="text-sm text-muted-foreground mb-6">
+              Best Score: {bestScore}%
+            </p>
+          )}
+          <div className="flex justify-center gap-4 mt-6">
             <Button variant="outline" onClick={generateQuiz}>
               <RefreshCw className="w-4 h-4 mr-2" />
               Try Again
@@ -240,9 +262,16 @@ const InteractiveQuiz = ({ skillName, onComplete }: InteractiveQuizProps) => {
             <Target className="w-5 h-5 text-primary" />
             Knowledge Check
           </CardTitle>
-          <Badge variant="outline">
-            Question {currentQuestionIndex + 1} of {questions.length}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {bestScore !== null && (
+              <Badge variant="secondary" className="text-xs">
+                Best: {bestScore}%
+              </Badge>
+            )}
+            <Badge variant="outline">
+              Question {currentQuestionIndex + 1} of {questions.length}
+            </Badge>
+          </div>
         </div>
         <Progress value={progressPercentage} className="h-2 mt-4" />
       </CardHeader>
