@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.learning-flowchart]
 verify_jwt = false
+
+[functions.project-builder]
+verify_jwt = false

@@ -378,6 +378,77 @@ export type Database = {
           },
         ]
       }
+      project_build_session: {
+        Row: {
+          ai_guidance_history: Json
+          code_snippets: Json
+          completed_at: string | null
+          completed_tasks: Json
+          created_at: string
+          current_phase: number
+          current_task_index: number
+          id: string
+          phases: Json
+          progress_percentage: number
+          project_id: string
+          project_title: string
+          resume_id: string
+          skills_applied: string[] | null
+          started_at: string | null
+          status: string
+          total_phases: number
+          updated_at: string
+        }
+        Insert: {
+          ai_guidance_history?: Json
+          code_snippets?: Json
+          completed_at?: string | null
+          completed_tasks?: Json
+          created_at?: string
+          current_phase?: number
+          current_task_index?: number
+          id?: string
+          phases?: Json
+          progress_percentage?: number
+          project_id: string
+          project_title: string
+          resume_id: string
+          skills_applied?: string[] | null
+          started_at?: string | null
+          status?: string
+          total_phases?: number
+          updated_at?: string
+        }
+        Update: {
+          ai_guidance_history?: Json
+          code_snippets?: Json
+          completed_at?: string | null
+          completed_tasks?: Json
+          created_at?: string
+          current_phase?: number
+          current_task_index?: number
+          id?: string
+          phases?: Json
+          progress_percentage?: number
+          project_id?: string
+          project_title?: string
+          resume_id?: string
+          skills_applied?: string[] | null
+          started_at?: string | null
+          status?: string
+          total_phases?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_build_session_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "project_ideas_result"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       project_ideas_result: {
         Row: {
           budget: number | null

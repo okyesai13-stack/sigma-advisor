@@ -17,6 +17,7 @@ import ResumeUpgradeNoAuth from "./pages/ResumeUpgradeNoAuth";
 import MockInterviewNoAuth from "./pages/MockInterviewNoAuth";
 import CareerTrajectoryNoAuth from "./pages/CareerTrajectoryNoAuth";
 import AILearningHubNoAuth from "./pages/AILearningHubNoAuth";
+import ProjectBuilderNoAuth from "./pages/ProjectBuilderNoAuth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/mock-interview" element={<MockInterviewNoAuth />} />
             <Route path="/career-trajectory" element={<CareerTrajectoryNoAuth />} />
             <Route path="/ai-learning" element={<AILearningHubNoAuth />} />
+            <Route path="/project-builder" element={<ProjectBuilderNoAuth />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
