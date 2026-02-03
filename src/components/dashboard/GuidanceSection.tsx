@@ -1,63 +1,23 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
-  Sparkles, 
-  MessageCircle, 
   FileUp, 
-  TrendingUp, 
-  Brain,
   ChevronRight,
   Zap,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const GuidanceSection = () => {
   const navigate = useNavigate();
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
 
-  const guidanceOptions = [
-    {
-      id: 'advisor',
-      title: 'AI Career Advisor',
-      description: 'Get personalized career guidance through an intelligent conversation',
-      icon: MessageCircle,
-      gradient: 'from-violet-500/20 via-purple-500/10 to-primary/20',
-      iconColor: 'text-violet-500',
-      borderColor: 'border-violet-500/30',
-      hoverBg: 'hover:bg-violet-500/5',
-      action: () => navigate('/advisor'),
-      badge: 'Most Popular',
-      badgeVariant: 'default' as const,
-    },
-    {
-      id: 'trajectory',
-      title: '5-Year Career Trajectory',
-      description: 'Visualize your career growth with salary projections',
-      icon: TrendingUp,
-      gradient: 'from-emerald-500/20 via-teal-500/10 to-cyan-500/20',
-      iconColor: 'text-emerald-500',
-      borderColor: 'border-emerald-500/30',
-      hoverBg: 'hover:bg-emerald-500/5',
-      action: () => navigate('/career-trajectory'),
-      badge: 'Interactive',
-      badgeVariant: 'secondary' as const,
-    },
-    {
-      id: 'resume',
-      title: 'Upgrade Resume',
-      description: 'Generate an ATS-optimized resume instantly',
-      icon: FileUp,
-      gradient: 'from-blue-500/20 via-indigo-500/10 to-violet-500/20',
-      iconColor: 'text-blue-500',
-      borderColor: 'border-blue-500/30',
-      hoverBg: 'hover:bg-blue-500/5',
-      action: () => navigate('/resume-upgrade'),
-      badge: 'AI Powered',
-      badgeVariant: 'outline' as const,
-    },
+  const resumeFeatures = [
+    'ATS-optimized formatting',
+    'AI-enhanced content',
+    'One-click PDF export',
   ];
 
   return (
@@ -68,118 +28,96 @@ const GuidanceSection = () => {
         </div>
         <div>
           <h2 className="text-lg font-semibold">Quick Actions</h2>
-          <p className="text-sm text-muted-foreground">Choose your next step to accelerate your career</p>
+          <p className="text-sm text-muted-foreground">Accelerate your career journey</p>
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
-        {guidanceOptions.map((option, index) => (
-          <motion.div
-            key={option.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            onMouseEnter={() => setHoveredCard(option.id)}
-            onMouseLeave={() => setHoveredCard(null)}
-          >
-            <Card 
-              className={`
-                relative overflow-hidden cursor-pointer transition-all duration-300
-                bg-gradient-to-br ${option.gradient}
-                border ${option.borderColor}
-                ${option.hoverBg}
-                hover:shadow-lg hover:shadow-primary/5
-                hover:-translate-y-1
-                group
-              `}
-              onClick={option.action}
-            >
-              <CardContent className="p-5">
-                <div className="flex items-start justify-between mb-3">
-                  <motion.div 
-                    className={`p-2.5 rounded-xl bg-background/80 backdrop-blur-sm shadow-sm ${option.iconColor}`}
-                    animate={{ 
-                      scale: hoveredCard === option.id ? 1.1 : 1,
-                      rotate: hoveredCard === option.id ? 5 : 0
-                    }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <option.icon className="w-5 h-5" />
-                  </motion.div>
-                  <Badge variant={option.badgeVariant} className="text-xs">
-                    {option.badge}
-                  </Badge>
-                </div>
-
-                <h3 className="font-semibold text-foreground mb-1.5 group-hover:text-primary transition-colors">
-                  {option.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                  {option.description}
-                </p>
-
-                <div className="flex items-center text-sm font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity">
-                  Get Started
-                  <motion.div
-                    animate={{ x: hoveredCard === option.id ? 4 : 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
-                  >
-                    <ChevronRight className="w-4 h-4 ml-1" />
-                  </motion.div>
-                </div>
-              </CardContent>
-
-              {/* Animated shine effect */}
-              <motion.div 
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full"
-                animate={{ 
-                  translateX: hoveredCard === option.id ? '200%' : '-100%'
-                }}
-                transition={{ duration: 0.6, ease: "easeInOut" }}
-              />
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Featured AI Advisor Banner */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="mt-4"
+        transition={{ duration: 0.4 }}
       >
-        <Card className="bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 border-primary/20 overflow-hidden relative">
-          <CardContent className="py-5 px-6">
-            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="p-3 rounded-full bg-primary/20">
-                    <Sparkles className="w-6 h-6 text-primary" />
-                  </div>
+        <Card 
+          className="
+            relative overflow-hidden cursor-pointer transition-all duration-300
+            bg-gradient-to-br from-primary/15 via-violet-500/10 to-blue-500/15
+            border border-primary/30
+            hover:shadow-xl hover:shadow-primary/10
+            hover:-translate-y-1
+            group
+          "
+          onClick={() => navigate('/resume-upgrade')}
+        >
+          <CardContent className="p-6">
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
+              {/* Left side - Icon and content */}
+              <div className="flex-1">
+                <div className="flex items-start gap-4 mb-4">
                   <motion.div 
-                    className="absolute -inset-1 rounded-full bg-primary/20"
-                    animate={{ scale: [1, 1.2, 1], opacity: [0.5, 0, 0.5] }}
-                    transition={{ duration: 2, repeat: Infinity }}
-                  />
+                    className="p-3 rounded-xl bg-primary/20 text-primary shadow-lg shadow-primary/20"
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  >
+                    <FileUp className="w-6 h-6" />
+                  </motion.div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-xl text-foreground group-hover:text-primary transition-colors">
+                        Upgrade Your Resume
+                      </h3>
+                      <Badge className="bg-primary/20 text-primary border-primary/30 text-xs">
+                        <Sparkles className="w-3 h-3 mr-1" />
+                        AI Powered
+                      </Badge>
+                    </div>
+                    <p className="text-muted-foreground">
+                      Transform your resume into a professional, ATS-friendly document that gets noticed
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-bold text-lg">Not sure where to start?</h3>
-                  <p className="text-muted-foreground text-sm">
-                    Our AI advisor analyzes your profile and suggests the best next steps
-                  </p>
+
+                {/* Features list */}
+                <div className="flex flex-wrap gap-3 ml-16">
+                  {resumeFeatures.map((feature, index) => (
+                    <motion.div
+                      key={feature}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 + index * 0.1 }}
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground"
+                    >
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                      {feature}
+                    </motion.div>
+                  ))}
                 </div>
               </div>
-              <Button 
-                onClick={() => navigate('/advisor')}
-                className="gap-2 shadow-lg shadow-primary/20"
-                size="lg"
-              >
-                <Brain className="w-5 h-5" />
-                Ask AI Advisor
-              </Button>
+
+              {/* Right side - CTA button */}
+              <div className="flex items-center">
+                <Button 
+                  size="lg"
+                  className="gap-2 shadow-lg shadow-primary/20 group-hover:shadow-xl group-hover:shadow-primary/30 transition-all"
+                >
+                  Get Started
+                  <motion.div
+                    className="inline-flex"
+                    animate={{ x: [0, 4, 0] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </motion.div>
+                </Button>
+              </div>
             </div>
           </CardContent>
+
+          {/* Animated background gradient */}
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full pointer-events-none"
+            animate={{ translateX: ['100%', '-100%'] }}
+            transition={{ duration: 3, repeat: Infinity, ease: "linear", repeatDelay: 2 }}
+          />
         </Card>
       </motion.div>
     </section>
