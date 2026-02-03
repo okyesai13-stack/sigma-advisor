@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileSearch, Brain, Send, FileUp, Mic, TrendingUp as TrendingUpIcon } from 'lucide-react';
+import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileSearch, Brain, Send, FileUp, Mic, TrendingUp as TrendingUpIcon, MessageCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import CareerAnalysisSection from '@/components/dashboard/CareerAnalysisSection';
 import GuidanceSection from '@/components/dashboard/GuidanceSection';
@@ -232,6 +232,19 @@ const DashboardNoAuth = () => {
       </header>
 
       <main className="container mx-auto px-6 py-8">
+        {/* Sigma AI Advisor Button */}
+        <div className="mb-6">
+          <Button 
+            onClick={() => navigate('/advisor')}
+            size="lg"
+            className="w-full sm:w-auto gap-3 bg-gradient-to-r from-violet-600 via-primary to-violet-600 hover:from-violet-700 hover:via-primary/90 hover:to-violet-700 shadow-lg shadow-primary/25 text-lg py-6"
+          >
+            <MessageCircle className="w-5 h-5" />
+            Sigma AI Advisor
+            <ArrowRight className="w-5 h-5" />
+          </Button>
+        </div>
+
         {/* Goal & Summary */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-2">Your Career Roadmap</h1>
