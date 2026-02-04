@@ -91,10 +91,10 @@ const ProjectBuilderNoAuth = () => {
       return;
     }
 
-    generateBlueprint();
+    loadOrGenerateBlueprint();
   }, [resumeId, projectId, isReady]);
 
-  const generateBlueprint = async () => {
+  const loadOrGenerateBlueprint = async () => {
     if (!resumeId || !projectId) return;
     setIsLoading(true);
 
@@ -108,7 +108,53 @@ const ProjectBuilderNoAuth = () => {
 
       if (projectError) throw projectError;
 
-      // Generate blueprint via edge function
+      // Check if we already have a saved blueprint
+      const { data: existingSession } = await supabase
+        .from('project_build_session')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('resume_id', resumeId)
+        .maybeSingle();
+
+      if (existingSession && existingSession.phases) {
+        // Load existing blueprint from session
+        const savedBlueprint = existingSession.phases as any;
+        setBlueprint({
+          id: projectId,
+          title: projectData.title,
+          description: projectData.description || '',
+          difficulty: projectData.complexity || 'intermediate',
+          estimated_time: projectData.estimated_time || '2-3 weeks',
+          skills: projectData.skills_demonstrated || [],
+          overview: savedBlueprint.overview || '',
+          tech_stack: savedBlueprint.tech_stack || [],
+          file_structure: savedBlueprint.file_structure || '',
+          setup_steps: savedBlueprint.setup_steps || [],
+          core_features: savedBlueprint.core_features || [],
+          learning_resources: savedBlueprint.learning_resources || [],
+          next_steps: savedBlueprint.next_steps || []
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Generate new blueprint via edge function
+      await generateNewBlueprint(projectData);
+    } catch (error) {
+      console.error('Error loading blueprint:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load project blueprint",
+        variant: "destructive"
+      });
+      setIsLoading(false);
+    }
+  };
+
+  const generateNewBlueprint = async (projectData: any) => {
+    if (!resumeId || !projectId) return;
+
+    try {
       const response = await supabase.functions.invoke('project-builder', {
         body: {
           action: 'generate_blueprint',
@@ -122,7 +168,7 @@ const ProjectBuilderNoAuth = () => {
       
       const data = response.data;
       if (data.success && data.blueprint) {
-        setBlueprint({
+        const newBlueprint = {
           id: projectId,
           title: projectData.title,
           description: projectData.description || '',
@@ -130,7 +176,22 @@ const ProjectBuilderNoAuth = () => {
           estimated_time: projectData.estimated_time || '2-3 weeks',
           skills: projectData.skills_demonstrated || [],
           ...data.blueprint
-        });
+        };
+        setBlueprint(newBlueprint);
+
+        // Save blueprint to project_build_session for future loads
+        await supabase
+          .from('project_build_session')
+          .upsert({
+            resume_id: resumeId,
+            project_id: projectId,
+            project_title: projectData.title,
+            status: 'blueprint_ready',
+            current_phase: 1,
+            total_phases: 1,
+            phases: data.blueprint, // Store the full blueprint in phases field
+            skills_applied: projectData.skills_demonstrated || [],
+          }, { onConflict: 'project_id' });
       } else {
         throw new Error(data.error || 'Failed to generate blueprint');
       }
@@ -148,7 +209,18 @@ const ProjectBuilderNoAuth = () => {
 
   const regenerateBlueprint = async () => {
     setIsRegenerating(true);
-    await generateBlueprint();
+    
+    // Get project data first
+    const { data: projectData } = await supabase
+      .from('project_ideas_result')
+      .select('*')
+      .eq('id', projectId)
+      .single();
+
+    if (projectData) {
+      await generateNewBlueprint(projectData);
+    }
+    
     setIsRegenerating(false);
     toast({
       title: "Blueprint Regenerated",
