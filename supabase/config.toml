@@ -21,6 +21,9 @@ verify_jwt = false
 [functions.advisor-chat]
 verify_jwt = false
 
+[functions.advisor-chat-stream]
+verify_jwt = false
+
 [functions.landing-chat]
 verify_jwt = false
 
@@ -52,4 +55,10 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.project-builder]
+verify_jwt = false
+
+[functions.voice-interview]
+verify_jwt = false
+
+[functions.resume-image-parse]
 verify_jwt = false
