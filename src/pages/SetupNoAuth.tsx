@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
@@ -13,6 +14,8 @@ import {
   Sparkles,
   Target,
   Rocket,
+  Camera,
+  Image,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useResume } from "@/contexts/ResumeContext";
@@ -32,7 +35,9 @@ const SetupNoAuth = () => {
   const [goalText, setGoalText] = useState(goal || '');
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [uploadMode, setUploadMode] = useState<'file' | 'image'>('file');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const handleGoalSubmit = () => {
     if (!goalText.trim()) {
@@ -156,6 +161,81 @@ const SetupNoAuth = () => {
     }
   };
 
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/heic'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a JPEG, PNG, or WEBP image",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsUploading(true);
+    setFileName(file.name);
+
+    try {
+      // Convert image to base64
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
+      const imageBase64 = await base64Promise;
+
+      // Call the resume-image-parse edge function
+      const response = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/resume-image-parse`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            imageBase64,
+            fileName: file.name,
+            goal: goalText,
+            userType: userType,
+          }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to parse resume image');
+      }
+
+      // Store resume_id in context
+      setResumeId(result.resume_id);
+
+      toast({
+        title: "Resume Image Parsed!",
+        description: "AI successfully extracted your resume data. Redirecting...",
+      });
+
+      // Navigate to sigma page
+      setTimeout(() => {
+        navigate('/sigma');
+      }, 500);
+
+    } catch (error: unknown) {
+      console.error('Image upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to parse resume image';
+      toast({
+        title: "Parsing failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       {/* Header */}
@@ -259,42 +339,104 @@ const SetupNoAuth = () => {
               </p>
             </div>
 
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.txt"
-              onChange={handleResumeUpload}
-              className="hidden"
-            />
+            {/* Upload Mode Toggle */}
+            <Tabs value={uploadMode} onValueChange={(v) => setUploadMode(v as 'file' | 'image')} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="file" className="gap-2">
+                  <FileText className="w-4 h-4" />
+                  Upload File
+                </TabsTrigger>
+                <TabsTrigger value="image" className="gap-2">
+                  <Camera className="w-4 h-4" />
+                  Photo/Screenshot
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="file" className="mt-4">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.docx,.txt"
+                  onChange={handleResumeUpload}
+                  className="hidden"
+                />
 
-            <div 
-              onClick={() => !isUploading && fileInputRef.current?.click()}
-              className={`
-                border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
-                transition-all duration-200
-                ${isUploading ? 'border-primary bg-primary/5' : 'border-border hover:border-primary hover:bg-primary/5'}
-              `}
-            >
-              {isUploading ? (
-                <div className="space-y-4">
-                  <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
-                  <p className="text-lg font-medium">Processing {fileName}...</p>
-                  <p className="text-sm text-muted-foreground">Extracting your information with AI</p>
+                <div 
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  className={`
+                    border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
+                    transition-all duration-200
+                    ${isUploading ? 'border-primary bg-primary/5' : 'border-border hover:border-primary hover:bg-primary/5'}
+                  `}
+                >
+                  {isUploading ? (
+                    <div className="space-y-4">
+                      <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
+                      <p className="text-lg font-medium">Processing {fileName}...</p>
+                      <p className="text-sm text-muted-foreground">Extracting your information with AI</p>
+                    </div>
+                  ) : fileName && uploadMode === 'file' ? (
+                    <div className="space-y-4">
+                      <FileText className="w-12 h-12 text-primary mx-auto" />
+                      <p className="text-lg font-medium">{fileName}</p>
+                      <p className="text-sm text-muted-foreground">Click to upload a different file</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
+                      <p className="text-lg font-medium">Drop your resume here</p>
+                      <p className="text-sm text-muted-foreground">or click to browse (PDF, DOCX, TXT)</p>
+                    </div>
+                  )}
                 </div>
-              ) : fileName ? (
-                <div className="space-y-4">
-                  <FileText className="w-12 h-12 text-primary mx-auto" />
-                  <p className="text-lg font-medium">{fileName}</p>
-                  <p className="text-sm text-muted-foreground">Click to upload a different file</p>
+              </TabsContent>
+              
+              <TabsContent value="image" className="mt-4">
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/heic"
+                  capture="environment"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                />
+
+                <div 
+                  onClick={() => !isUploading && imageInputRef.current?.click()}
+                  className={`
+                    border-2 border-dashed rounded-xl p-12 text-center cursor-pointer
+                    transition-all duration-200
+                    ${isUploading ? 'border-primary bg-primary/5' : 'border-border hover:border-primary hover:bg-primary/5'}
+                  `}
+                >
+                  {isUploading ? (
+                    <div className="space-y-4">
+                      <Loader2 className="w-12 h-12 text-primary mx-auto animate-spin" />
+                      <p className="text-lg font-medium">Analyzing image with AI Vision...</p>
+                      <p className="text-sm text-muted-foreground">Gemini is extracting text from your resume</p>
+                    </div>
+                  ) : fileName && uploadMode === 'image' ? (
+                    <div className="space-y-4">
+                      <Image className="w-12 h-12 text-primary mx-auto" />
+                      <p className="text-lg font-medium">{fileName}</p>
+                      <p className="text-sm text-muted-foreground">Click to upload a different image</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <Camera className="w-12 h-12 text-muted-foreground mx-auto" />
+                      <p className="text-lg font-medium">Take a photo or upload an image</p>
+                      <p className="text-sm text-muted-foreground">
+                        AI Vision will extract text from your resume image
+                      </p>
+                      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                        <Sparkles className="w-3 h-3" />
+                        <span>Powered by Gemini 3 Vision</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="space-y-4">
-                  <Upload className="w-12 h-12 text-muted-foreground mx-auto" />
-                  <p className="text-lg font-medium">Drop your resume here</p>
-                  <p className="text-sm text-muted-foreground">or click to browse (PDF, DOCX, TXT)</p>
-                </div>
-              )}
-            </div>
+              </TabsContent>
+            </Tabs>
 
             <Button 
               variant="outline" 

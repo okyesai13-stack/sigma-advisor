@@ -139,22 +139,77 @@ const AdvisorNoAuth = () => {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke("advisor-chat", {
-        body: { 
-          message: messageToSend, 
-          resume_id: resumeId
-        },
-      });
+      // Use streaming endpoint
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/advisor-chat-stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ 
+            message: messageToSend, 
+            resume_id: resumeId
+          }),
+        }
+      );
 
-      if (error) throw error;
-
-      if (data?.response) {
-        const aiResponse: Message = {
-          role: "assistant",
-          content: data.response,
-        };
-        setMessages((prev) => [...prev, aiResponse]);
+      if (!response.ok) {
+        throw new Error('Failed to get response');
       }
+
+      // Handle streaming response
+      const reader = response.body!.getReader();
+      const decoder = new TextDecoder();
+      let assistantContent = '';
+      let textBuffer = '';
+
+      // Add initial empty assistant message
+      setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        textBuffer += decoder.decode(value, { stream: true });
+
+        // Process line-by-line
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf('\n')) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+
+          if (line.endsWith('\r')) line = line.slice(0, -1);
+          if (line.startsWith(':') || line.trim() === '') continue;
+          if (!line.startsWith('data: ')) continue;
+
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === '[DONE]') break;
+
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              assistantContent += content;
+              // Update the last message with new content
+              setMessages((prev) => {
+                const updated = [...prev];
+                const lastIndex = updated.length - 1;
+                if (updated[lastIndex]?.role === 'assistant') {
+                  updated[lastIndex] = { ...updated[lastIndex], content: formatMessage(assistantContent) };
+                }
+                return updated;
+              });
+            }
+          } catch {
+            // Continue if JSON parse fails (incomplete chunk)
+            textBuffer = line + '\n' + textBuffer;
+            break;
+          }
+        }
+      }
+
     } catch (error) {
       console.error("Failed to get response:", error);
       toast({
@@ -162,6 +217,8 @@ const AdvisorNoAuth = () => {
         description: "Failed to get response. Please try again.",
         variant: "destructive"
       });
+      // Remove the empty assistant message if error
+      setMessages((prev) => prev.filter((_, i) => i !== prev.length - 1 || prev[prev.length - 1].content !== ''));
     } finally {
       setIsLoading(false);
     }

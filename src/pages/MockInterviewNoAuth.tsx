@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Sparkles, 
   ArrowLeft, 
@@ -23,10 +24,14 @@ import {
   RefreshCw,
   ChevronRight,
   Lightbulb,
-  AlertCircle
+  AlertCircle,
+  Keyboard,
+  Volume2
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import VoiceRecorder from '@/components/interview/VoiceRecorder';
+import { useVoiceRecording } from '@/hooks/useVoiceRecording';
 
 interface Question {
   question: string;
@@ -73,6 +78,18 @@ const MockInterviewNoAuth = () => {
   const [isTimerActive, setIsTimerActive] = useState(false);
   const [jobInfo, setJobInfo] = useState<{ title: string; company: string } | null>(null);
   const [allAnswers, setAllAnswers] = useState<{ question: Question; answer: string; evaluation: Evaluation }[]>([]);
+  const [answerMode, setAnswerMode] = useState<'text' | 'voice'>('text');
+  const [voiceAnalysis, setVoiceAnalysis] = useState<any>(null);
+
+  // Voice recording hook
+  const voiceRecording = useVoiceRecording({
+    onTranscript: (text) => {
+      setAnswer(text);
+    },
+    onFinalTranscript: (text) => {
+      setAnswer(text);
+    },
+  });
 
   useEffect(() => {
     if (!resumeId || !jobId) {
@@ -153,9 +170,38 @@ const MockInterviewNoAuth = () => {
     if (!answer.trim() || !sessionId) return;
 
     setIsTimerActive(false);
+    
+    // Stop voice recording if active
+    if (voiceRecording.isRecording) {
+      voiceRecording.stopRecording();
+    }
+    
     setState('evaluating');
 
     try {
+      // If using voice mode, also get voice analysis
+      let voiceAnalysisResult = null;
+      if (answerMode === 'voice' && voiceRecording.transcription) {
+        const voiceResponse = await fetch(
+          'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/voice-interview',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'analyze_voice',
+              session_id: sessionId,
+              transcript: answer.trim(),
+              question: currentQuestion?.question,
+            }),
+          }
+        );
+        const voiceResult = await voiceResponse.json();
+        if (voiceResult.success) {
+          voiceAnalysisResult = voiceResult.analysis;
+          setVoiceAnalysis(voiceAnalysisResult);
+        }
+      }
+
       const response = await fetch(
         'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/mock-interview',
         {
@@ -230,6 +276,8 @@ const MockInterviewNoAuth = () => {
       setTimeRemaining(questions[nextIndex].time_limit_seconds || 120);
       setAnswer('');
       setEvaluation(null);
+      setVoiceAnalysis(null);
+      voiceRecording.setTranscription('');
       setState('ready');
     }
   };
@@ -467,26 +515,60 @@ const MockInterviewNoAuth = () => {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <h2 className="text-lg font-semibold line-clamp-2">{currentQuestion.question}</h2>
-                    <div className={`flex items-center gap-2 font-mono ${timeRemaining < 30 ? 'text-rose-500' : 'text-muted-foreground'}`}>
+                    <div className={`flex items-center gap-2 font-mono ${timeRemaining < 30 ? 'text-destructive' : 'text-muted-foreground'}`}>
                       <Clock className="w-4 h-4" />
                       <span className="text-xl">{formatTime(timeRemaining)}</span>
                     </div>
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <Textarea
-                    ref={textareaRef}
-                    value={answer}
-                    onChange={(e) => setAnswer(e.target.value)}
-                    placeholder="Type your answer here... Be detailed and specific."
-                    className="min-h-[200px] resize-none mb-4"
-                  />
+                  {/* Answer Mode Toggle */}
+                  <Tabs value={answerMode} onValueChange={(v) => setAnswerMode(v as 'text' | 'voice')} className="mb-4">
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="text" className="gap-2">
+                        <Keyboard className="w-4 h-4" />
+                        Type Answer
+                      </TabsTrigger>
+                      <TabsTrigger value="voice" className="gap-2" disabled={!voiceRecording.isSupported}>
+                        <Mic className="w-4 h-4" />
+                        Voice Answer
+                        {!voiceRecording.isSupported && <span className="text-xs">(Not supported)</span>}
+                      </TabsTrigger>
+                    </TabsList>
+                    
+                    <TabsContent value="text" className="mt-4">
+                      <Textarea
+                        ref={textareaRef}
+                        value={answer}
+                        onChange={(e) => setAnswer(e.target.value)}
+                        placeholder="Type your answer here... Be detailed and specific."
+                        className="min-h-[200px] resize-none mb-4"
+                      />
+                    </TabsContent>
+                    
+                    <TabsContent value="voice" className="mt-4">
+                      <VoiceRecorder
+                        isRecording={voiceRecording.isRecording}
+                        onStartRecording={voiceRecording.startRecording}
+                        onStopRecording={voiceRecording.stopRecording}
+                        transcription={voiceRecording.transcription || answer}
+                        isTranscribing={voiceRecording.isTranscribing}
+                        audioLevel={voiceRecording.audioLevel}
+                      />
+                      {voiceRecording.error && (
+                        <p className="text-destructive text-sm mt-2">{voiceRecording.error}</p>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                   
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">
                       {answer.length} characters
+                      {answerMode === 'voice' && voiceRecording.isRecording && (
+                        <span className="ml-2 text-destructive">● Recording...</span>
+                      )}
                     </p>
-                    <Button onClick={submitAnswer} disabled={!answer.trim()}>
+                    <Button onClick={submitAnswer} disabled={!answer.trim() || voiceRecording.isRecording}>
                       <Send className="w-4 h-4 mr-2" />
                       Submit Answer
                     </Button>
@@ -537,7 +619,7 @@ const MockInterviewNoAuth = () => {
 
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
-                      <div className="flex items-center gap-2 mb-2 text-sm font-medium text-emerald-500">
+                      <div className="flex items-center gap-2 mb-2 text-sm font-medium text-success">
                         <CheckCircle2 className="w-4 h-4" />
                         Strengths
                       </div>
@@ -548,7 +630,7 @@ const MockInterviewNoAuth = () => {
                       </ul>
                     </div>
                     <div>
-                      <div className="flex items-center gap-2 mb-2 text-sm font-medium text-amber-500">
+                      <div className="flex items-center gap-2 mb-2 text-sm font-medium text-warning">
                         <AlertCircle className="w-4 h-4" />
                         Improvements
                       </div>
@@ -559,6 +641,39 @@ const MockInterviewNoAuth = () => {
                       </ul>
                     </div>
                   </div>
+
+                  {/* Voice Analysis Feedback */}
+                  {voiceAnalysis && (
+                    <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
+                      <div className="flex items-center gap-2 mb-3 text-sm font-medium text-primary">
+                        <Volume2 className="w-4 h-4" />
+                        Communication Analysis
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
+                        <div className="text-center p-2 rounded bg-background">
+                          <div className="text-2xl font-bold text-primary">{voiceAnalysis.clarity_score}/10</div>
+                          <div className="text-xs text-muted-foreground">Clarity</div>
+                        </div>
+                        <div className="text-center p-2 rounded bg-background">
+                          <div className="text-2xl font-bold text-primary">{voiceAnalysis.confidence_score}/10</div>
+                          <div className="text-xs text-muted-foreground">Confidence</div>
+                        </div>
+                        <div className="text-center p-2 rounded bg-background">
+                          <div className="text-2xl font-bold text-primary">{voiceAnalysis.structure_score}/10</div>
+                          <div className="text-xs text-muted-foreground">Structure</div>
+                        </div>
+                        <div className="text-center p-2 rounded bg-background">
+                          <div className="text-2xl font-bold text-primary">{voiceAnalysis.overall_communication_score}</div>
+                          <div className="text-xs text-muted-foreground">Overall</div>
+                        </div>
+                      </div>
+                      {voiceAnalysis.quick_tip && (
+                        <p className="text-sm text-muted-foreground">
+                          <span className="font-medium">💡 Tip:</span> {voiceAnalysis.quick_tip}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   {evaluation.sample_better_answer && (
                     <div className="p-4 rounded-lg border border-primary/20 bg-primary/5">
