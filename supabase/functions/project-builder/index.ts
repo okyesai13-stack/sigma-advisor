@@ -31,7 +31,7 @@ serve(async (req) => {
   }
 
   try {
-    const { action, resume_id, project_id, session_id, task_id, user_input, current_phase } = await req.json();
+    const { action, resume_id, project_id, project_data, session_id, task_id, user_input, current_phase } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -42,7 +42,115 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Action: Initialize project build session
+    // Action: Generate simple project blueprint (NEW simpler approach)
+    if (action === 'generate_blueprint') {
+      if (!resume_id || !project_id || !project_data) {
+        throw new Error('resume_id, project_id, and project_data required');
+      }
+
+      const prompt = `Create a comprehensive project blueprint for: "${project_data.title}"
+
+Project Description: ${project_data.description || 'A portfolio project'}
+Complexity: ${project_data.complexity || 'intermediate'}
+Skills to demonstrate: ${project_data.skills_demonstrated?.join(', ') || 'General development skills'}
+Estimated Time: ${project_data.estimated_time || '2-3 weeks'}
+
+Generate a complete project blueprint with the following structure. Return only valid JSON:
+
+{
+  "overview": "A 2-3 sentence overview of what the user will build and why it's valuable for their portfolio",
+  "tech_stack": [
+    {
+      "category": "Frontend",
+      "items": [
+        { "name": "React", "purpose": "UI framework for building components" }
+      ]
+    },
+    {
+      "category": "Backend/Tools", 
+      "items": [
+        { "name": "Tool name", "purpose": "Why this tool is used" }
+      ]
+    }
+  ],
+  "file_structure": "project-name/\\n├── src/\\n│   ├── components/\\n│   ├── hooks/\\n│   └── App.tsx\\n├── public/\\n└── package.json",
+  "setup_steps": [
+    "Run \`npx create-vite@latest my-project --template react-ts\` to scaffold the project",
+    "Install dependencies: \`npm install package-name\`",
+    "Create the basic folder structure as shown above",
+    "Set up any required environment variables"
+  ],
+  "core_features": [
+    {
+      "name": "Feature Name",
+      "description": "What this feature does",
+      "code_snippet": "// Complete working code example\\nconst example = () => {\\n  // implementation\\n}"
+    }
+  ],
+  "learning_resources": [
+    {
+      "title": "Resource title",
+      "url": "https://example.com",
+      "type": "video|docs|tutorial|article"
+    }
+  ],
+  "next_steps": [
+    "Add this project to your GitHub portfolio",
+    "Deploy it on Vercel or Netlify",
+    "Write a README explaining the project",
+    "Share on LinkedIn with key learnings"
+  ]
+}
+
+Requirements:
+- Provide 2-4 tech stack categories with 2-4 items each
+- Include 4-6 setup steps with actual commands
+- Include 3-5 core features with complete, working code snippets
+- Include 4-6 learning resources with real URLs
+- Include 4-6 next steps for portfolio enhancement`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: 'You are an expert developer creating project blueprints. Return only valid JSON.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('AI blueprint generation failed');
+      }
+
+      const aiResponse = await response.json();
+      let content = aiResponse.choices?.[0]?.message?.content || '{}';
+      
+      if (content.includes('```')) {
+        content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
+      }
+
+      const blueprint = JSON.parse(content.trim());
+
+      return new Response(
+        JSON.stringify({ success: true, blueprint }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Action: Initialize project build session (legacy - kept for compatibility)
     if (action === 'initialize') {
       if (!resume_id || !project_id) {
         throw new Error('resume_id and project_id required');
