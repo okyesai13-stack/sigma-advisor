@@ -241,7 +241,7 @@ const ProjectBuilderNoAuth = () => {
       <main className="container mx-auto px-4 md:px-6 py-6 max-w-5xl">
         {/* Skills Applied */}
         <div className="flex flex-wrap gap-2 mb-6">
-          {blueprint.skills.map((skill, i) => (
+          {(blueprint.skills || []).map((skill, i) => (
             <Badge key={i} variant="secondary" className="bg-primary/10 text-primary">
               {skill}
             </Badge>
@@ -293,11 +293,11 @@ const ProjectBuilderNoAuth = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid md:grid-cols-2 gap-4">
-                  {blueprint.tech_stack.map((category, idx) => (
+                  {(blueprint.tech_stack || []).map((category, idx) => (
                     <div key={idx} className="bg-muted/30 rounded-lg p-4">
                       <h4 className="font-semibold text-sm mb-3 text-primary">{category.category}</h4>
                       <div className="space-y-2">
-                        {category.items.map((item, i) => (
+                        {(category.items || []).map((item, i) => (
                           <div key={i} className="flex items-start gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
                             <div>
@@ -323,7 +323,7 @@ const ProjectBuilderNoAuth = () => {
               </CardHeader>
               <CardContent>
                 <ul className="space-y-3">
-                  {blueprint.next_steps.map((step, i) => (
+                  {(blueprint.next_steps || []).map((step, i) => (
                     <li key={i} className="flex items-start gap-3">
                       <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium flex-shrink-0">
                         {i + 1}
@@ -348,7 +348,7 @@ const ProjectBuilderNoAuth = () => {
               </CardHeader>
               <CardContent>
                 <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-                  <pre className="whitespace-pre text-muted-foreground">{blueprint.file_structure}</pre>
+                  <pre className="whitespace-pre text-muted-foreground">{blueprint.file_structure || 'Loading...'}</pre>
                 </div>
               </CardContent>
             </Card>
@@ -363,7 +363,7 @@ const ProjectBuilderNoAuth = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {blueprint.setup_steps.map((step, i) => (
+                  {(blueprint.setup_steps || []).map((step, i) => (
                     <div key={i} className="flex gap-4">
                       <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
                         {i + 1}
@@ -380,7 +380,7 @@ const ProjectBuilderNoAuth = () => {
 
           {/* Code Tab */}
           <TabsContent value="code" className="space-y-6">
-            {blueprint.core_features.map((feature, idx) => (
+            {(blueprint.core_features || []).map((feature, idx) => (
               <Card key={idx}>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base flex items-center justify-between">
@@ -391,7 +391,7 @@ const ProjectBuilderNoAuth = () => {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => copyToClipboard(feature.code_snippet, idx)}
+                      onClick={() => copyToClipboard(feature.code_snippet || '', idx)}
                     >
                       {copiedIndex === idx ? (
                         <Check className="w-4 h-4 text-emerald-500" />
@@ -405,7 +405,7 @@ const ProjectBuilderNoAuth = () => {
                 <CardContent>
                   <ScrollArea className="h-[300px] w-full rounded-lg border bg-muted/30">
                     <pre className="p-4 text-sm font-mono whitespace-pre overflow-x-auto">
-                      <code>{feature.code_snippet}</code>
+                      <code>{feature.code_snippet || '// Code will appear here'}</code>
                     </pre>
                   </ScrollArea>
                 </CardContent>
@@ -424,7 +424,7 @@ const ProjectBuilderNoAuth = () => {
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3">
-                  {blueprint.learning_resources.map((resource, idx) => (
+                  {(blueprint.learning_resources || []).map((resource, idx) => (
                     <a
                       key={idx}
                       href={resource.url}
