@@ -21,15 +21,20 @@ import {
   Lightbulb,
   Target,
   BookOpen,
-  Download,
   RefreshCw,
   Wrench,
   CheckCircle2,
-  ExternalLink
+  ExternalLink,
+  Zap,
+  MessageCircle
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import ReactMarkdown from 'react-markdown';
 import { motion } from 'framer-motion';
+import ProjectChat from '@/components/project-builder/ProjectChat';
+import BuildProgress from '@/components/project-builder/BuildProgress';
+import QuickActions from '@/components/project-builder/QuickActions';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ProjectBlueprint {
   id: string;
@@ -58,10 +63,10 @@ interface ProjectBlueprint {
   next_steps: string[];
 }
 
-const difficultyConfig: Record<string, { color: string; bg: string; label: string }> = {
-  beginner: { color: 'text-emerald-600', bg: 'bg-emerald-500/10', label: 'Beginner Friendly' },
-  intermediate: { color: 'text-amber-600', bg: 'bg-amber-500/10', label: 'Intermediate' },
-  expert: { color: 'text-rose-600', bg: 'bg-rose-500/10', label: 'Advanced' },
+const difficultyConfig: Record<string, { color: string; bg: string; gradient: string; label: string }> = {
+  beginner: { color: 'text-emerald-600', bg: 'bg-emerald-500/10', gradient: 'from-emerald-500 to-teal-500', label: 'Beginner Friendly' },
+  intermediate: { color: 'text-amber-600', bg: 'bg-amber-500/10', gradient: 'from-amber-500 to-orange-500', label: 'Intermediate' },
+  expert: { color: 'text-rose-600', bg: 'bg-rose-500/10', gradient: 'from-rose-500 to-pink-500', label: 'Advanced' },
 };
 
 const ProjectBuilderNoAuth = () => {
@@ -69,6 +74,7 @@ const ProjectBuilderNoAuth = () => {
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { resumeId, isReady } = useResume();
+  const isMobile = useIsMobile();
 
   const projectId = searchParams.get('projectId');
 
@@ -76,7 +82,9 @@ const ProjectBuilderNoAuth = () => {
   const [blueprint, setBlueprint] = useState<ProjectBlueprint | null>(null);
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('build');
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
   useEffect(() => {
     if (!isReady) return;
@@ -134,6 +142,11 @@ const ProjectBuilderNoAuth = () => {
           learning_resources: savedBlueprint.learning_resources || [],
           next_steps: savedBlueprint.next_steps || []
         });
+        
+        // Load completed steps from session
+        const savedCompletedTasks = existingSession.completed_tasks as number[] || [];
+        setCompletedSteps(savedCompletedTasks);
+        
         setIsLoading(false);
         return;
       }
@@ -189,8 +202,9 @@ const ProjectBuilderNoAuth = () => {
             status: 'blueprint_ready',
             current_phase: 1,
             total_phases: 1,
-            phases: data.blueprint, // Store the full blueprint in phases field
+            phases: data.blueprint,
             skills_applied: projectData.skills_demonstrated || [],
+            completed_tasks: [],
           }, { onConflict: 'project_id' });
       } else {
         throw new Error(data.error || 'Failed to generate blueprint');
@@ -210,7 +224,6 @@ const ProjectBuilderNoAuth = () => {
   const regenerateBlueprint = async () => {
     setIsRegenerating(true);
     
-    // Get project data first
     const { data: projectData } = await supabase
       .from('project_ideas_result')
       .select('*')
@@ -226,6 +239,28 @@ const ProjectBuilderNoAuth = () => {
       title: "Blueprint Regenerated",
       description: "Your project blueprint has been updated with fresh ideas!"
     });
+  };
+
+  const handleToggleStep = async (stepIndex: number) => {
+    const newCompletedSteps = completedSteps.includes(stepIndex)
+      ? completedSteps.filter(i => i !== stepIndex)
+      : [...completedSteps, stepIndex];
+    
+    setCompletedSteps(newCompletedSteps);
+    setCurrentStepIndex(Math.max(...newCompletedSteps, 0) + 1);
+
+    // Persist to database
+    if (resumeId && projectId && blueprint) {
+      await supabase.functions.invoke('project-builder', {
+        body: {
+          action: 'update_progress',
+          resume_id: resumeId,
+          project_id: projectId,
+          completed_steps: newCompletedSteps,
+          total_steps: blueprint.setup_steps.length,
+        }
+      });
+    }
   };
 
   const copyToClipboard = (text: string, index: number) => {
@@ -274,9 +309,10 @@ const ProjectBuilderNoAuth = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-40">
-        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between">
+      {/* Animated Gradient Header */}
+      <header className="border-b bg-card/80 backdrop-blur-xl sticky top-0 z-40 overflow-hidden">
+        <div className={`absolute inset-0 bg-gradient-to-r ${difficulty.gradient} opacity-5`} />
+        <div className="container mx-auto px-4 md:px-6 h-16 flex items-center justify-between relative">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="w-5 h-5" />
@@ -285,6 +321,7 @@ const ProjectBuilderNoAuth = () => {
               <h1 className="font-bold text-lg leading-tight">{blueprint.title}</h1>
               <div className="flex items-center gap-2 mt-0.5">
                 <Badge variant="outline" className={`${difficulty.bg} ${difficulty.color} border-0 text-xs`}>
+                  <Zap className="w-3 h-3 mr-1" />
                   {difficulty.label}
                 </Badge>
                 <span className="text-xs text-muted-foreground">• {blueprint.estimated_time}</span>
@@ -310,7 +347,7 @@ const ProjectBuilderNoAuth = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 md:px-6 py-6 max-w-5xl">
+      <main className="container mx-auto px-4 md:px-6 py-6">
         {/* Skills Applied */}
         <div className="flex flex-wrap gap-2 mb-6">
           {(blueprint.skills || []).map((skill, i) => (
@@ -320,253 +357,260 @@ const ProjectBuilderNoAuth = () => {
           ))}
         </div>
 
-        {/* Main Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 mb-6">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <Target className="w-4 h-4" />
-              <span className="hidden sm:inline">Overview</span>
-            </TabsTrigger>
-            <TabsTrigger value="setup" className="flex items-center gap-2">
-              <Wrench className="w-4 h-4" />
-              <span className="hidden sm:inline">Setup</span>
-            </TabsTrigger>
-            <TabsTrigger value="code" className="flex items-center gap-2">
-              <Code2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Code</span>
-            </TabsTrigger>
-            <TabsTrigger value="resources" className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Learn</span>
-            </TabsTrigger>
-          </TabsList>
+        {/* Two Column Layout */}
+        <div className="grid lg:grid-cols-3 gap-6">
+          {/* Main Content - Left Side */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Main Tabs */}
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+              <TabsList className="grid w-full grid-cols-4 mb-6">
+                <TabsTrigger value="build" className="flex items-center gap-2">
+                  <Rocket className="w-4 h-4" />
+                  <span className="hidden sm:inline">Build</span>
+                </TabsTrigger>
+                <TabsTrigger value="overview" className="flex items-center gap-2">
+                  <Target className="w-4 h-4" />
+                  <span className="hidden sm:inline">Overview</span>
+                </TabsTrigger>
+                <TabsTrigger value="code" className="flex items-center gap-2">
+                  <Code2 className="w-4 h-4" />
+                  <span className="hidden sm:inline">Code</span>
+                </TabsTrigger>
+                <TabsTrigger value="resources" className="flex items-center gap-2">
+                  <BookOpen className="w-4 h-4" />
+                  <span className="hidden sm:inline">Learn</span>
+                </TabsTrigger>
+              </TabsList>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Lightbulb className="w-5 h-5 text-primary" />
-                  Project Overview
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground leading-relaxed">{blueprint.overview}</p>
-              </CardContent>
-            </Card>
+              {/* Build Tab - Interactive Progress */}
+              <TabsContent value="build" className="space-y-6">
+                <BuildProgress
+                  steps={blueprint.setup_steps || []}
+                  completedSteps={completedSteps}
+                  onToggleStep={handleToggleStep}
+                  projectTitle={blueprint.title}
+                />
 
-            {/* Tech Stack */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Layers className="w-5 h-5 text-primary" />
-                  Technology Stack
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid md:grid-cols-2 gap-4">
-                  {(blueprint.tech_stack || []).map((category, idx) => (
-                    <div key={idx} className="bg-muted/30 rounded-lg p-4">
-                      <h4 className="font-semibold text-sm mb-3 text-primary">{category.category}</h4>
-                      <div className="space-y-2">
-                        {(category.items || []).map((item, i) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                              <span className="font-medium text-sm">{item.name}</span>
-                              <p className="text-xs text-muted-foreground">{item.purpose}</p>
-                            </div>
+                {/* File Structure Card */}
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <FolderTree className="w-4 h-4 text-primary" />
+                      Project Structure
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm overflow-x-auto">
+                      <pre className="whitespace-pre text-muted-foreground">{blueprint.file_structure || 'Loading...'}</pre>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Lightbulb className="w-5 h-5 text-primary" />
+                      Project Overview
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-muted-foreground leading-relaxed">{blueprint.overview}</p>
+                  </CardContent>
+                </Card>
+
+                {/* Tech Stack */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Layers className="w-5 h-5 text-primary" />
+                      Technology Stack
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      {(blueprint.tech_stack || []).map((category, idx) => (
+                        <div key={idx} className="bg-muted/30 rounded-lg p-4">
+                          <h4 className="font-semibold text-sm mb-3 text-primary">{category.category}</h4>
+                          <div className="space-y-2">
+                            {(category.items || []).map((item, i) => (
+                              <div key={i} className="flex items-start gap-2">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
+                                <div>
+                                  <span className="font-medium text-sm">{item.name}</span>
+                                  <p className="text-xs text-muted-foreground">{item.purpose}</p>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                  </CardContent>
+                </Card>
 
-            {/* Next Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Rocket className="w-5 h-5 text-primary" />
-                  After Completion
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ul className="space-y-3">
-                  {(blueprint.next_steps || []).map((step, i) => (
-                    <li key={i} className="flex items-start gap-3">
-                      <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium flex-shrink-0">
-                        {i + 1}
-                      </span>
-                      <span className="text-sm text-muted-foreground">{step}</span>
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Setup Tab */}
-          <TabsContent value="setup" className="space-y-6">
-            {/* File Structure */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FolderTree className="w-5 h-5 text-primary" />
-                  Project Structure
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="bg-muted/50 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-                  <pre className="whitespace-pre text-muted-foreground">{blueprint.file_structure || 'Loading...'}</pre>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Setup Steps */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Wrench className="w-5 h-5 text-primary" />
-                  Getting Started
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {(blueprint.setup_steps || []).map((step, i) => (
-                    <div key={i} className="flex gap-4">
-                      <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm flex-shrink-0">
-                        {i + 1}
-                      </div>
-                      <div className="flex-1 pt-1 prose prose-sm dark:prose-invert max-w-none [&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-xs [&_code]:font-mono">
-                        <ReactMarkdown>{step}</ReactMarkdown>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Code Tab */}
-          <TabsContent value="code" className="space-y-6">
-            {(blueprint.core_features || []).map((feature, idx) => (
-              <Card key={idx}>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <FileCode className="w-4 h-4 text-primary" />
-                      {feature.name}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => copyToClipboard(feature.code_snippet || '', idx)}
-                    >
-                      {copiedIndex === idx ? (
-                        <Check className="w-4 h-4 text-emerald-500" />
-                      ) : (
-                        <Copy className="w-4 h-4" />
-                      )}
-                    </Button>
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
-                </CardHeader>
-                <CardContent>
-                  <ScrollArea className="h-[300px] w-full rounded-lg border bg-muted/30">
-                    <pre className="p-4 text-sm font-mono whitespace-pre overflow-x-auto">
-                      <code>{feature.code_snippet || '// Code will appear here'}</code>
-                    </pre>
-                  </ScrollArea>
-                </CardContent>
-              </Card>
-            ))}
-          </TabsContent>
-
-          {/* Resources Tab */}
-          <TabsContent value="resources" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <BookOpen className="w-5 h-5 text-primary" />
-                  Learning Resources
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid gap-3">
-                  {(blueprint.learning_resources || []).map((resource, idx) => (
-                    <a
-                      key={idx}
-                      href={resource.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group"
-                    >
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        {resource.type === 'video' ? (
-                          <span className="text-lg">🎬</span>
-                        ) : resource.type === 'docs' ? (
-                          <span className="text-lg">📚</span>
-                        ) : resource.type === 'tutorial' ? (
-                          <span className="text-lg">📝</span>
-                        ) : (
-                          <span className="text-lg">🔗</span>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
-                          {resource.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground capitalize">{resource.type}</p>
-                      </div>
-                      <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                    </a>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Quick Tips */}
-            <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
-              <CardContent className="pt-6">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                    <Lightbulb className="w-5 h-5 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold mb-2">Pro Tips</h4>
-                    <ul className="text-sm text-muted-foreground space-y-2">
-                      <li>• Start with the file structure and create all folders first</li>
-                      <li>• Build one feature at a time, testing as you go</li>
-                      <li>• Commit your code regularly with meaningful messages</li>
-                      <li>• Use the AI Advisor for help when you get stuck</li>
+                {/* Next Steps */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Rocket className="w-5 h-5 text-primary" />
+                      After Completion
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ul className="space-y-3">
+                      {(blueprint.next_steps || []).map((step, i) => (
+                        <li key={i} className="flex items-start gap-3">
+                          <span className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-medium flex-shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="text-sm text-muted-foreground">{step}</span>
+                        </li>
+                      ))}
                     </ul>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-        {/* Bottom CTA */}
-        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/advisor')}
-            className="gap-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            Ask AI Advisor for Help
-          </Button>
-          <Button 
-            onClick={() => navigate('/dashboard')}
-            className="gap-2"
-          >
-            Back to Dashboard
-            <ArrowLeft className="w-4 h-4" />
-          </Button>
+              {/* Code Tab */}
+              <TabsContent value="code" className="space-y-6">
+                {(blueprint.core_features || []).map((feature, idx) => (
+                  <Card key={idx}>
+                    <CardHeader className="pb-3">
+                      <CardTitle className="text-base flex items-center justify-between">
+                        <span className="flex items-center gap-2">
+                          <FileCode className="w-4 h-4 text-primary" />
+                          {feature.name}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => copyToClipboard(feature.code_snippet || '', idx)}
+                        >
+                          {copiedIndex === idx ? (
+                            <Check className="w-4 h-4 text-emerald-500" />
+                          ) : (
+                            <Copy className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    </CardHeader>
+                    <CardContent>
+                      <ScrollArea className="h-[300px] w-full rounded-lg border bg-muted/30">
+                        <pre className="p-4 text-sm font-mono whitespace-pre overflow-x-auto">
+                          <code>{feature.code_snippet || '// Code will appear here'}</code>
+                        </pre>
+                      </ScrollArea>
+                    </CardContent>
+                  </Card>
+                ))}
+              </TabsContent>
+
+              {/* Resources Tab */}
+              <TabsContent value="resources" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <BookOpen className="w-5 h-5 text-primary" />
+                      Learning Resources
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid gap-3">
+                      {(blueprint.learning_resources || []).map((resource, idx) => (
+                        <a
+                          key={idx}
+                          href={resource.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors group"
+                        >
+                          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            {resource.type === 'video' ? (
+                              <span className="text-lg">🎬</span>
+                            ) : resource.type === 'docs' ? (
+                              <span className="text-lg">📚</span>
+                            ) : resource.type === 'tutorial' ? (
+                              <span className="text-lg">📝</span>
+                            ) : (
+                              <span className="text-lg">🔗</span>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm truncate group-hover:text-primary transition-colors">
+                              {resource.title}
+                            </p>
+                            <p className="text-xs text-muted-foreground capitalize">{resource.type}</p>
+                          </div>
+                          <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </a>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Quick Tips */}
+                <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Lightbulb className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold mb-2">Pro Tips</h4>
+                        <ul className="text-sm text-muted-foreground space-y-2">
+                          <li>• Start with the file structure and create all folders first</li>
+                          <li>• Build one feature at a time, testing as you go</li>
+                          <li>• Commit your code regularly with meaningful messages</li>
+                          <li>• Use the AI Mentor chat for help when you get stuck</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </div>
+
+          {/* Right Sidebar - AI Chat & Quick Actions */}
+          {!isMobile && (
+            <div className="space-y-4">
+              <QuickActions
+                projectTitle={blueprint.title}
+                projectDescription={blueprint.description}
+                techStack={blueprint.tech_stack || []}
+                resumeId={resumeId || ''}
+                projectId={projectId || ''}
+              />
+              <div className="h-[500px]">
+                <ProjectChat
+                  projectTitle={blueprint.title}
+                  techStack={blueprint.tech_stack || []}
+                  currentStep={currentStepIndex}
+                  resumeId={resumeId || ''}
+                  projectId={projectId || ''}
+                  setupSteps={blueprint.setup_steps || []}
+                  completedSteps={completedSteps}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Mobile: ProjectChat as FAB */}
+          {isMobile && (
+            <ProjectChat
+              projectTitle={blueprint.title}
+              techStack={blueprint.tech_stack || []}
+              currentStep={currentStepIndex}
+              resumeId={resumeId || ''}
+              projectId={projectId || ''}
+              setupSteps={blueprint.setup_steps || []}
+              completedSteps={completedSteps}
+            />
+          )}
         </div>
       </main>
     </div>
