@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 interface ProjectPhase {
@@ -31,7 +31,8 @@ serve(async (req) => {
   }
 
   try {
-    const { action, resume_id, project_id, project_data, session_id, task_id, user_input, current_phase } = await req.json();
+    const requestData = await req.json();
+    const { action, resume_id, project_id, project_data, session_id, task_id, user_input, current_phase } = requestData;
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -42,7 +43,375 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    // Action: Generate simple project blueprint (NEW simpler approach)
+    // NEW: Streaming Project Chat Action
+    if (action === 'project_chat') {
+      const { project_title, tech_stack, current_step, completed_steps, total_steps, messages } = requestData;
+
+      const systemPrompt = `You are an expert AI Project Mentor helping a user build: "${project_title}"
+
+Project Context:
+- Tech Stack: ${tech_stack}
+- Current Step: ${current_step}
+- Progress: ${completed_steps}/${total_steps} steps completed
+
+Your role is to:
+1. Provide specific, actionable guidance for this exact project
+2. Give code examples when relevant using the project's tech stack
+3. Explain concepts clearly with real-world analogies
+4. Help debug issues when users describe problems
+5. Encourage progress and celebrate milestones
+
+Keep responses focused and practical. Use markdown for formatting. When providing code, use proper syntax highlighting.`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...(messages || []).map((m: any) => ({ role: m.role, content: m.content })),
+          ],
+          stream: true,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('AI chat failed');
+      }
+
+      return new Response(response.body, {
+        headers: { ...corsHeaders, 'Content-Type': 'text/event-stream' },
+      });
+    }
+
+    // NEW: Generate README Action
+    if (action === 'generate_readme') {
+      const { project_title, project_description, tech_stack } = requestData;
+
+      const prompt = `Generate a professional README.md for a project:
+
+Project: ${project_title}
+Description: ${project_description}
+Tech Stack: ${tech_stack}
+
+Include these sections:
+1. Project Title with badges (build status, license, etc.)
+2. Description - What the project does
+3. Features - Key features list
+4. Tech Stack - Technologies used with icons/emojis
+5. Prerequisites - What's needed to run
+6. Installation - Step-by-step setup
+7. Usage - How to use the project
+8. API Reference (if applicable)
+9. Contributing - How to contribute
+10. License - MIT License
+11. Acknowledgments
+
+Use proper markdown formatting with emojis for visual appeal.`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: 'You are an expert at creating professional documentation. Generate clean, well-formatted README files.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('README generation failed');
+      }
+
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content || '# README\n\nNo content generated.';
+
+      return new Response(
+        JSON.stringify({ success: true, data: { content } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // NEW: Generate .gitignore Action
+    if (action === 'generate_gitignore') {
+      const { tech_stack } = requestData;
+
+      const prompt = `Generate a comprehensive .gitignore file for a project using: ${tech_stack}
+
+Include:
+1. OS-specific files (macOS, Windows, Linux)
+2. IDE/Editor files (VS Code, JetBrains, etc.)
+3. Dependencies (node_modules, vendor, etc.)
+4. Build outputs
+5. Environment files (.env, .env.local)
+6. Logs and temporary files
+7. Testing coverage reports
+8. Any framework-specific ignores
+
+Add comments explaining each section.`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: 'You are an expert at creating comprehensive .gitignore files. Output only the gitignore content with comments.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.5,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('gitignore generation failed');
+      }
+
+      const aiResponse = await response.json();
+      let content = aiResponse.choices?.[0]?.message?.content || '# .gitignore\nnode_modules/';
+      
+      // Clean up markdown code blocks if present
+      if (content.includes('```')) {
+        content = content.replace(/```gitignore\n?/g, '').replace(/```\n?/g, '');
+      }
+
+      return new Response(
+        JSON.stringify({ success: true, data: { content } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // NEW: Generate Database Schema Action
+    if (action === 'generate_database') {
+      const { project_title, project_description, tech_stack } = requestData;
+
+      const prompt = `Design a database schema for: "${project_title}"
+
+Description: ${project_description}
+Tech Stack: ${tech_stack}
+
+Provide:
+1. Entity-Relationship description
+2. Table schemas with:
+   - Table name
+   - Columns (name, type, constraints)
+   - Primary keys
+   - Foreign keys
+   - Indexes
+3. Sample SQL CREATE statements
+4. Relationships explained
+5. Example seed data
+
+Use PostgreSQL syntax. Include RLS (Row Level Security) policies if applicable.`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: 'You are a database architect expert. Design clean, normalized database schemas with proper security.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.6,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('Database schema generation failed');
+      }
+
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content || 'No schema generated.';
+
+      return new Response(
+        JSON.stringify({ success: true, data: { content } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // NEW: Generate Tests Action
+    if (action === 'generate_tests') {
+      const { project_title, tech_stack } = requestData;
+
+      const prompt = `Generate comprehensive test files for: "${project_title}"
+
+Tech Stack: ${tech_stack}
+
+Provide:
+1. Unit test examples using appropriate testing framework (Jest, Vitest, etc.)
+2. Integration test examples
+3. Test utilities and mocks
+4. Coverage configuration
+5. Testing best practices for this stack
+
+Include:
+- Setup and teardown patterns
+- Mocking external dependencies
+- Testing async operations
+- Edge case handling
+- Snapshot testing examples (if applicable)
+
+Use modern testing patterns and clear assertions.`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: 'You are a testing expert. Generate clean, comprehensive test suites with good coverage.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.6,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('Test generation failed');
+      }
+
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content || 'No tests generated.';
+
+      return new Response(
+        JSON.stringify({ success: true, data: { content } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // NEW: Explain Code Action
+    if (action === 'explain_code') {
+      const { code_snippet, project_title } = requestData;
+
+      const prompt = `Explain this code from the "${project_title}" project line by line:
+
+\`\`\`
+${code_snippet}
+\`\`\`
+
+Provide:
+1. Overall purpose of the code
+2. Line-by-line explanation
+3. Key concepts used
+4. How it fits into the project
+5. Potential improvements or alternatives
+6. Common pitfalls to avoid`;
+
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'google/gemini-3-flash-preview',
+          messages: [
+            { role: 'system', content: 'You are an expert code reviewer and teacher. Explain code clearly for developers learning to build projects.' },
+            { role: 'user', content: prompt }
+          ],
+          temperature: 0.6,
+        }),
+      });
+
+      if (!response.ok) {
+        if (response.status === 429 || response.status === 402) {
+          return new Response(
+            JSON.stringify({ success: false, error: 'AI service rate limited' }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          );
+        }
+        throw new Error('Code explanation failed');
+      }
+
+      const aiResponse = await response.json();
+      const content = aiResponse.choices?.[0]?.message?.content || 'No explanation generated.';
+
+      return new Response(
+        JSON.stringify({ success: true, data: { content } }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // NEW: Update completed steps
+    if (action === 'update_progress') {
+      const { completed_steps } = requestData;
+
+      if (!resume_id || !project_id) {
+        throw new Error('resume_id and project_id required');
+      }
+
+      const { data, error } = await supabase
+        .from('project_build_session')
+        .update({
+          completed_tasks: completed_steps,
+          progress_percentage: Math.round((completed_steps.length / requestData.total_steps) * 100),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('project_id', project_id)
+        .eq('resume_id', resume_id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      return new Response(
+        JSON.stringify({ success: true, data }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Action: Generate simple project blueprint
     if (action === 'generate_blueprint') {
       if (!resume_id || !project_id || !project_data) {
         throw new Error('resume_id, project_id, and project_data required');
