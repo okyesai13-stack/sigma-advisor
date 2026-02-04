@@ -206,6 +206,12 @@ const DashboardNoAuth = () => {
     setIsGeneratingPdf(true);
     
     try {
+      // Define role variables for PDF
+      const shortTermRole = careerRoles.find(r => r.progression_stage === 'short_term');
+      const midTermRole = careerRoles.find(r => r.progression_stage === 'mid_term');
+      const longTermRole = careerRoles.find(r => r.progression_stage === 'long_term');
+      const currentResumeId = resumeId || 'N/A';
+      
       // Create PDF content
       const pdfContent = document.createElement('div');
       pdfContent.style.padding = '30px';
@@ -223,7 +229,7 @@ const DashboardNoAuth = () => {
           <p style="color: #888; font-size: 11px; margin-top: 5px;">${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           <div style="margin-top: 12px; padding: 8px 16px; background: #f3f4f6; border-radius: 6px; display: inline-block;">
             <p style="margin: 0; color: #666; font-size: 11px;">Resume ID</p>
-            <p style="margin: 3px 0 0 0; color: #8b5cf6; font-weight: bold; font-size: 12px; font-family: monospace;">${resumeId}</p>
+            <p style="margin: 3px 0 0 0; color: #8b5cf6; font-weight: bold; font-size: 12px; font-family: monospace;">${currentResumeId}</p>
           </div>
         </div>
 
