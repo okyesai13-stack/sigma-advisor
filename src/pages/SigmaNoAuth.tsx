@@ -62,6 +62,8 @@ interface LearningPlanData {
   skill_name: string;
   career_title: string;
   learning_steps: { step: string; duration: string }[];
+  recommended_courses: { name: string; platform: string; url: string; duration: string; level: string }[];
+  recommended_videos: { title: string; channel: string; url: string; duration: string }[];
   status: string;
 }
 
@@ -255,7 +257,7 @@ const SigmaNoAuth = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
 
-      setLearningPlans(result.data?.skills || []);
+      setLearningPlans(result.data || []);
       setStepStatus(prev => ({ ...prev, learning_plan: 'completed' }));
       setSelectedStep('learning_plan');
       runProjectGeneration();
@@ -284,7 +286,7 @@ const SigmaNoAuth = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
 
-      setProjectIdeas(result.data?.projects || []);
+      setProjectIdeas(result.data || []);
       setStepStatus(prev => ({ ...prev, project_ideas: 'completed' }));
       setSelectedStep('project_ideas');
       runJobMatching();
@@ -313,7 +315,7 @@ const SigmaNoAuth = () => {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error);
 
-      setJobMatches(result.data?.jobs || []);
+      setJobMatches(result.data || []);
       setStepStatus(prev => ({ ...prev, job_matching: 'completed' }));
       setSelectedStep('job_matching');
       setIsComplete(true);
@@ -597,13 +599,49 @@ const SigmaNoAuth = () => {
               <GraduationCap className="w-5 h-5 text-primary" />
               <h3 className="font-semibold">{plan.skill_name}</h3>
               <Badge variant="outline" className="ml-auto capitalize">
-                {plan.status || 'pending'}
+                {plan.status || 'not_started'}
               </Badge>
             </div>
             {plan.career_title && (
               <p className="text-sm text-muted-foreground mb-3">For: {plan.career_title}</p>
             )}
-            {plan.learning_steps?.length > 0 && (
+            {/* Recommended Courses */}
+            {plan.recommended_courses?.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-medium text-muted-foreground mb-2">📚 Courses</p>
+                <div className="space-y-2">
+                  {plan.recommended_courses.slice(0, 3).map((course, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
+                        {i + 1}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <p className="truncate font-medium">{course.name}</p>
+                        <p className="text-xs text-muted-foreground">{course.platform} · {course.duration} · {course.level}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Recommended Videos */}
+            {plan.recommended_videos?.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">🎥 Videos</p>
+                <div className="space-y-2">
+                  {plan.recommended_videos.slice(0, 3).map((video, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
+                      <span className="flex-1 min-w-0">
+                        <p className="truncate font-medium">{video.title}</p>
+                        <p className="text-xs text-muted-foreground">{video.channel} · {video.duration}</p>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* Fallback: learning_steps if present */}
+            {plan.learning_steps?.length > 0 && !plan.recommended_courses?.length && (
               <div className="space-y-2">
                 {plan.learning_steps.slice(0, 3).map((step, i) => (
                   <div key={i} className="flex items-center gap-2 text-sm">
@@ -616,11 +654,6 @@ const SigmaNoAuth = () => {
                     )}
                   </div>
                 ))}
-                {plan.learning_steps.length > 3 && (
-                  <p className="text-xs text-muted-foreground pl-7">
-                    +{plan.learning_steps.length - 3} more steps
-                  </p>
-                )}
               </div>
             )}
           </motion.div>
