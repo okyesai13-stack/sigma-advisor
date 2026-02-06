@@ -97,11 +97,34 @@ Generate realistic job URLs that follow the pattern of actual job boards. Includ
     const aiResponse = await response.json();
     let content = aiResponse.choices?.[0]?.message?.content || '[]';
     
+    // Clean up markdown code blocks
     if (content.includes('```')) {
       content = content.replace(/```json\n?/g, '').replace(/```\n?/g, '');
     }
 
-    const jobs = JSON.parse(content.trim());
+    // Robust JSON parsing with fallback
+    let jobs = [];
+    try {
+      // Try to find JSON array in the content
+      const jsonMatch = content.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        jobs = JSON.parse(jsonMatch[0]);
+      } else {
+        console.error('No JSON array found in response:', content.substring(0, 200));
+        jobs = [];
+      }
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError, 'Content:', content.substring(0, 500));
+      // Return empty jobs instead of failing
+      jobs = [];
+    }
+
+    // Validate jobs is an array
+    if (!Array.isArray(jobs)) {
+      console.error('Jobs is not an array:', typeof jobs);
+      jobs = [];
+    }
+
     const savedJobs = [];
 
     for (const job of jobs) {
