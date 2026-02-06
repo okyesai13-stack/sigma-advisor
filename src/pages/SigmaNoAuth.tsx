@@ -32,8 +32,16 @@ interface CareerRole {
   skills_to_develop: string[];
 }
 
+interface AIEnhancedRole {
+  role: string;
+  match_score: number;
+  growth_potential: string;
+  timeline_to_ready: string;
+}
+
 interface StepStatus {
   career_analysis: 'pending' | 'running' | 'completed' | 'error';
+  ai_role_analysis: 'pending' | 'running' | 'completed' | 'error';
   skill_validation: 'pending' | 'running' | 'completed' | 'error';
   learning_plan: 'pending' | 'running' | 'completed' | 'error';
   project_ideas: 'pending' | 'running' | 'completed' | 'error';
@@ -47,11 +55,14 @@ const SigmaNoAuth = () => {
   
   const [stepStatus, setStepStatus] = useState<StepStatus>({
     career_analysis: 'pending',
+    ai_role_analysis: 'pending',
     skill_validation: 'pending',
     learning_plan: 'pending',
     project_ideas: 'pending',
     job_matching: 'pending',
   });
+
+  const [aiRoles, setAiRoles] = useState<AIEnhancedRole[]>([]);
   
   const [careerRoles, setCareerRoles] = useState<CareerRole[]>([]);
   const [currentStep, setCurrentStep] = useState<string>('career_analysis');
@@ -95,8 +106,8 @@ const SigmaNoAuth = () => {
       setCareerRoles(result.data?.career_roles || []);
       setStepStatus(prev => ({ ...prev, career_analysis: 'completed' }));
       
-      // Continue pipeline
-      runSkillValidation();
+      // Continue to AI Role Analysis
+      runAiRoleAnalysis();
 
     } catch (error) {
       console.error('Career analysis error:', error);
@@ -106,6 +117,45 @@ const SigmaNoAuth = () => {
         description: error instanceof Error ? error.message : 'Failed to analyze career',
         variant: "destructive",
       });
+    }
+  };
+
+  const runAiRoleAnalysis = async () => {
+    setCurrentStep('ai_role_analysis');
+    setStepStatus(prev => ({ ...prev, ai_role_analysis: 'running' }));
+
+    try {
+      const response = await fetch(
+        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/ai-role-analysis',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume_id: resumeId }),
+        }
+      );
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'AI Role analysis failed');
+      }
+
+      setAiRoles(result.data?.ai_enhanced_roles || []);
+      setStepStatus(prev => ({ ...prev, ai_role_analysis: 'completed' }));
+      
+      // Continue to Skill Validation
+      runSkillValidation();
+
+    } catch (error) {
+      console.error('AI Role analysis error:', error);
+      setStepStatus(prev => ({ ...prev, ai_role_analysis: 'error' }));
+      toast({
+        title: "AI Role Analysis Error",
+        description: error instanceof Error ? error.message : 'Failed to analyze AI roles',
+        variant: "destructive",
+      });
+      // Continue pipeline even on error
+      runSkillValidation();
     }
   };
 
@@ -221,6 +271,7 @@ const SigmaNoAuth = () => {
 
   const steps = [
     { id: 'career_analysis', name: 'Career Analysis', icon: Brain, description: 'Analyzing your career path' },
+    { id: 'ai_role_analysis', name: 'AI Role Analysis', icon: Sparkles, description: 'Finding AI-enhanced roles' },
     { id: 'skill_validation', name: 'Skill Validation', icon: Target, description: 'Assessing your skills' },
     { id: 'learning_plan', name: 'Learning Plan', icon: BookOpen, description: 'Creating learning roadmap' },
     { id: 'project_ideas', name: 'Project Ideas', icon: Lightbulb, description: 'Generating portfolio projects' },

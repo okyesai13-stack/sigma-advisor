@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      ai_role_analysis_result: {
+        Row: {
+          ai_enhanced_roles: Json | null
+          created_at: string
+          current_ai_ready_skills: string[] | null
+          id: string
+          key_insights: string | null
+          overall_ai_readiness_score: number | null
+          preparation_roadmap: Json | null
+          resume_id: string
+          roles_at_risk: Json | null
+          skills_to_acquire: Json | null
+        }
+        Insert: {
+          ai_enhanced_roles?: Json | null
+          created_at?: string
+          current_ai_ready_skills?: string[] | null
+          id?: string
+          key_insights?: string | null
+          overall_ai_readiness_score?: number | null
+          preparation_roadmap?: Json | null
+          resume_id: string
+          roles_at_risk?: Json | null
+          skills_to_acquire?: Json | null
+        }
+        Update: {
+          ai_enhanced_roles?: Json | null
+          created_at?: string
+          current_ai_ready_skills?: string[] | null
+          id?: string
+          key_insights?: string | null
+          overall_ai_readiness_score?: number | null
+          preparation_roadmap?: Json | null
+          resume_id?: string
+          roles_at_risk?: Json | null
+          skills_to_acquire?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_role_analysis_result_resume_id_fkey"
+            columns: ["resume_id"]
+            isOneToOne: false
+            referencedRelation: "resume_store"
+            referencedColumns: ["resume_id"]
+          },
+        ]
+      }
       career_analysis_result: {
         Row: {
           career_roadmap: Json | null
@@ -227,6 +274,7 @@ export type Database = {
       }
       journey_state: {
         Row: {
+          ai_role_analysis_completed: boolean | null
           career_analysis_completed: boolean | null
           created_at: string
           job_matching_completed: boolean | null
@@ -237,6 +285,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          ai_role_analysis_completed?: boolean | null
           career_analysis_completed?: boolean | null
           created_at?: string
           job_matching_completed?: boolean | null
@@ -247,6 +296,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          ai_role_analysis_completed?: boolean | null
           career_analysis_completed?: boolean | null
           created_at?: string
           job_matching_completed?: boolean | null
