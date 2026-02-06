@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.resume-image-parse]
 verify_jwt = false
+
+[functions.ai-role-analysis]
+verify_jwt = false
