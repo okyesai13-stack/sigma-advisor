@@ -391,6 +391,7 @@ Provide:
         throw new Error('resume_id and project_id required');
       }
 
+      // Use maybeSingle and order by created_at to get the most recent session
       const { data, error } = await supabase
         .from('project_build_session')
         .update({
@@ -400,8 +401,10 @@ Provide:
         })
         .eq('project_id', project_id)
         .eq('resume_id', resume_id)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .select()
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
 
