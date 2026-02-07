@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, fileName, goal, userType } = await req.json();
+    const { imageBase64, fileName, goal, challenge, userType } = await req.json();
 
     if (!imageBase64) {
       throw new Error('No image data provided');
@@ -133,6 +133,7 @@ If the image quality is poor, still extract whatever you can read.`;
         resume_text: resumeText.slice(0, 50000),
         parsed_data: parsedData,
         goal: goal || null,
+        challenge: challenge || null,
         user_type: userType || 'student',
         file_name: fileName || 'resume_image.jpg',
       })
