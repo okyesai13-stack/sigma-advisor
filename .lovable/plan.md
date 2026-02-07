@@ -1,44 +1,67 @@
 
+# Add Career Challenge Field to Setup and Analysis Pipeline
 
-# Dashboard Layout Reorganization Plan
+## Overview
+Add a separate "Career Challenge" input field on the setup page alongside the existing goal field, store it in the database, feed it into the AI career analysis, and display challenge-specific insights in the dashboard's Overall Assessment.
 
-## Goal
-Rearrange all dashboard sections into a logical, production-grade order with proper visual hierarchy.
+## Changes
 
-## New Section Order
+### 1. Database Migration
+Add a `challenge` column to the `resume_store` table:
+```sql
+ALTER TABLE resume_store ADD COLUMN challenge text DEFAULT NULL;
+```
 
-| # | Section | Current Position | Change |
-|---|---------|-----------------|--------|
-| 1 | Action Buttons (Advisor + Get Analysis) | Top | No change |
-| 2 | Goal and Summary | 2nd | No change |
-| 3 | Career Analysis Insights (Overall Assessment only) | 4th (combined) | Split out, move up |
-| 4 | Career Progression Path (3 role cards) | 7th | Move up |
-| 5 | Career Roadmap Timeline | 4th (inside CareerAnalysisSection) | Split out, keep here |
-| 6 | 5-Year Career Trajectory CTA | 6th | Move up slightly |
-| 7 | Skill Gap Analysis | 4th (inside CareerAnalysisSection) | Split out, position here |
-| 8 | Skill Readiness for Target Role | 8th | No change (relative) |
-| 9 | AI Future Roles | 5th | Move down |
-| 10 | Learning Resources | 9th | No change |
-| 11 | Portfolio Projects | 10th | No change |
-| 12 | Job Matches | 11th | No change |
-| 13 | Resume Upgrade (GuidanceSection) | 3rd | Move to bottom |
+### 2. Setup Page (`src/pages/SetupNoAuth.tsx`)
+Split the current single textarea into two distinct sections:
+- **Section 1 - Career Goal**: "Your Ultimate Career Goal" (e.g., become a Senior Data Scientist)
+- **Section 2 - Career Challenge**: "What challenge are you facing?" (e.g., stuck in current role, skill gaps, no guidance)
+- Add a new `challengeText` state variable
+- Pass `challenge` to the upload-resume API call
 
-## Technical Changes
+### 3. ResumeContext (`src/contexts/ResumeContext.tsx`)
+- Add `challenge` and `setChallenge` to the context
+- Add sessionStorage persistence with key `sigma_challenge`
+- Include in `clearSession()`
 
-### File: `src/components/dashboard/CareerAnalysisSection.tsx`
-- Split into 3 independently renderable sections by adding props or exporting sub-components:
-  - `renderOverallAssessment` - just the assessment card
-  - `renderCareerRoadmap` - the timeline collapsible
-  - `renderSkillGapAnalysis` - the skill gap collapsible
-- Alternatively, replace with 3 separate render blocks directly in the dashboard
+### 4. Upload Resume Edge Function (`supabase/functions/upload-resume/index.ts`)
+- Accept `challenge` from the request body
+- Store it in the `resume_store` insert as `challenge`
 
-### File: `src/pages/DashboardNoAuth.tsx`
-- Reorder the JSX sections in `<main>` to match the new order above
-- Break up `CareerAnalysisSection` into its 3 sub-sections placed at positions 3, 5, and 7
-- Move `<GuidanceSection />` (Resume Upgrade) to the very bottom, after Job Matches
-- Move Career Progression Path (the 3 role cards grid) right after Overall Assessment
-- Move 5-Year Career Trajectory CTA after Career Roadmap Timeline
+### 5. Resume Image Parse Edge Function (`supabase/functions/resume-image-parse/index.ts`)
+- Accept `challenge` from the request body and pass it through to `resume_store`
 
-### No new files needed
-All changes are repositioning existing rendered sections within the dashboard page.
+### 6. Career Analysis Edge Function (`supabase/functions/career-analysis/index.ts`)
+- Read `resumeData.challenge` from the database
+- Add `CAREER CHALLENGE: ${challenge}` to the AI prompt
+- Update the system prompt to instruct the AI to address the user's specific challenge in the `overall_assessment` field with actionable solutions
 
+### 7. Dashboard - Overall Assessment Card (`src/components/dashboard/OverallAssessmentCard.tsx`)
+- No structural changes needed -- the `overall_assessment` text from the AI will now naturally include challenge analysis and solutions since the prompt is updated
+
+### 8. Dashboard Page (`src/pages/DashboardNoAuth.tsx`)
+- Fetch and display the challenge text alongside the goal in the summary section (if present)
+
+## Technical Details
+
+### Data Flow
+```
+Setup Page (goal + challenge)
+  --> upload-resume edge function
+    --> resume_store table (goal + challenge columns)
+      --> career-analysis edge function reads both
+        --> AI prompt includes challenge context
+          --> overall_assessment contains challenge solutions
+            --> Dashboard displays in OverallAssessmentCard
+```
+
+### Files Modified
+| File | Change |
+|------|--------|
+| `resume_store` table | Add `challenge` column |
+| `src/contexts/ResumeContext.tsx` | Add challenge state + persistence |
+| `src/pages/SetupNoAuth.tsx` | Split into two input sections |
+| `supabase/functions/upload-resume/index.ts` | Accept and store challenge |
+| `supabase/functions/resume-image-parse/index.ts` | Accept and store challenge |
+| `supabase/functions/career-analysis/index.ts` | Include challenge in AI prompt |
+| `src/pages/DashboardNoAuth.tsx` | Show challenge in summary area |
