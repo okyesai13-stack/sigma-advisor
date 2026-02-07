@@ -284,13 +284,13 @@ const SetupNoAuth = () => {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="goal">Your Ultimate Career Goal</Label>
+                <Label htmlFor="goal">Your Ultimate Career Goal or Challenge</Label>
                 <Textarea
                   id="goal"
-                  placeholder="e.g., Become a Senior Data Scientist at a top tech company..."
+                  placeholder="e.g., Become a Senior Data Scientist at a top tech company...&#10;&#10;Or describe a problem you're facing in your career, like:&#10;• I'm stuck in my current role and want to transition into AI/ML&#10;• I don't know which skills to learn next for a promotion"
                   value={goalText}
                   onChange={(e) => setGoalText(e.target.value)}
-                  className="min-h-[120px] text-lg"
+                  className="min-h-[140px] text-lg"
                 />
               </div>
 
