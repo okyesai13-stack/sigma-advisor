@@ -53,8 +53,8 @@ interface AIEnhancedRole {
 interface SkillValidationData {
   target_role: string;
   readiness_score: number;
-  matched_skills: { skill: string; proficiency: string }[];
-  missing_skills: { skill: string; importance: string }[];
+  matched_skills: { strong: string[]; partial: string[] };
+  missing_skills: string[];
   recommended_next_step: string;
 }
 
@@ -537,17 +537,34 @@ const SigmaNoAuth = () => {
             </div>
           </div>
 
-          {/* Matched Skills */}
-          {skillValidation.matched_skills?.length > 0 && (
+          {/* Matched Skills - Strong */}
+          {skillValidation.matched_skills?.strong?.length > 0 && (
             <div className="p-4 rounded-lg border bg-card">
               <h4 className="font-medium mb-3 flex items-center gap-2">
                 <CheckCircle2 className="w-4 h-4 text-green-500" />
-                Matched Skills ({skillValidation.matched_skills.length})
+                Strong Skills ({skillValidation.matched_skills.strong.length})
               </h4>
               <div className="flex flex-wrap gap-2">
-                {skillValidation.matched_skills.map((skill, i) => (
+                {skillValidation.matched_skills.strong.map((skill, i) => (
                   <Badge key={i} variant="secondary" className="bg-green-500/10 text-green-600">
-                    {skill.skill}
+                    {skill}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Matched Skills - Partial */}
+          {skillValidation.matched_skills?.partial?.length > 0 && (
+            <div className="p-4 rounded-lg border bg-card">
+              <h4 className="font-medium mb-3 flex items-center gap-2">
+                <Target className="w-4 h-4 text-blue-500" />
+                Partial Match ({skillValidation.matched_skills.partial.length})
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {skillValidation.matched_skills.partial.map((skill, i) => (
+                  <Badge key={i} variant="secondary" className="bg-blue-500/10 text-blue-600">
+                    {skill}
                   </Badge>
                 ))}
               </div>
@@ -564,7 +581,7 @@ const SigmaNoAuth = () => {
               <div className="flex flex-wrap gap-2">
                 {skillValidation.missing_skills.map((skill, i) => (
                   <Badge key={i} variant="outline" className="border-amber-500/50 text-amber-600">
-                    {skill.skill}
+                    {skill}
                   </Badge>
                 ))}
               </div>
