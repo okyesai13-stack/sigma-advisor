@@ -14,9 +14,9 @@ serve(async (req) => {
   try {
     const { action, session_id, transcript, question } = await req.json();
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -63,14 +63,14 @@ Return JSON:
   "confidence_level": "low" | "medium" | "high"
 }`;
 
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${GEMINI_API_KEY}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gemini-2.0-flash',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: 'You are an expert communication coach analyzing interview responses. Return only valid JSON.' },
             { role: 'user', content: analysisPrompt }
@@ -135,14 +135,14 @@ Return JSON:
   "coaching_tip": "Brief tip or encouragement"
 }`;
 
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${GEMINI_API_KEY}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gemini-2.0-flash',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: 'You are a supportive interview coach giving real-time guidance. Be brief and encouraging. Return only valid JSON.' },
             { role: 'user', content: coachingPrompt }

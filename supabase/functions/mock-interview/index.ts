@@ -18,9 +18,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     // Action: Start new interview session
@@ -70,14 +70,14 @@ For technical: Focus on coding concepts, system design, problem-solving related 
 For behavioral: Use STAR method questions about teamwork, challenges, achievements.
 Mix difficulties: 1 easy, 3 medium, 1 hard.`;
 
-      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${GEMINI_API_KEY}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gemini-2.0-flash',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: 'You are an expert interviewer. Generate realistic, challenging interview questions. Return only valid JSON array.' },
             { role: 'user', content: prompt }
@@ -191,14 +191,14 @@ Return JSON evaluation:
 
 Be encouraging but honest. Focus on actionable improvements.`;
 
-      const evalResponse = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      const evalResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${GEMINI_API_KEY}`,
+          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gemini-2.0-flash',
+          model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: 'You are an expert interview coach providing constructive feedback. Return only valid JSON.' },
             { role: 'user', content: evalPrompt }

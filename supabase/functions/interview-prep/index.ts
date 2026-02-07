@@ -52,9 +52,9 @@ serve(async (req) => {
       throw new Error('Job not found');
     }
 
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
-    if (!GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     const userSkills = resume?.parsed_data?.skills || [];
@@ -90,14 +90,14 @@ Return JSON:
 
 Generate 5 technical questions, 4 behavioral questions, 3 company-specific questions, 5 preparation tips, and 5 key talking points.`;
 
-    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${GEMINI_API_KEY}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gemini-2.0-flash',
+        model: 'google/gemini-3-flash-preview',
         messages: [
           { role: 'system', content: 'You are an expert interview coach. Return only valid JSON.' },
           { role: 'user', content: prompt }
