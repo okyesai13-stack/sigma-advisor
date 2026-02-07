@@ -38,9 +38,9 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     // NEW: Streaming Project Chat Action
@@ -63,14 +63,14 @@ Your role is to:
 
 Keep responses focused and practical. Use markdown for formatting. When providing code, use proper syntax highlighting.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: systemPrompt },
             ...(messages || []).map((m: any) => ({ role: m.role, content: m.content })),
@@ -120,14 +120,14 @@ Include these sections:
 
 Use proper markdown formatting with emojis for visual appeal.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert at creating professional documentation. Generate clean, well-formatted README files.' },
             { role: 'user', content: prompt }
@@ -173,14 +173,14 @@ Include:
 
 Add comments explaining each section.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert at creating comprehensive .gitignore files. Output only the gitignore content with comments.' },
             { role: 'user', content: prompt }
@@ -236,14 +236,14 @@ Provide:
 
 Use PostgreSQL syntax. Include RLS (Row Level Security) policies if applicable.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are a database architect expert. Design clean, normalized database schemas with proper security.' },
             { role: 'user', content: prompt }
@@ -295,14 +295,14 @@ Include:
 
 Use modern testing patterns and clear assertions.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are a testing expert. Generate clean, comprehensive test suites with good coverage.' },
             { role: 'user', content: prompt }
@@ -348,14 +348,14 @@ Provide:
 5. Potential improvements or alternatives
 6. Common pitfalls to avoid`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert code reviewer and teacher. Explain code clearly for developers learning to build projects.' },
             { role: 'user', content: prompt }
@@ -481,14 +481,14 @@ Requirements:
 - Include 4-6 learning resources with real URLs
 - Include 4-6 next steps for portfolio enhancement`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert developer creating project blueprints. Return only valid JSON.' },
             { role: 'user', content: prompt }
@@ -597,14 +597,14 @@ Phase structure:
 4. Testing & Refinement - Debug, test, optimize
 5. Deployment & Documentation - Launch and document`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert project mentor. Return only valid JSON.' },
             { role: 'user', content: prompt }
@@ -706,14 +706,14 @@ Provide detailed, actionable guidance including:
 
 Be specific and practical. If code is needed, provide complete, working examples.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert coding mentor providing practical project guidance. Use markdown formatting.' },
             { role: 'user', content: prompt }
@@ -875,14 +875,14 @@ Provide:
 
 Use modern best practices and clean code principles.`;
 
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+      const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+          'Authorization': `Bearer ${GEMINI_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'google/gemini-3-flash-preview',
+          model: 'gemini-2.0-flash',
           messages: [
             { role: 'system', content: 'You are an expert software developer. Provide clean, production-ready code with comments.' },
             { role: 'user', content: prompt }

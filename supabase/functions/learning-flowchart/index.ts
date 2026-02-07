@@ -17,9 +17,9 @@ serve(async (req) => {
       throw new Error('No skill_name provided');
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     const prompt = `Create a step-by-step learning path for ${skill_name}.
@@ -45,14 +45,14 @@ Requirements:
 - Make steps actionable and achievable
 - Steps should logically build on each other`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         messages: [
           { role: 'system', content: 'You are a learning content generator. Return only valid JSON, no markdown or extra text.' },
           { role: 'user', content: prompt }
