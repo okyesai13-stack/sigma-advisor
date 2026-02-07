@@ -29,10 +29,11 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVe
 const SetupNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { setResumeId, setGoal, goal, userType, setUserType } = useResume();
+  const { setResumeId, setGoal, goal, challenge, setChallenge, userType, setUserType } = useResume();
 
   const [step, setStep] = useState<'goal' | 'resume'>('goal');
   const [goalText, setGoalText] = useState(goal || '');
+  const [challengeText, setChallengeText] = useState(challenge || '');
   const [isUploading, setIsUploading] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
   const [uploadMode, setUploadMode] = useState<'file' | 'image'>('file');
@@ -49,6 +50,9 @@ const SetupNoAuth = () => {
       return;
     }
     setGoal(goalText.trim());
+    if (challengeText.trim()) {
+      setChallenge(challengeText.trim());
+    }
     setStep('resume');
   };
 
@@ -124,6 +128,7 @@ const SetupNoAuth = () => {
             resumeText: resumeText.slice(0, 20000),
             fileName: file.name,
             goal: goalText,
+            challenge: challengeText || null,
             userType: userType,
           }),
         }
@@ -199,6 +204,7 @@ const SetupNoAuth = () => {
             imageBase64,
             fileName: file.name,
             goal: goalText,
+            challenge: challengeText || null,
             userType: userType,
           }),
         }
@@ -282,15 +288,26 @@ const SetupNoAuth = () => {
               </p>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="goal">Your Ultimate Career Goal or Challenge</Label>
+                <Label htmlFor="goal">🎯 Your Ultimate Career Goal</Label>
                 <Textarea
                   id="goal"
-                  placeholder="e.g., Become a Senior Data Scientist at a top tech company...&#10;&#10;Or describe a problem you're facing in your career, like:&#10;• I'm stuck in my current role and want to transition into AI/ML&#10;• I don't know which skills to learn next for a promotion"
+                  placeholder="e.g., Become a Senior Data Scientist at a top tech company, Lead AI/ML engineering team, Start my own SaaS company..."
                   value={goalText}
                   onChange={(e) => setGoalText(e.target.value)}
-                  className="min-h-[140px] text-lg"
+                  className="min-h-[100px] text-lg"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="challenge">⚡ What Challenge Are You Facing? <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <Textarea
+                  id="challenge"
+                  placeholder="e.g., I'm stuck in my current role with no growth path, I don't know which skills to learn next, I'm struggling to transition from backend to AI/ML, I lack guidance on how to get promoted..."
+                  value={challengeText}
+                  onChange={(e) => setChallengeText(e.target.value)}
+                  className="min-h-[100px] text-lg"
                 />
               </div>
 
@@ -335,7 +352,8 @@ const SetupNoAuth = () => {
 
             <div className="p-1 rounded-lg bg-muted/50">
               <p className="text-sm text-center text-muted-foreground py-2">
-                <strong>Your Goal:</strong> {goalText}
+              <strong>Your Goal:</strong> {goalText}
+              {challengeText && <><br /><strong>Challenge:</strong> {challengeText}</>}
               </p>
             </div>
 

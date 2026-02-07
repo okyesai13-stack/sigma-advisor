@@ -5,6 +5,8 @@ interface ResumeContextType {
   setResumeId: (id: string | null) => void;
   goal: string | null;
   setGoal: (goal: string | null) => void;
+  challenge: string | null;
+  setChallenge: (challenge: string | null) => void;
   userType: string;
   setUserType: (type: string) => void;
   isReady: boolean;
@@ -15,11 +17,13 @@ const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'sigma_resume_id';
 const GOAL_KEY = 'sigma_goal';
+const CHALLENGE_KEY = 'sigma_challenge';
 const USER_TYPE_KEY = 'sigma_user_type';
 
 export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const [resumeId, setResumeIdState] = useState<string | null>(null);
   const [goal, setGoalState] = useState<string | null>(null);
+  const [challenge, setChallengeState] = useState<string | null>(null);
   const [userType, setUserTypeState] = useState<string>('student');
   const [isReady, setIsReady] = useState(false);
 
@@ -27,10 +31,12 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const storedResumeId = sessionStorage.getItem(STORAGE_KEY);
     const storedGoal = sessionStorage.getItem(GOAL_KEY);
+    const storedChallenge = sessionStorage.getItem(CHALLENGE_KEY);
     const storedUserType = sessionStorage.getItem(USER_TYPE_KEY);
     
     if (storedResumeId) setResumeIdState(storedResumeId);
     if (storedGoal) setGoalState(storedGoal);
+    if (storedChallenge) setChallengeState(storedChallenge);
     if (storedUserType) setUserTypeState(storedUserType);
     
     setIsReady(true);
@@ -54,6 +60,15 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const setChallenge = (newChallenge: string | null) => {
+    setChallengeState(newChallenge);
+    if (newChallenge) {
+      sessionStorage.setItem(CHALLENGE_KEY, newChallenge);
+    } else {
+      sessionStorage.removeItem(CHALLENGE_KEY);
+    }
+  };
+
   const setUserType = (type: string) => {
     setUserTypeState(type);
     sessionStorage.setItem(USER_TYPE_KEY, type);
@@ -62,9 +77,11 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const clearSession = () => {
     setResumeIdState(null);
     setGoalState(null);
+    setChallengeState(null);
     setUserTypeState('student');
     sessionStorage.removeItem(STORAGE_KEY);
     sessionStorage.removeItem(GOAL_KEY);
+    sessionStorage.removeItem(CHALLENGE_KEY);
     sessionStorage.removeItem(USER_TYPE_KEY);
   };
 
@@ -74,6 +91,8 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
       setResumeId,
       goal,
       setGoal,
+      challenge,
+      setChallenge,
       userType,
       setUserType,
       isReady,

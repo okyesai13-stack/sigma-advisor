@@ -49,6 +49,7 @@ serve(async (req) => {
     ).join('; ') || 'Not specified';
     const projects = parsedData.projects?.map((p: any) => p.name).join(', ') || 'Not specified';
     const userGoal = resumeData.goal || 'Not specified';
+    const userChallenge = resumeData.challenge || '';
 
     const systemPrompt = `You are an expert AI Career Advisor specializing in helping students and professionals in India create structured career progression paths. Your job is to analyze the user's current position and their ultimate career goal, then create a THREE-STAGE career roadmap:
 
@@ -56,11 +57,14 @@ serve(async (req) => {
 2. **MID-TERM ROLE (1-3 years)**: An intermediate position that bridges the gap.
 3. **LONG-TERM ROLE (3-5 years)**: The user's ultimate career goal.
 
-Each role must logically progress from the previous one with India-specific salary expectations in INR.`;
+Each role must logically progress from the previous one with India-specific salary expectations in INR.
+
+${userChallenge ? `IMPORTANT: The user has described a specific career challenge they are facing. In the "overall_assessment" field, you MUST directly address this challenge with concrete, actionable solutions and strategies. Start the assessment by acknowledging their challenge and providing a clear path to overcome it.` : ''}`;
 
     const userPrompt = `Create a structured career progression path:
 
 CAREER GOAL: ${userGoal}
+${userChallenge ? `\nCAREER CHALLENGE: ${userChallenge}` : ''}
 
 EDUCATION: ${education}
 EXPERIENCE: ${experience}

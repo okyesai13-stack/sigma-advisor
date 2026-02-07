@@ -607,6 +607,7 @@ export type Database = {
       }
       resume_store: {
         Row: {
+          challenge: string | null
           created_at: string
           file_name: string | null
           goal: string | null
@@ -618,6 +619,7 @@ export type Database = {
           user_type: string | null
         }
         Insert: {
+          challenge?: string | null
           created_at?: string
           file_name?: string | null
           goal?: string | null
@@ -629,6 +631,7 @@ export type Database = {
           user_type?: string | null
         }
         Update: {
+          challenge?: string | null
           created_at?: string
           file_name?: string | null
           goal?: string | null

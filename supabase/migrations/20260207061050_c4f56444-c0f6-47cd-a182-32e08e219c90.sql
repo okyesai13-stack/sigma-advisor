@@ -1,0 +1,1 @@
+ALTER TABLE public.resume_store ADD COLUMN challenge text DEFAULT NULL;

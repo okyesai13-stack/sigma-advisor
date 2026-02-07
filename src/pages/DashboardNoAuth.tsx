@@ -92,6 +92,7 @@ const DashboardNoAuth = () => {
     resumeId,
     setResumeId,
     goal,
+    challenge,
     clearSession
   } = useResume();
 
@@ -258,6 +259,13 @@ const DashboardNoAuth = () => {
         <div style="margin-bottom: 20px; padding: 12px; background: #f8f5ff; border-radius: 8px; border-left: 4px solid #8b5cf6;">
           <p style="color: #7c3aed; font-size: 12px; font-weight: bold; margin: 0 0 5px 0;">🎯 CAREER GOAL</p>
           <p style="margin: 0; color: #333; font-size: 13px;">${goal}</p>
+        </div>
+        ` : ''}
+
+        ${challenge ? `
+        <div style="margin-bottom: 20px; padding: 12px; background: #fff5f5; border-radius: 8px; border-left: 4px solid #ef4444;">
+          <p style="color: #dc2626; font-size: 12px; font-weight: bold; margin: 0 0 5px 0;">⚡ CAREER CHALLENGE</p>
+          <p style="margin: 0; color: #333; font-size: 13px;">${challenge}</p>
         </div>
         ` : ''}
 
