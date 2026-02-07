@@ -39,9 +39,9 @@ serve(async (req) => {
     const readinessScore = skillData?.readiness_score || 50;
     const userSkills = resumeData?.parsed_data?.skills || [];
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
+    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    if (!GEMINI_API_KEY) {
+      throw new Error('GEMINI_API_KEY not configured');
     }
 
     const prompt = `Generate 5 realistic job recommendations for: ${targetRole}
@@ -68,14 +68,14 @@ Return JSON array with REAL job posting URLs from LinkedIn, Naukri, Indeed, or c
 
 Generate realistic job URLs that follow the pattern of actual job boards. Include companies like TCS, Infosys, Wipro, Google, Microsoft, Amazon, etc.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'Authorization': `Bearer ${GEMINI_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
+        model: 'gemini-2.0-flash',
         messages: [
           { role: 'system', content: 'You are a job matching expert. Return only valid JSON array with realistic job URLs.' },
           { role: 'user', content: prompt }
