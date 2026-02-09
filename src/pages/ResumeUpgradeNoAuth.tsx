@@ -16,7 +16,6 @@ import {
   RefreshCw,
   Loader2,
   FileText,
-  Edit3,
   Check,
   X,
   ZoomIn,
@@ -31,6 +30,10 @@ import {
   Award,
   Code,
   Wrench,
+  Plus,
+  ClipboardPaste,
+  Eye,
+  Calendar,
 } from 'lucide-react';
 
 interface ResumeData {
@@ -76,6 +79,14 @@ interface ResumeData {
   }>;
 }
 
+interface ResumeListItem {
+  id: string;
+  target_role: string | null;
+  created_at: string;
+}
+
+type ViewMode = 'list' | 'generate' | 'editor';
+
 const ResumeUpgradeNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -84,10 +95,10 @@ const ResumeUpgradeNoAuth = () => {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGeneratingJD, setIsGeneratingJD] = useState(false);
   const [resumeData, setResumeData] = useState<ResumeData | null>(null);
   const [existingResumeId, setExistingResumeId] = useState<string | null>(null);
   const [scale, setScale] = useState(0.75);
-  const [editingField, setEditingField] = useState<string | null>(null);
   const [sectionVisibility, setSectionVisibility] = useState({
     personalDetails: true,
     summary: true,
@@ -98,6 +109,11 @@ const ResumeUpgradeNoAuth = () => {
     certifications: true,
   });
 
+  // New state for list & JD
+  const [resumeList, setResumeList] = useState<ResumeListItem[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [jdText, setJdText] = useState('');
+
   const toggleSectionVisibility = (section: keyof typeof sectionVisibility) => {
     setSectionVisibility(prev => ({ ...prev, [section]: !prev[section] }));
   };
@@ -107,30 +123,52 @@ const ResumeUpgradeNoAuth = () => {
       navigate('/setup');
       return;
     }
-    loadExistingResume();
+    loadResumeList();
   }, [resumeId]);
 
-  const loadExistingResume = async () => {
+  const loadResumeList = async () => {
     if (!resumeId) return;
     setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('upgraded_resume_result')
+        .select('id, target_role, created_at')
+        .eq('resume_id', resumeId)
+        .order('created_at', { ascending: false });
 
+      if (data && !error) {
+        setResumeList(data);
+        if (data.length === 0) {
+          setViewMode('generate');
+        } else {
+          setViewMode('list');
+        }
+      } else {
+        setViewMode('generate');
+      }
+    } catch (error) {
+      console.error('Error loading resume list:', error);
+      setViewMode('generate');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadResume = async (id: string) => {
     try {
       const { data, error } = await supabase
         .from('upgraded_resume_result')
         .select('*')
-        .eq('resume_id', resumeId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .eq('id', id)
+        .single();
 
       if (data && !error) {
         setResumeData(data.resume_data as unknown as ResumeData);
         setExistingResumeId(data.id);
+        setViewMode('editor');
       }
     } catch (error) {
       console.error('Error loading resume:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -141,7 +179,7 @@ const ResumeUpgradeNoAuth = () => {
     try {
       toast({
         title: "Generating Resume",
-        description: "AI is creating your optimized resume...",
+        description: "AI is creating your optimized resume from your profile...",
       });
 
       const { data, error } = await supabase.functions.invoke('resume-upgrade', {
@@ -149,13 +187,12 @@ const ResumeUpgradeNoAuth = () => {
       });
 
       if (error) throw error;
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to generate resume');
-      }
+      if (!data.success) throw new Error(data.error || 'Failed to generate resume');
 
       setResumeData(data.data.resume_data);
       setExistingResumeId(data.data.id);
+      setViewMode('editor');
+      await loadResumeList();
 
       toast({
         title: "Resume Generated!",
@@ -173,16 +210,54 @@ const ResumeUpgradeNoAuth = () => {
     }
   };
 
+  const generateFromJD = async () => {
+    if (!resumeId || !jdText.trim()) {
+      toast({ title: "Error", description: "Please paste a job description first.", variant: "destructive" });
+      return;
+    }
+    setIsGeneratingJD(true);
+
+    try {
+      toast({
+        title: "Generating JD-Based Resume",
+        description: "AI is tailoring your resume to the job description...",
+      });
+
+      const { data, error } = await supabase.functions.invoke('resume-upgrade-jd', {
+        body: { resume_id: resumeId, job_description: jdText }
+      });
+
+      if (error) throw error;
+      if (!data.success) throw new Error(data.error || 'Failed to generate resume');
+
+      setResumeData(data.data.resume_data);
+      setExistingResumeId(data.data.id);
+      setJdText('');
+      setViewMode('editor');
+      await loadResumeList();
+
+      toast({
+        title: "Resume Generated!",
+        description: `Resume tailored for "${data.data.target_role}" is ready.`,
+      });
+    } catch (error) {
+      console.error('Error generating JD resume:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to generate resume",
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingJD(false);
+    }
+  };
+
   const handleDownloadPDF = async () => {
     if (!printRef.current) return;
 
     try {
-      toast({
-        title: "Preparing PDF",
-        description: "Generating your resume PDF...",
-      });
+      toast({ title: "Preparing PDF", description: "Generating your resume PDF..." });
 
-      // Dynamic import of html2pdf
       // @ts-ignore
       const html2pdf = (await import('html2pdf.js')).default;
 
@@ -196,17 +271,10 @@ const ResumeUpgradeNoAuth = () => {
 
       await html2pdf().set(opt).from(printRef.current).save();
 
-      toast({
-        title: "Download Started",
-        description: "Your PDF is being downloaded.",
-      });
+      toast({ title: "Download Started", description: "Your PDF is being downloaded." });
     } catch (error) {
       console.error('PDF generation error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to generate PDF",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to generate PDF", variant: "destructive" });
     }
   };
 
@@ -238,7 +306,6 @@ const ResumeUpgradeNoAuth = () => {
     }
     
     setResumeData(newData);
-    setEditingField(null);
   };
 
   if (isLoading) {
@@ -258,70 +325,174 @@ const ResumeUpgradeNoAuth = () => {
       <header className="border-b border-border/50 bg-card/50 backdrop-blur-md sticky top-0 z-20">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+            <Button variant="ghost" size="icon" onClick={() => {
+              if (viewMode === 'editor') {
+                setViewMode('list');
+                setResumeData(null);
+              } else if (viewMode === 'generate' && resumeList.length > 0) {
+                setViewMode('list');
+              } else {
+                navigate('/dashboard');
+              }
+            }}>
               <ArrowLeft className="w-5 h-5" />
             </Button>
             <div className="flex items-center gap-2">
               <Sparkles className="w-6 h-6 text-primary" />
-              <span className="text-xl font-bold">Resume Builder</span>
+              <span className="text-xl font-bold">
+                {viewMode === 'list' ? 'My Resumes' : viewMode === 'generate' ? 'Create Resume' : 'Resume Editor'}
+              </span>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.max(0.4, s - 0.1))}>
-                <ZoomOut className="h-4 w-4" />
+            {viewMode === 'list' && (
+              <Button onClick={() => setViewMode('generate')} className="gap-2">
+                <Plus className="w-4 h-4" />
+                Create New
               </Button>
-              <span className="text-xs w-12 text-center">{Math.round(scale * 100)}%</span>
-              <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.min(1.2, s + 0.1))}>
-                <ZoomIn className="h-4 w-4" />
-              </Button>
-            </div>
-            {resumeData && (
-              <Button onClick={handleDownloadPDF} className="gap-2">
-                <Download className="w-4 h-4" />
-                Download PDF
-              </Button>
+            )}
+            {viewMode === 'editor' && (
+              <>
+                <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.max(0.4, s - 0.1))}>
+                    <ZoomOut className="h-4 w-4" />
+                  </Button>
+                  <span className="text-xs w-12 text-center">{Math.round(scale * 100)}%</span>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setScale(s => Math.min(1.2, s + 0.1))}>
+                    <ZoomIn className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Button onClick={handleDownloadPDF} className="gap-2">
+                  <Download className="w-4 h-4" />
+                  Download PDF
+                </Button>
+              </>
             )}
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6">
-        {!resumeData ? (
-          /* Generate CTA */
-          <div className="max-w-2xl mx-auto">
-            <Card className="border-2 border-dashed border-primary/30">
-              <CardContent className="py-16 text-center">
-                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <FileText className="w-10 h-10 text-primary" />
-                </div>
-                <h2 className="text-2xl font-bold mb-2">Generate Your Optimized Resume</h2>
-                <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                  Our AI will analyze your career data, skills, and projects to create a professional, ATS-optimized resume tailored to your target role.
-                </p>
-                <Button 
-                  size="lg" 
-                  onClick={generateResume} 
-                  disabled={isGenerating}
-                  className="gap-2"
+        {/* Resume List View */}
+        {viewMode === 'list' && (
+          <div className="max-w-4xl mx-auto">
+            <p className="text-muted-foreground mb-6">Your generated resumes, each tailored for a specific role.</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {resumeList.map((item) => (
+                <Card 
+                  key={item.id} 
+                  className="hover:border-primary/50 transition-colors cursor-pointer group"
+                  onClick={() => loadResume(item.id)}
                 >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Generating...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="w-5 h-5" />
-                      Generate Resume
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                        <FileText className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold truncate">{item.target_role || 'Untitled Resume'}</h3>
+                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(item.created_at).toLocaleDateString('en-US', { 
+                            month: 'short', day: 'numeric', year: 'numeric' 
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="w-full mt-4 gap-2 opacity-80 group-hover:opacity-100"
+                    >
+                      <Eye className="w-3 h-3" />
+                      View & Edit
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           </div>
-        ) : (
-          /* Resume Preview */
+        )}
+
+        {/* Generate View */}
+        {viewMode === 'generate' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Generate from Profile */}
+              <Card className="border-2 border-dashed border-primary/30">
+                <CardContent className="py-12 text-center">
+                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-8 h-8 text-primary" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Generate from Profile</h3>
+                  <p className="text-muted-foreground text-sm mb-6">
+                    AI analyzes your career data, skills, and projects to create an optimized resume.
+                  </p>
+                  <Button 
+                    size="lg" 
+                    onClick={generateResume} 
+                    disabled={isGenerating || isGeneratingJD}
+                    className="gap-2"
+                  >
+                    {isGenerating ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-5 h-5" />
+                        Generate
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+
+              {/* Generate from JD */}
+              <Card className="border-2 border-dashed border-primary/30">
+                <CardContent className="py-8">
+                  <div className="text-center mb-4">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <ClipboardPaste className="w-8 h-8 text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold mb-2">Generate from Job Description</h3>
+                    <p className="text-muted-foreground text-sm">
+                      Paste a JD and get a resume tailored for that specific role.
+                    </p>
+                  </div>
+                  <Textarea
+                    placeholder="Paste the full job description here..."
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                    className="min-h-[120px] mb-4"
+                  />
+                  <Button 
+                    size="lg"
+                    className="w-full gap-2"
+                    onClick={generateFromJD} 
+                    disabled={isGeneratingJD || isGenerating || !jdText.trim()}
+                  >
+                    {isGeneratingJD ? (
+                      <>
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        Tailoring Resume...
+                      </>
+                    ) : (
+                      <>
+                        <ClipboardPaste className="w-5 h-5" />
+                        Generate from JD
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        )}
+
+        {/* Editor View */}
+        {viewMode === 'editor' && resumeData && (
           <div className="flex flex-col lg:flex-row gap-6">
             {/* Left Panel - Editor */}
             <div className="lg:w-80 shrink-0 space-y-4 max-h-[calc(100vh-120px)] overflow-y-auto">
@@ -330,6 +501,17 @@ const ResumeUpgradeNoAuth = () => {
                   <CardTitle className="text-lg">Actions</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full gap-2" 
+                    onClick={() => {
+                      setViewMode('list');
+                      setResumeData(null);
+                    }}
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                    Back to My Resumes
+                  </Button>
                   <Button 
                     variant="outline" 
                     className="w-full gap-2" 
