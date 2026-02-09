@@ -1,67 +1,90 @@
 
-# Add Career Challenge Field to Setup and Analysis Pipeline
+
+# JD-Based Resume Generation with Resume List
 
 ## Overview
-Add a separate "Career Challenge" input field on the setup page alongside the existing goal field, store it in the database, feed it into the AI career analysis, and display challenge-specific insights in the dashboard's Overall Assessment.
+Add a Job Description (JD) upload feature to the `/resume-upgrade` page. Users paste a JD, and the AI generates a tailored resume optimized for that specific role. All generated resumes are listed by their target role name, allowing users to switch between them.
 
 ## Changes
 
-### 1. Database Migration
-Add a `challenge` column to the `resume_store` table:
-```sql
-ALTER TABLE resume_store ADD COLUMN challenge text DEFAULT NULL;
+### 1. New Edge Function: `resume-upgrade-jd`
+Create `supabase/functions/resume-upgrade-jd/index.ts` that:
+- Accepts `resume_id` and `job_description` (the pasted JD text)
+- Fetches the user's profile from `resume_store` (resume text, parsed data, goal)
+- Extracts the role title from the JD using AI
+- Generates a tailored resume JSON optimized for the JD requirements
+- Saves to `upgraded_resume_result` with `target_role` set to the extracted role title
+- Returns the generated resume data
+
+Add to `supabase/config.toml`:
+```toml
+[functions.resume-upgrade-jd]
+verify_jwt = false
 ```
 
-### 2. Setup Page (`src/pages/SetupNoAuth.tsx`)
-Split the current single textarea into two distinct sections:
-- **Section 1 - Career Goal**: "Your Ultimate Career Goal" (e.g., become a Senior Data Scientist)
-- **Section 2 - Career Challenge**: "What challenge are you facing?" (e.g., stuck in current role, skill gaps, no guidance)
-- Add a new `challengeText` state variable
-- Pass `challenge` to the upload-resume API call
+### 2. Resume Upgrade Page (`src/pages/ResumeUpgradeNoAuth.tsx`)
+Major restructure of the page flow:
 
-### 3. ResumeContext (`src/contexts/ResumeContext.tsx`)
-- Add `challenge` and `setChallenge` to the context
-- Add sessionStorage persistence with key `sigma_challenge`
-- Include in `clearSession()`
+**A. Resume List View (new default when resumes exist)**
+- On load, fetch ALL resumes from `upgraded_resume_result` for this `resume_id`
+- Display as a card grid, each card showing:
+  - Target role name (from `target_role` column) as the resume title
+  - Creation date
+  - "View" button to open the resume editor
+- Clicking a card loads that resume into the editor/preview
 
-### 4. Upload Resume Edge Function (`supabase/functions/upload-resume/index.ts`)
-- Accept `challenge` from the request body
-- Store it in the `resume_store` insert as `challenge`
+**B. Generation Options (shown when no resumes exist, or via "Create New" button)**
+Two options side by side:
+1. **Generate from Profile** -- existing button that calls `resume-upgrade`
+2. **Generate from Job Description** -- new card with a Textarea to paste a JD, then calls `resume-upgrade-jd`
 
-### 5. Resume Image Parse Edge Function (`supabase/functions/resume-image-parse/index.ts`)
-- Accept `challenge` from the request body and pass it through to `resume_store`
+**C. Resume Editor (existing, shown when a resume is selected)**
+- Same as current editor/preview with the left panel and A4 preview
+- Add a "Back to My Resumes" button in the header to return to the list view
 
-### 6. Career Analysis Edge Function (`supabase/functions/career-analysis/index.ts`)
-- Read `resumeData.challenge` from the database
-- Add `CAREER CHALLENGE: ${challenge}` to the AI prompt
-- Update the system prompt to instruct the AI to address the user's specific challenge in the `overall_assessment` field with actionable solutions
+### 3. State Management Updates
+New state variables in the page:
+- `resumeList`: array of all saved resumes (id, target_role, created_at)
+- `selectedResumeId`: which resume is currently being viewed
+- `viewMode`: `'list' | 'generate' | 'editor'`
+- `jdText`: the pasted job description text
+- `isGeneratingJD`: loading state for JD-based generation
 
-### 7. Dashboard - Overall Assessment Card (`src/components/dashboard/OverallAssessmentCard.tsx`)
-- No structural changes needed -- the `overall_assessment` text from the AI will now naturally include challenge analysis and solutions since the prompt is updated
+### 4. Data Flow
 
-### 8. Dashboard Page (`src/pages/DashboardNoAuth.tsx`)
-- Fetch and display the challenge text alongside the goal in the summary section (if present)
+```
+User pastes JD
+  --> calls resume-upgrade-jd edge function
+    --> AI extracts role + tailors resume to JD
+      --> saved to upgraded_resume_result (target_role = extracted role)
+        --> resume list refreshes, new resume appears
+          --> user clicks to view/edit/download
+```
 
 ## Technical Details
 
-### Data Flow
-```
-Setup Page (goal + challenge)
-  --> upload-resume edge function
-    --> resume_store table (goal + challenge columns)
-      --> career-analysis edge function reads both
-        --> AI prompt includes challenge context
-          --> overall_assessment contains challenge solutions
-            --> Dashboard displays in OverallAssessmentCard
+### Edge Function: `resume-upgrade-jd`
+- Prompt includes the full JD text along with user profile data
+- AI instructed to: extract the exact job title for `target_role`, align skills/experience/summary to JD requirements, use JD keywords for ATS optimization
+- Same JSON output structure as existing `resume-upgrade`
+
+### Resume List Query
+```typescript
+const { data } = await supabase
+  .from('upgraded_resume_result')
+  .select('id, target_role, created_at')
+  .eq('resume_id', resumeId)
+  .order('created_at', { ascending: false });
 ```
 
-### Files Modified
+### No Database Schema Changes Needed
+The existing `upgraded_resume_result` table already has all required columns (`resume_id`, `resume_data`, `target_role`, `created_at`).
+
+### Files to Create/Modify
+
 | File | Change |
 |------|--------|
-| `resume_store` table | Add `challenge` column |
-| `src/contexts/ResumeContext.tsx` | Add challenge state + persistence |
-| `src/pages/SetupNoAuth.tsx` | Split into two input sections |
-| `supabase/functions/upload-resume/index.ts` | Accept and store challenge |
-| `supabase/functions/resume-image-parse/index.ts` | Accept and store challenge |
-| `supabase/functions/career-analysis/index.ts` | Include challenge in AI prompt |
-| `src/pages/DashboardNoAuth.tsx` | Show challenge in summary area |
+| `supabase/functions/resume-upgrade-jd/index.ts` | New edge function for JD-based resume generation |
+| `supabase/config.toml` | Add `resume-upgrade-jd` function config |
+| `src/pages/ResumeUpgradeNoAuth.tsx` | Add resume list view, JD input, view mode switching |
+
