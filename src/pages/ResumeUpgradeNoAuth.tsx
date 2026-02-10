@@ -34,6 +34,7 @@ import {
   ClipboardPaste,
   Eye,
   Calendar,
+  Trash2,
 } from 'lucide-react';
 
 interface ResumeData {
@@ -113,6 +114,9 @@ const ResumeUpgradeNoAuth = () => {
   const [resumeList, setResumeList] = useState<ResumeListItem[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [jdText, setJdText] = useState('');
+  const [currentResumeSource, setCurrentResumeSource] = useState<'profile' | 'jd'>('profile');
+  const [currentJdText, setCurrentJdText] = useState('');
+  const [currentTargetRole, setCurrentTargetRole] = useState('');
 
   const toggleSectionVisibility = (section: keyof typeof sectionVisibility) => {
     setSectionVisibility(prev => ({ ...prev, [section]: !prev[section] }));
@@ -172,83 +176,119 @@ const ResumeUpgradeNoAuth = () => {
     }
   };
 
+  const handleRateLimitError = (error: any): boolean => {
+    const msg = error?.message || '';
+    if (msg.includes('Rate limit') || msg.includes('429')) {
+      toast({ title: "Rate Limited", description: "Too many requests. Please wait a moment and try again.", variant: "destructive" });
+      return true;
+    }
+    if (msg.includes('credits') || msg.includes('402')) {
+      toast({ title: "Credits Exhausted", description: "AI credits are used up. Please try again later.", variant: "destructive" });
+      return true;
+    }
+    return false;
+  };
+
   const generateResume = async () => {
     if (!resumeId) return;
     setIsGenerating(true);
 
     try {
-      toast({
-        title: "Generating Resume",
-        description: "AI is creating your optimized resume from your profile...",
-      });
+      toast({ title: "Generating Resume", description: "AI is creating your optimized resume from your profile..." });
 
       const { data, error } = await supabase.functions.invoke('resume-upgrade', {
         body: { resume_id: resumeId }
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Failed to generate resume');
+      if (error) {
+        if (!handleRateLimitError(error)) throw error;
+        return;
+      }
+      if (!data.success) {
+        if (!handleRateLimitError(new Error(data.error))) throw new Error(data.error || 'Failed to generate resume');
+        return;
+      }
 
       setResumeData(data.data.resume_data);
       setExistingResumeId(data.data.id);
+      setCurrentResumeSource('profile');
+      setCurrentTargetRole(data.data.target_role || 'Professional');
       setViewMode('editor');
       await loadResumeList();
 
-      toast({
-        title: "Resume Generated!",
-        description: "Your optimized resume is ready.",
-      });
+      toast({ title: "Resume Generated!", description: "Your optimized resume is ready." });
     } catch (error) {
       console.error('Error generating resume:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate resume",
-        variant: "destructive",
-      });
+      if (!handleRateLimitError(error)) {
+        toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to generate resume", variant: "destructive" });
+      }
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const generateFromJD = async () => {
-    if (!resumeId || !jdText.trim()) {
+  const generateFromJD = async (jd?: string) => {
+    const jobDesc = jd || jdText;
+    if (!resumeId || !jobDesc.trim()) {
       toast({ title: "Error", description: "Please paste a job description first.", variant: "destructive" });
       return;
     }
     setIsGeneratingJD(true);
 
     try {
-      toast({
-        title: "Generating JD-Based Resume",
-        description: "AI is tailoring your resume to the job description...",
-      });
+      toast({ title: "Generating JD-Based Resume", description: "AI is tailoring your resume to the job description..." });
 
       const { data, error } = await supabase.functions.invoke('resume-upgrade-jd', {
-        body: { resume_id: resumeId, job_description: jdText }
+        body: { resume_id: resumeId, job_description: jobDesc }
       });
 
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error || 'Failed to generate resume');
+      if (error) {
+        if (!handleRateLimitError(error)) throw error;
+        return;
+      }
+      if (!data.success) {
+        if (!handleRateLimitError(new Error(data.error))) throw new Error(data.error || 'Failed to generate resume');
+        return;
+      }
 
       setResumeData(data.data.resume_data);
       setExistingResumeId(data.data.id);
-      setJdText('');
+      setCurrentResumeSource('jd');
+      setCurrentJdText(jobDesc);
+      setCurrentTargetRole(data.data.target_role || 'Untitled Role');
+      if (!jd) setJdText('');
       setViewMode('editor');
       await loadResumeList();
 
-      toast({
-        title: "Resume Generated!",
-        description: `Resume tailored for "${data.data.target_role}" is ready.`,
-      });
+      toast({ title: "Resume Generated!", description: `Resume tailored for "${data.data.target_role}" is ready.` });
     } catch (error) {
       console.error('Error generating JD resume:', error);
-      toast({
-        title: "Error",
-        description: error instanceof Error ? error.message : "Failed to generate resume",
-        variant: "destructive",
-      });
+      if (!handleRateLimitError(error)) {
+        toast({ title: "Error", description: error instanceof Error ? error.message : "Failed to generate resume", variant: "destructive" });
+      }
     } finally {
       setIsGeneratingJD(false);
+    }
+  };
+
+  const handleRegenerate = () => {
+    if (currentResumeSource === 'jd' && currentJdText) {
+      generateFromJD(currentJdText);
+    } else {
+      generateResume();
+    }
+  };
+
+  const deleteResume = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await supabase.from('upgraded_resume_result').delete().eq('id', id);
+      const newList = resumeList.filter(r => r.id !== id);
+      setResumeList(newList);
+      if (newList.length === 0) setViewMode('generate');
+      toast({ title: "Deleted", description: "Resume removed." });
+    } catch (error) {
+      toast({ title: "Error", description: "Failed to delete resume", variant: "destructive" });
     }
   };
 
@@ -263,7 +303,7 @@ const ResumeUpgradeNoAuth = () => {
 
       const opt = {
         margin: 0,
-        filename: `resume-${resumeId}.pdf`,
+        filename: `${(currentTargetRole || 'resume').replace(/[^a-zA-Z0-9 ]/g, '').replace(/\s+/g, '-').toLowerCase()}.pdf`,
         image: { type: 'jpeg' as const, quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' as const }
@@ -407,6 +447,15 @@ const ResumeUpgradeNoAuth = () => {
                       <Eye className="w-3 h-3" />
                       View & Edit
                     </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full mt-1 gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      onClick={(e) => deleteResume(item.id, e)}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Delete
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -470,7 +519,7 @@ const ResumeUpgradeNoAuth = () => {
                   <Button 
                     size="lg"
                     className="w-full gap-2"
-                    onClick={generateFromJD} 
+                    onClick={() => generateFromJD()} 
                     disabled={isGeneratingJD || isGenerating || !jdText.trim()}
                   >
                     {isGeneratingJD ? (
@@ -515,10 +564,10 @@ const ResumeUpgradeNoAuth = () => {
                   <Button 
                     variant="outline" 
                     className="w-full gap-2" 
-                    onClick={generateResume}
-                    disabled={isGenerating}
+                    onClick={handleRegenerate}
+                    disabled={isGenerating || isGeneratingJD}
                   >
-                    {isGenerating ? (
+                    {(isGenerating || isGeneratingJD) ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
                     ) : (
                       <RefreshCw className="w-4 h-4" />
