@@ -1,90 +1,79 @@
 
 
-# JD-Based Resume Generation with Resume List
+# Fix Resume Upgrade Page: Logic, Edge Functions, and UX
 
 ## Overview
-Add a Job Description (JD) upload feature to the `/resume-upgrade` page. Users paste a JD, and the AI generates a tailored resume optimized for that specific role. All generated resumes are listed by their target role name, allowing users to switch between them.
+Fix all issues in the `/resume-upgrade` page flow: deploy the missing edge function, add proper error handling, fix the regenerate logic, and improve the resume list management.
+
+## Issues Found
+
+1. **Edge function `resume-upgrade-jd` was never deployed** -- it exists in code but has no deployment logs
+2. **Missing rate limit (429/402) error handling** in the JD edge function
+3. **Frontend doesn't handle rate limit errors** with user-friendly messages
+4. **Regenerate button always calls profile-based generation** even when viewing a JD-tailored resume
+5. **No way to delete resumes** from the list
+6. **PDF filename is generic** instead of using the role name
 
 ## Changes
 
-### 1. New Edge Function: `resume-upgrade-jd`
-Create `supabase/functions/resume-upgrade-jd/index.ts` that:
-- Accepts `resume_id` and `job_description` (the pasted JD text)
-- Fetches the user's profile from `resume_store` (resume text, parsed data, goal)
-- Extracts the role title from the JD using AI
-- Generates a tailored resume JSON optimized for the JD requirements
-- Saves to `upgraded_resume_result` with `target_role` set to the extracted role title
-- Returns the generated resume data
+### 1. Deploy Edge Function
+Deploy `resume-upgrade-jd` so it actually runs when called.
 
-Add to `supabase/config.toml`:
-```toml
-[functions.resume-upgrade-jd]
-verify_jwt = false
+### 2. Fix `resume-upgrade-jd` Edge Function Error Handling
+Add proper 429 and 402 error responses (matching the pattern in `resume-upgrade`):
+
+```typescript
+if (!response.ok) {
+  const errorText = await response.text();
+  console.error('AI API error:', response.status, errorText);
+  if (response.status === 429) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  if (response.status === 402) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'AI credits exhausted. Please try again later.' }),
+      { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  throw new Error(`AI API error: ${response.status}`);
+}
 ```
 
-### 2. Resume Upgrade Page (`src/pages/ResumeUpgradeNoAuth.tsx`)
-Major restructure of the page flow:
+### 3. Fix Frontend Error Handling (`ResumeUpgradeNoAuth.tsx`)
+Update both `generateResume` and `generateFromJD` to detect 429/402 errors and show specific toast messages to the user (e.g., "Rate limit reached, please wait a moment").
 
-**A. Resume List View (new default when resumes exist)**
-- On load, fetch ALL resumes from `upgraded_resume_result` for this `resume_id`
-- Display as a card grid, each card showing:
-  - Target role name (from `target_role` column) as the resume title
-  - Creation date
-  - "View" button to open the resume editor
-- Clicking a card loads that resume into the editor/preview
+### 4. Fix Regenerate Logic
+Track the source of the currently viewed resume. When the user clicks "Regenerate" on a JD-based resume, re-call `resume-upgrade-jd` with the original JD (not the profile-based function). Add state to track `currentResumeSource: 'profile' | 'jd'`.
 
-**B. Generation Options (shown when no resumes exist, or via "Create New" button)**
-Two options side by side:
-1. **Generate from Profile** -- existing button that calls `resume-upgrade`
-2. **Generate from Job Description** -- new card with a Textarea to paste a JD, then calls `resume-upgrade-jd`
+### 5. Add Delete Resume from List
+Add a delete button (trash icon) on each resume card in the list view. On click, delete the record from `upgraded_resume_result` and refresh the list.
 
-**C. Resume Editor (existing, shown when a resume is selected)**
-- Same as current editor/preview with the left panel and A4 preview
-- Add a "Back to My Resumes" button in the header to return to the list view
-
-### 3. State Management Updates
-New state variables in the page:
-- `resumeList`: array of all saved resumes (id, target_role, created_at)
-- `selectedResumeId`: which resume is currently being viewed
-- `viewMode`: `'list' | 'generate' | 'editor'`
-- `jdText`: the pasted job description text
-- `isGeneratingJD`: loading state for JD-based generation
-
-### 4. Data Flow
-
-```
-User pastes JD
-  --> calls resume-upgrade-jd edge function
-    --> AI extracts role + tailors resume to JD
-      --> saved to upgraded_resume_result (target_role = extracted role)
-        --> resume list refreshes, new resume appears
-          --> user clicks to view/edit/download
-```
+### 6. Fix PDF Filename
+Use the `target_role` (sanitized) as the PDF filename instead of the generic `resume-${resumeId}.pdf`.
 
 ## Technical Details
 
-### Edge Function: `resume-upgrade-jd`
-- Prompt includes the full JD text along with user profile data
-- AI instructed to: extract the exact job title for `target_role`, align skills/experience/summary to JD requirements, use JD keywords for ATS optimization
-- Same JSON output structure as existing `resume-upgrade`
+### State Changes in `ResumeUpgradeNoAuth.tsx`
+New/modified state variables:
+- `currentTargetRole: string` -- tracks the role name of the currently viewed resume (for PDF naming)
 
-### Resume List Query
+### Delete Resume Function
 ```typescript
-const { data } = await supabase
-  .from('upgraded_resume_result')
-  .select('id, target_role, created_at')
-  .eq('resume_id', resumeId)
-  .order('created_at', { ascending: false });
+const deleteResume = async (id: string) => {
+  await supabase.from('upgraded_resume_result').delete().eq('id', id);
+  setResumeList(prev => prev.filter(r => r.id !== id));
+  // If list becomes empty, switch to generate view
+};
 ```
 
-### No Database Schema Changes Needed
-The existing `upgraded_resume_result` table already has all required columns (`resume_id`, `resume_data`, `target_role`, `created_at`).
-
-### Files to Create/Modify
-
+### Files Modified
 | File | Change |
 |------|--------|
-| `supabase/functions/resume-upgrade-jd/index.ts` | New edge function for JD-based resume generation |
-| `supabase/config.toml` | Add `resume-upgrade-jd` function config |
-| `src/pages/ResumeUpgradeNoAuth.tsx` | Add resume list view, JD input, view mode switching |
+| `supabase/functions/resume-upgrade-jd/index.ts` | Add 429/402 error handling |
+| `src/pages/ResumeUpgradeNoAuth.tsx` | Add delete, fix regenerate, fix PDF name, add error handling |
 
+### Deployment
+- Deploy `resume-upgrade-jd` edge function after fixes
