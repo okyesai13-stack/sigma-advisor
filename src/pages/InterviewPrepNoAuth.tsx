@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { 
   ArrowLeft, 
   Sparkles, 
@@ -14,6 +15,9 @@ import {
   Lightbulb,
   CheckCircle2,
   RefreshCw,
+  ChevronDown,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -21,11 +25,12 @@ interface InterviewPrep {
   id: string;
   job_title: string;
   company_name: string;
-  technical_questions: { question: string; hint: string; difficulty: string }[];
-  behavioral_questions: { question: string; hint: string; example_answer_structure: string }[];
-  company_specific_questions: { question: string; research_tip: string }[];
+  technical_questions: { question: string; hint: string; difficulty: string; sample_answer_outline?: string }[];
+  behavioral_questions: { question: string; hint: string; example_answer_structure?: string }[];
+  company_specific_questions: { question: string; research_tip: string; why_it_matters?: string }[];
   preparation_tips: string[];
   key_talking_points: string[];
+  dos_and_donts?: { dos: string[]; donts: string[] };
 }
 
 const InterviewPrepNoAuth = () => {
@@ -36,6 +41,7 @@ const InterviewPrepNoAuth = () => {
   const { resumeId } = useResume();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [prep, setPrep] = useState<InterviewPrep | null>(null);
 
   useEffect(() => {
@@ -46,41 +52,65 @@ const InterviewPrepNoAuth = () => {
     loadOrGeneratePrep();
   }, [resumeId, jobId]);
 
-  const loadOrGeneratePrep = async () => {
-    setIsLoading(true);
-    try {
-      // Try to load existing prep
-      const { data: existingPrep } = await supabase
-        .from('interview_preparation_result')
-        .select('*')
-        .eq('resume_id', resumeId)
-        .eq('job_id', jobId)
-        .maybeSingle();
+  const handleApiError = (error: any) => {
+    const status = error?.status || error?.context?.status;
+    if (status === 429) {
+      toast({ title: "Rate Limit", description: "Too many requests. Please wait a moment and try again.", variant: "destructive" });
+      return true;
+    }
+    if (status === 402) {
+      toast({ title: "Credits Exhausted", description: "AI credits have been used up. Please try again later.", variant: "destructive" });
+      return true;
+    }
+    return false;
+  };
 
-      if (existingPrep) {
-        setPrep(existingPrep as unknown as InterviewPrep);
-        setIsLoading(false);
-        return;
+  const loadOrGeneratePrep = async (forceRegenerate = false) => {
+    if (forceRegenerate) {
+      setIsRegenerating(true);
+    } else {
+      setIsLoading(true);
+    }
+    try {
+      if (!forceRegenerate) {
+        const { data: existingPrep } = await supabase
+          .from('interview_preparation_result')
+          .select('*')
+          .eq('resume_id', resumeId)
+          .eq('job_id', jobId)
+          .maybeSingle();
+
+        if (existingPrep) {
+          setPrep(existingPrep as unknown as InterviewPrep);
+          setIsLoading(false);
+          return;
+        }
       }
 
-      // Generate new prep
       const { data, error } = await supabase.functions.invoke('interview-prep', {
-        body: { resume_id: resumeId, job_id: jobId }
+        body: { resume_id: resumeId, job_id: jobId, force_regenerate: forceRegenerate }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (!handleApiError(error)) throw error;
+        return;
+      }
       if (data?.success) {
         setPrep(data.data as InterviewPrep);
+        if (forceRegenerate) {
+          toast({ title: "Regenerated", description: "Fresh interview prep has been generated." });
+        }
+      } else if (data?.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
       }
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load interview preparation",
-        variant: "destructive",
-      });
+      if (!handleApiError(error)) {
+        toast({ title: "Error", description: "Failed to load interview preparation", variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
+      setIsRegenerating(false);
     }
   };
 
@@ -121,6 +151,15 @@ const InterviewPrepNoAuth = () => {
               <span className="text-xl font-bold">Interview Prep</span>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadOrGeneratePrep(true)}
+            disabled={isRegenerating}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+            {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+          </Button>
         </div>
       </header>
 
@@ -150,6 +189,48 @@ const InterviewPrepNoAuth = () => {
           </CardContent>
         </Card>
 
+        {/* Do's and Don'ts */}
+        {prep.dos_and_donts && (prep.dos_and_donts.dos?.length > 0 || prep.dos_and_donts.donts?.length > 0) && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ThumbsUp className="w-5 h-5 text-primary" />
+                Do's and Don'ts
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-2 gap-6">
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2 text-green-600">
+                    <ThumbsUp className="w-4 h-4" /> Do's
+                  </h4>
+                  <ul className="space-y-2">
+                    {prep.dos_and_donts.dos?.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-green-500 mt-0.5">✓</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-medium mb-3 flex items-center gap-2 text-red-600">
+                    <ThumbsDown className="w-4 h-4" /> Don'ts
+                  </h4>
+                  <ul className="space-y-2">
+                    {prep.dos_and_donts.donts?.map((item, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm">
+                        <span className="text-red-500 mt-0.5">✗</span>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Technical Questions */}
         <Card className="mb-6">
           <CardHeader>
@@ -167,7 +248,22 @@ const InterviewPrepNoAuth = () => {
                     {q.difficulty}
                   </Badge>
                 </div>
-                <p className="text-sm text-muted-foreground">💡 {q.hint}</p>
+                <p className="text-sm text-muted-foreground mb-2">💡 {q.hint}</p>
+                {q.sample_answer_outline && (
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-xs text-primary p-0 h-auto">
+                        <ChevronDown className="w-3 h-3 mr-1" />
+                        Show Answer Guide
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-2 p-3 bg-primary/5 rounded-lg text-sm whitespace-pre-line">
+                        {q.sample_answer_outline}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
             ))}
           </CardContent>
@@ -185,7 +281,22 @@ const InterviewPrepNoAuth = () => {
             {prep.behavioral_questions?.map((q, i) => (
               <div key={i} className="border-b border-border/50 pb-4 last:border-0">
                 <p className="font-medium mb-2">{q.question}</p>
-                <p className="text-sm text-muted-foreground">💡 {q.hint}</p>
+                <p className="text-sm text-muted-foreground mb-2">💡 {q.hint}</p>
+                {q.example_answer_structure && (
+                  <Collapsible>
+                    <CollapsibleTrigger asChild>
+                      <Button variant="ghost" size="sm" className="text-xs text-primary p-0 h-auto">
+                        <ChevronDown className="w-3 h-3 mr-1" />
+                        Show STAR Example
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="mt-2 p-3 bg-amber-500/5 rounded-lg text-sm whitespace-pre-line">
+                        {q.example_answer_structure}
+                      </div>
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
             ))}
           </CardContent>
@@ -204,6 +315,9 @@ const InterviewPrepNoAuth = () => {
               <div key={i} className="border-b border-border/50 pb-4 last:border-0">
                 <p className="font-medium mb-2">{q.question}</p>
                 <p className="text-sm text-muted-foreground">🔍 {q.research_tip}</p>
+                {q.why_it_matters && (
+                  <p className="text-xs text-muted-foreground/70 mt-1 italic">💬 Why they ask: {q.why_it_matters}</p>
+                )}
               </div>
             ))}
           </CardContent>

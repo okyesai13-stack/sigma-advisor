@@ -16,8 +16,18 @@ import {
   AlertCircle,
   CheckCircle2,
   RefreshCw,
+  Target,
+  DollarSign,
+  Clock,
+  CalendarDays,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+
+interface ActionStep {
+  step: string;
+  timeframe: string;
+  priority: string;
+}
 
 interface SmartAnalysis {
   id: string;
@@ -26,18 +36,26 @@ interface SmartAnalysis {
     culture_insights: string;
     growth_opportunities: string;
     industry_standing: string;
+    interview_culture_tips?: string;
   };
   role_analysis: {
     role_summary: string;
     key_responsibilities: string[];
     growth_path: string;
     challenges: string;
+    day_in_the_life?: string;
+    required_experience_years?: string;
   };
   resume_fit_analysis: {
     overall_match: string;
     strengths: string[];
     gaps: string[];
     improvement_areas: string[];
+  };
+  action_plan?: ActionStep[];
+  salary_insights?: {
+    expected_range: string;
+    negotiation_tips: string;
   };
   recommendations: string[];
   overall_score: number;
@@ -51,6 +69,7 @@ const SmartAnalysisNoAuth = () => {
   const { resumeId } = useResume();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRegenerating, setIsRegenerating] = useState(false);
   const [analysis, setAnalysis] = useState<SmartAnalysis | null>(null);
   const [jobDetails, setJobDetails] = useState<{ job_title: string; company_name: string } | null>(null);
 
@@ -62,8 +81,25 @@ const SmartAnalysisNoAuth = () => {
     loadData();
   }, [resumeId, jobId]);
 
-  const loadData = async () => {
-    setIsLoading(true);
+  const handleApiError = (error: any) => {
+    const status = error?.status || error?.context?.status;
+    if (status === 429) {
+      toast({ title: "Rate Limit", description: "Too many requests. Please wait a moment and try again.", variant: "destructive" });
+      return true;
+    }
+    if (status === 402) {
+      toast({ title: "Credits Exhausted", description: "AI credits have been used up. Please try again later.", variant: "destructive" });
+      return true;
+    }
+    return false;
+  };
+
+  const loadData = async (forceRegenerate = false) => {
+    if (forceRegenerate) {
+      setIsRegenerating(true);
+    } else {
+      setIsLoading(true);
+    }
     try {
       // Get job details
       const { data: job } = await supabase
@@ -76,38 +112,53 @@ const SmartAnalysisNoAuth = () => {
         setJobDetails(job);
       }
 
-      // Try to load existing analysis
-      const { data: existingAnalysis } = await supabase
-        .from('smart_analysis_result')
-        .select('*')
-        .eq('resume_id', resumeId)
-        .eq('job_id', jobId)
-        .maybeSingle();
+      if (!forceRegenerate) {
+        const { data: existingAnalysis } = await supabase
+          .from('smart_analysis_result')
+          .select('*')
+          .eq('resume_id', resumeId)
+          .eq('job_id', jobId)
+          .maybeSingle();
 
-      if (existingAnalysis) {
-        setAnalysis(existingAnalysis as unknown as SmartAnalysis);
-        setIsLoading(false);
-        return;
+        if (existingAnalysis) {
+          setAnalysis(existingAnalysis as unknown as SmartAnalysis);
+          setIsLoading(false);
+          return;
+        }
       }
 
-      // Generate new analysis
       const { data, error } = await supabase.functions.invoke('smart-analysis', {
-        body: { resume_id: resumeId, job_id: jobId }
+        body: { resume_id: resumeId, job_id: jobId, force_regenerate: forceRegenerate }
       });
 
-      if (error) throw error;
+      if (error) {
+        if (!handleApiError(error)) throw error;
+        return;
+      }
       if (data?.success) {
         setAnalysis(data.data as SmartAnalysis);
+        if (forceRegenerate) {
+          toast({ title: "Regenerated", description: "Fresh analysis has been generated." });
+        }
+      } else if (data?.error) {
+        toast({ title: "Error", description: data.error, variant: "destructive" });
       }
     } catch (error) {
       console.error('Error:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load smart analysis",
-        variant: "destructive",
-      });
+      if (!handleApiError(error)) {
+        toast({ title: "Error", description: "Failed to load smart analysis", variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
+      setIsRegenerating(false);
+    }
+  };
+
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'destructive';
+      case 'medium': return 'secondary';
+      default: return 'outline';
     }
   };
 
@@ -148,6 +199,15 @@ const SmartAnalysisNoAuth = () => {
               <span className="text-xl font-bold">Smart Analysis</span>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => loadData(true)}
+            disabled={isRegenerating}
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${isRegenerating ? 'animate-spin' : ''}`} />
+            {isRegenerating ? 'Regenerating...' : 'Regenerate'}
+          </Button>
         </div>
       </header>
 
@@ -172,6 +232,30 @@ const SmartAnalysisNoAuth = () => {
             </p>
           </CardContent>
         </Card>
+
+        {/* Salary Insights */}
+        {analysis.salary_insights?.expected_range && (
+          <Card className="mb-6 border-primary/20 bg-gradient-to-r from-green-500/5 to-emerald-500/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <DollarSign className="w-5 h-5 text-green-500" />
+                Salary Insights
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col md:flex-row gap-4">
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-1">Expected Range</p>
+                  <p className="text-lg font-semibold">{analysis.salary_insights.expected_range}</p>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted-foreground mb-1">Negotiation Tips</p>
+                  <p className="text-sm">{analysis.salary_insights.negotiation_tips}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Company Analysis */}
         <Card className="mb-6">
@@ -198,6 +282,12 @@ const SmartAnalysisNoAuth = () => {
               <h4 className="font-medium mb-1">Industry Standing</h4>
               <p className="text-sm text-muted-foreground">{analysis.company_analysis?.industry_standing}</p>
             </div>
+            {analysis.company_analysis?.interview_culture_tips && (
+              <div className="p-3 bg-blue-500/5 rounded-lg">
+                <h4 className="font-medium mb-1 text-blue-600">🎯 Interview Culture Tips</h4>
+                <p className="text-sm text-muted-foreground">{analysis.company_analysis.interview_culture_tips}</p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -207,6 +297,12 @@ const SmartAnalysisNoAuth = () => {
             <CardTitle className="flex items-center gap-2">
               <Briefcase className="w-5 h-5 text-amber-500" />
               Role Analysis
+              {analysis.role_analysis?.required_experience_years && (
+                <Badge variant="outline" className="ml-auto text-xs">
+                  <Clock className="w-3 h-3 mr-1" />
+                  {analysis.role_analysis.required_experience_years} experience
+                </Badge>
+              )}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -224,6 +320,14 @@ const SmartAnalysisNoAuth = () => {
                 ))}
               </ul>
             </div>
+            {analysis.role_analysis?.day_in_the_life && (
+              <div className="p-3 bg-amber-500/5 rounded-lg">
+                <h4 className="font-medium mb-1 flex items-center gap-1">
+                  <CalendarDays className="w-4 h-4 text-amber-500" /> A Day in the Life
+                </h4>
+                <p className="text-sm text-muted-foreground">{analysis.role_analysis.day_in_the_life}</p>
+              </div>
+            )}
             <div>
               <h4 className="font-medium mb-1">Growth Path</h4>
               <p className="text-sm text-muted-foreground">{analysis.role_analysis?.growth_path}</p>
@@ -276,6 +380,40 @@ const SmartAnalysisNoAuth = () => {
             </div>
           </CardContent>
         </Card>
+
+        {/* Action Plan */}
+        {analysis.action_plan && analysis.action_plan.length > 0 && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Target className="w-5 h-5 text-primary" />
+                Action Plan
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {analysis.action_plan.map((item, i) => (
+                  <div key={i} className="flex items-start gap-3 p-3 bg-primary/5 rounded-lg">
+                    <div className="flex-shrink-0 w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
+                      {i + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-medium text-sm">{item.step}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant={getPriorityColor(item.priority) as any} className="text-xs">
+                          {item.priority}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> {item.timeframe}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Recommendations */}
         <Card>
