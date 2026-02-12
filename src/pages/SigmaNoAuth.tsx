@@ -356,6 +356,18 @@ const SigmaNoAuth = () => {
     }
   };
 
+  const retryStep = (stepId: StepId) => {
+    const stepRunners: Record<StepId, () => void> = {
+      career_analysis: runCareerAnalysis,
+      ai_role_analysis: runAiRoleAnalysis,
+      skill_validation: runSkillValidation,
+      learning_plan: runLearningPlan,
+      project_ideas: runProjectGeneration,
+      job_matching: runJobMatching,
+    };
+    stepRunners[stepId]?.();
+  };
+
   const renderStepContent = () => {
     const status = stepStatus[selectedStep];
     
@@ -383,7 +395,11 @@ const SigmaNoAuth = () => {
         <div className="flex flex-col items-center justify-center py-12 text-center">
           <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
           <p className="text-lg font-medium text-destructive">Analysis Failed</p>
-          <p className="text-sm text-muted-foreground">This step encountered an error</p>
+          <p className="text-sm text-muted-foreground mb-4">This step encountered an error</p>
+          <Button size="sm" variant="outline" onClick={() => retryStep(selectedStep)}>
+            <Loader2 className="w-4 h-4 mr-2" />
+            Retry This Step
+          </Button>
         </div>
       );
     }
@@ -792,6 +808,18 @@ const SigmaNoAuth = () => {
           <div className="mb-8 text-center">
             <p className="text-muted-foreground">Your Goal</p>
             <h1 className="text-2xl font-bold text-foreground">{goal || 'Career Analysis'}</h1>
+            {resumeId && (
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(resumeId);
+                  toast({ title: "Copied!", description: "Resume ID copied to clipboard" });
+                }}
+                className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-xs font-mono text-muted-foreground hover:bg-muted/80 transition-colors"
+              >
+                ID: {resumeId.slice(0, 8)}...
+                <span className="text-[10px]">📋</span>
+              </button>
+            )}
           </div>
 
           <div className="grid md:grid-cols-3 gap-6">

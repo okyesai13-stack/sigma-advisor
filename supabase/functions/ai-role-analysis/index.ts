@@ -156,7 +156,19 @@ Provide a comprehensive AI career analysis with exactly 3 AI-enhanced roles that
 
     if (!aiResponse.ok) {
       const errorText = await aiResponse.text();
-      console.error('[AI Role Analysis] AI gateway error:', errorText);
+      console.error('[AI Role Analysis] AI gateway error:', aiResponse.status, errorText);
+      if (aiResponse.status === 429) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again in a moment.' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (aiResponse.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI credits exhausted. Please try again later.' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       throw new Error(`AI gateway error: ${aiResponse.status}`);
     }
 
