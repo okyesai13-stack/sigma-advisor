@@ -85,6 +85,7 @@ const CareerTrajectoryNoAuth = () => {
   const { resumeId, goal } = useResume();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [trajectoryData, setTrajectoryData] = useState<TrajectoryData | null>(null);
   const [salaryProjections, setSalaryProjections] = useState<SalaryProjection[]>([]);
   const [skillMilestones, setSkillMilestones] = useState<SkillMilestone[]>([]);
@@ -100,6 +101,8 @@ const CareerTrajectoryNoAuth = () => {
   }, [resumeId]);
 
   const loadTrajectory = async () => {
+    setLoadError(false);
+    setIsLoading(true);
     try {
       const response = await fetch(
         'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/career-trajectory',
@@ -123,9 +126,10 @@ const CareerTrajectoryNoAuth = () => {
 
     } catch (error) {
       console.error('Failed to load trajectory:', error);
+      setLoadError(true);
       toast({
         title: "Error",
-        description: "Failed to generate career trajectory. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate career trajectory.",
         variant: "destructive",
       });
     } finally {
@@ -154,6 +158,31 @@ const CareerTrajectoryNoAuth = () => {
           </div>
           <h2 className="text-xl font-semibold mb-2">Generating Your Career Trajectory</h2>
           <p className="text-muted-foreground">AI is analyzing your potential growth path...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  if (loadError && !trajectoryData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="text-center"
+        >
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-destructive/10 flex items-center justify-center">
+            <TrendingUp className="w-10 h-10 text-destructive" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Failed to Generate Trajectory</h2>
+          <p className="text-muted-foreground mb-4">Something went wrong. Please try again.</p>
+          <div className="flex gap-3 justify-center">
+            <Button onClick={loadTrajectory}>Try Again</Button>
+            <Button variant="outline" onClick={() => navigate('/dashboard')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </div>
         </motion.div>
       </div>
     );

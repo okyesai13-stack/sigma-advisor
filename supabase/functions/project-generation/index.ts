@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 serve(async (req) => {
@@ -102,10 +102,18 @@ Return JSON array:
     });
 
     if (!response.ok) {
-      if (response.status === 429 || response.status === 402) {
+      const errorText = await response.text();
+      console.error('AI API error:', response.status, errorText);
+      if (response.status === 429) {
         return new Response(
-          JSON.stringify({ success: false, error: 'AI service rate limited' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: response.status }
+          JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again in a moment.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ success: false, error: 'AI credits exhausted. Please try again later.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 402 }
         );
       }
       throw new Error('AI project generation failed');
