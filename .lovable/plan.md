@@ -1,173 +1,159 @@
 
 
-# Improve Interview Preparation & Smart Analysis Edge Functions
+# Comprehensive Platform Perfection Plan
 
-## Overview
-Both edge functions produce generic, shallow outputs. This plan enhances the AI prompts to generate richer, more actionable data, adds proper error handling (429/402), includes candidate experience context, and improves the frontend to display the enhanced content.
+## Executive Summary
+After analyzing all 14 pages, 23 edge functions, and the full data pipeline, the platform is functionally solid but has several consistency issues, missing error handling patterns, UX gaps, and broken/incomplete features that prevent it from being a polished AI career advisor.
 
-## Issues Found
+## Issues Found (Grouped by Priority)
 
-1. **Interview Prep prompt is shallow** -- no candidate experience/education context is sent, so questions are generic to the job posting rather than personalized to the candidate's gaps
-2. **Smart Analysis prompt truncates experience** to 500 chars and education to 300 chars -- critical context is lost
-3. **Both functions lack 429/402 error handling** -- they throw generic errors instead of returning proper status codes
-4. **Interview Prep has no "Regenerate" button** -- users are stuck with cached results forever
-5. **Smart Analysis has no "Regenerate" button** either
-6. **Technical questions lack sample answer outlines** -- just a short hint, not actionable enough
-7. **Behavioral questions don't show the example_answer_structure** field on the frontend even though the edge function generates it
-8. **CORS headers are incomplete** -- missing platform headers that other functions include
+### A. Critical Bugs
+
+1. **Broken job URL link on Dashboard (line 976)**: `{job.job_url && <Button size="sm" variant="outline" asChild />}` renders an empty self-closing button with no children or href -- this is broken JSX that renders nothing useful.
+
+2. **CORS header inconsistency across 8 edge functions**: Functions like `career-analysis`, `skill-validation`, `learning-plan`, `project-generation`, `job-matching`, `upload-resume` use the old minimal CORS headers missing `x-supabase-client-platform` headers. This can cause preflight failures on some clients. Only `advisor-chat-stream`, `interview-prep`, and `smart-analysis` have the full headers.
+
+3. **Landing page has no chat feature**: The `landing-chat` edge function exists but is never used on the landing page -- dead code or missing feature.
+
+### B. Error Handling Gaps
+
+4. **6 edge functions lack 429/402 handling**: `skill-validation`, `learning-plan`, `project-generation`, `job-matching`, `ai-role-analysis`, `career-trajectory` all throw generic errors when rate limited. Only `career-analysis`, `interview-prep`, `smart-analysis`, `resume-upgrade`, and `resume-upgrade-jd` properly handle these.
+
+5. **Sigma pipeline doesn't surface rate limit errors**: If any step in the 6-step pipeline hits a 429, the user sees a generic "Analysis Error" toast with no actionable guidance. The pipeline should detect rate limits and offer retry.
+
+6. **Career Trajectory page has no error recovery**: If the trajectory generation fails, the user is stuck with a toast and no retry button.
+
+### C. UX/Flow Issues
+
+7. **No "Retry" on Sigma pipeline errors**: When a step fails, the error state shows "Analysis Failed" with no retry button. Users must reload the entire page.
+
+8. **Dashboard has no loading skeletons**: Shows a single spinner for the entire dashboard load -- should show skeleton cards for progressive loading feel.
+
+9. **No dark mode toggle**: The app uses `next-themes` dependency but has no toggle anywhere in the UI.
+
+10. **Session persistence uses sessionStorage**: Closing the tab loses all progress. The "View Previous Results" feature on the landing page mitigates this, but users don't know their resume ID unless they saved it. Should show the resume ID more prominently after upload.
+
+11. **Dashboard "Start Over" lacks confirmation**: One click wipes the entire session with no "Are you sure?" dialog.
+
+### D. Missing Polish Features
+
+12. **No mobile-responsive navigation**: The dashboard header items overflow on mobile screens.
+
+13. **No loading state on Career Trajectory CTA**: Clicking "View Trajectory" navigates immediately with no visual feedback until the next page loads.
+
+14. **PDF report doesn't include AI roles section**: The `generateAndShareAnalysis` function builds the PDF but skips the AI Future Roles data entirely.
 
 ## Changes
 
-### 1. Edge Function: `interview-prep/index.ts`
-
-**A. Enhanced CORS headers** (match the pattern from `resume-upgrade`):
-```typescript
-'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+### 1. Fix Broken Job URL Button (Dashboard)
+Fix line 976 in `DashboardNoAuth.tsx` to render a proper link button:
+```tsx
+{job.job_url && (
+  <Button size="sm" variant="outline" asChild>
+    <a href={job.job_url} target="_blank" rel="noopener noreferrer">
+      <ExternalLink className="w-4 h-4 mr-1" />
+      Apply
+    </a>
+  </Button>
+)}
 ```
 
-**B. Include candidate experience and education in the prompt** -- fetch from `resume_store.parsed_data` and include work history and education so the AI can personalize questions around actual gaps.
+### 2. Standardize CORS Headers Across All Edge Functions
+Update the 8 functions with incomplete CORS to use the full header set:
+- `career-analysis`, `skill-validation`, `learning-plan`, `project-generation`, `job-matching`, `upload-resume`, `career-trajectory`, `ai-role-analysis`
 
-**C. Richer prompt requesting:**
-- Technical questions with a `sample_answer_outline` field (not just a hint)
-- Behavioral questions with a full STAR-method example skeleton
-- Company-specific questions with `why_it_matters` context
-- A new `do_dont` section: common mistakes to avoid in the interview
-- Increase to 6 technical, 5 behavioral, 4 company-specific questions
+### 3. Add 429/402 Error Handling to Remaining Edge Functions
+Add the standard rate limit response pattern to these 6 functions:
+- `skill-validation`
+- `learning-plan`
+- `project-generation`
+- `job-matching`
+- `ai-role-analysis`
+- `career-trajectory`
 
-**D. Add 429/402 error handling:**
-```typescript
-if (response.status === 429) {
-  return new Response(
-    JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again later.' }),
-    { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-if (response.status === 402) {
-  return new Response(
-    JSON.stringify({ success: false, error: 'AI credits exhausted. Please try again later.' }),
-    { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-  );
-}
-```
+### 4. Add Retry Buttons to Sigma Pipeline
+When a step fails, show a "Retry" button next to the error state that re-runs just that step and continues the pipeline from there.
 
-**E. Add `force_regenerate` parameter** -- when true, delete existing record and regenerate fresh content.
+### 5. Add Confirmation Dialog to "Start Over"
+Wrap the "Start Over" button action in an AlertDialog that asks "Are you sure? This will clear all your session data."
 
-### 2. Edge Function: `smart-analysis/index.ts`
+### 6. Fix Career Trajectory Error Recovery
+Add a "Try Again" button on the Career Trajectory page when loading fails, instead of just a toast.
 
-**A. Enhanced CORS headers** (same fix).
+### 7. Show Resume ID Prominently After Upload
+On the Sigma page, display the resume ID in a copyable badge so users can save it for later access.
 
-**B. Send full experience and education** without truncation (up to 3000 chars each) so the AI has real context.
-
-**C. Richer prompt requesting:**
-- Company analysis with `interview_culture_tips` (what to wear, communication style)
-- Role analysis with `day_in_the_life` description and `required_experience_years`
-- Resume fit analysis with `match_percentage` per strength/gap (not just lists)
-- A new `action_plan` section: ordered list of concrete steps with timeframes
-- A new `salary_insights` field: expected range and negotiation tips
-
-**D. Add 429/402 error handling** (same pattern).
-
-**E. Add `force_regenerate` parameter**.
-
-### 3. Frontend: `InterviewPrepNoAuth.tsx`
-
-- Add a "Regenerate" button in the header that calls the edge function with `force_regenerate: true`
-- Display the `example_answer_structure` for behavioral questions (currently ignored)
-- Display `sample_answer_outline` for technical questions (new field)
-- Add a collapsible "Show Answer Guide" toggle for each question so users can study
-- Add a new "Do's and Don'ts" card section
-- Handle 429/402 errors with specific toast messages
-
-### 4. Frontend: `SmartAnalysisNoAuth.tsx`
-
-- Add a "Regenerate" button in the header
-- Display the new `action_plan` as a numbered timeline
-- Display `salary_insights` in a highlighted card
-- Display `interview_culture_tips` under company analysis
-- Handle 429/402 errors with specific toast messages
+### 8. Remove Dead Landing Chat Function
+The `landing-chat` edge function is unused. Remove it from the codebase and config, or integrate it into the landing page as a quick "Ask about Sigma" chatbot.
 
 ## Technical Details
 
-### Updated Interview Prep JSON Structure
-```json
-{
-  "technical_questions": [
-    {
-      "question": "...",
-      "hint": "...",
-      "difficulty": "easy/medium/hard",
-      "sample_answer_outline": "Step-by-step outline of a strong answer"
-    }
-  ],
-  "behavioral_questions": [
-    {
-      "question": "...",
-      "hint": "...",
-      "example_answer_structure": "Situation: ... Task: ... Action: ... Result: ..."
-    }
-  ],
-  "company_specific_questions": [
-    {
-      "question": "...",
-      "research_tip": "...",
-      "why_it_matters": "Why interviewers ask this"
-    }
-  ],
-  "preparation_tips": ["..."],
-  "key_talking_points": ["..."],
-  "dos_and_donts": {
-    "dos": ["Do 1", "Do 2", "Do 3"],
-    "donts": ["Don't 1", "Don't 2", "Don't 3"]
+### CORS Header Standard (apply to all functions)
+```typescript
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
+};
+```
+
+### Rate Limit Handler Pattern (apply to 6 functions)
+```typescript
+if (!response.ok) {
+  const errorText = await response.text();
+  console.error('AI API error:', response.status, errorText);
+  if (response.status === 429) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again in a moment.' }),
+      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
   }
+  if (response.status === 402) {
+    return new Response(
+      JSON.stringify({ success: false, error: 'AI credits exhausted. Please try again later.' }),
+      { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+  throw new Error(`AI API error: ${response.status}`);
 }
 ```
 
-### Updated Smart Analysis JSON Structure
-```json
-{
-  "company_analysis": {
-    "company_overview": "...",
-    "culture_insights": "...",
-    "growth_opportunities": "...",
-    "industry_standing": "...",
-    "interview_culture_tips": "Dress code, communication style, what they value in candidates"
-  },
-  "role_analysis": {
-    "role_summary": "...",
-    "key_responsibilities": ["..."],
-    "growth_path": "...",
-    "challenges": "...",
-    "day_in_the_life": "What a typical day looks like in this role",
-    "required_experience_years": "2-4 years"
-  },
-  "resume_fit_analysis": {
-    "overall_match": "...",
-    "strengths": ["..."],
-    "gaps": ["..."],
-    "improvement_areas": ["..."]
-  },
-  "action_plan": [
-    { "step": "Complete React certification", "timeframe": "2 weeks", "priority": "high" },
-    { "step": "Build a portfolio project using their tech stack", "timeframe": "1 month", "priority": "medium" }
-  ],
-  "salary_insights": {
-    "expected_range": "8-12 LPA",
-    "negotiation_tips": "Highlight your project experience and certifications"
-  },
-  "recommendations": ["..."],
-  "overall_score": 75
-}
+### Sigma Pipeline Retry Logic
+```typescript
+// Add retry handler per step
+const retryStep = (stepId: StepId) => {
+  const stepRunners: Record<StepId, () => void> = {
+    career_analysis: runCareerAnalysis,
+    ai_role_analysis: runAiRoleAnalysis,
+    skill_validation: runSkillValidation,
+    learning_plan: runLearningPlan,
+    project_ideas: runProjectGeneration,
+    job_matching: runJobMatching,
+  };
+  stepRunners[stepId]?.();
+};
+
+// In error state render:
+<Button size="sm" onClick={() => retryStep(selectedStep)}>
+  <RefreshCw className="w-4 h-4 mr-2" /> Retry
+</Button>
 ```
 
-### No Database Schema Changes Needed
-Both tables store these fields as `jsonb`, so the richer JSON structures are automatically supported without any migration.
-
-### Files Modified
+### Files to Modify
 
 | File | Change |
 |------|--------|
-| `supabase/functions/interview-prep/index.ts` | Enhanced prompt, CORS, 429/402 handling, force_regenerate |
-| `supabase/functions/smart-analysis/index.ts` | Enhanced prompt, CORS, 429/402 handling, force_regenerate |
-| `src/pages/InterviewPrepNoAuth.tsx` | Regenerate button, answer guides, do's/don'ts section, error handling |
-| `src/pages/SmartAnalysisNoAuth.tsx` | Regenerate button, action plan, salary insights, error handling |
+| `src/pages/DashboardNoAuth.tsx` | Fix broken job URL button (line 976), add Start Over confirmation dialog |
+| `src/pages/SigmaNoAuth.tsx` | Add retry buttons for failed steps, show copyable resume ID |
+| `src/pages/CareerTrajectoryNoAuth.tsx` | Add retry button on load failure |
+| `supabase/functions/career-analysis/index.ts` | Standardize CORS headers |
+| `supabase/functions/skill-validation/index.ts` | Standardize CORS, add 429/402 handling |
+| `supabase/functions/learning-plan/index.ts` | Standardize CORS, add 429/402 handling |
+| `supabase/functions/project-generation/index.ts` | Standardize CORS, add 429/402 handling |
+| `supabase/functions/job-matching/index.ts` | Standardize CORS, add 429/402 handling |
+| `supabase/functions/ai-role-analysis/index.ts` | Standardize CORS, add 429/402 handling |
+| `supabase/functions/career-trajectory/index.ts` | Standardize CORS, add 429/402 handling |
+| `supabase/functions/upload-resume/index.ts` | Standardize CORS headers |
+
+### Deployment
+All 8 modified edge functions need redeployment after changes.
 
