@@ -1,159 +1,154 @@
 
 
-# Comprehensive Platform Perfection Plan
+# Add Career Goal Score with 90-Day Plan to Dashboard
 
-## Executive Summary
-After analyzing all 14 pages, 23 edge functions, and the full data pipeline, the platform is functionally solid but has several consistency issues, missing error handling patterns, UX gaps, and broken/incomplete features that prevent it from being a polished AI career advisor.
+## Overview
+Create a new "Career Goal Score" feature that runs as a new step in the Sigma agent pipeline (Step 2, right after Career Analysis). It generates a personalized goal readiness score, actionable recommendations to improve the score, and a structured 90-day plan to achieve the short-term career goal. The score is displayed prominently at the top of the Dashboard with a modern, visually engaging UI.
 
-## Issues Found (Grouped by Priority)
+## What Gets Built
 
-### A. Critical Bugs
+1. **New Edge Function**: `career-goal-score` -- Takes the career analysis results and resume data, generates a goal score (0-100), score-boosting recommendations, and a 90-day week-by-week action plan.
+2. **New Database Table**: `career_goal_score_result` -- Stores the score, recommendations, and 90-day plan per resume.
+3. **New Dashboard Component**: `CareerGoalScoreCard` -- A hero-style card at the very top of the dashboard showing a circular score gauge, recommendations list, and collapsible 90-day plan timeline.
+4. **New Sigma Pipeline Step**: Inserted as Step 2 (after Career Analysis, before AI Role Analysis) with its own runner function and result preview.
 
-1. **Broken job URL link on Dashboard (line 976)**: `{job.job_url && <Button size="sm" variant="outline" asChild />}` renders an empty self-closing button with no children or href -- this is broken JSX that renders nothing useful.
+## Architecture
 
-2. **CORS header inconsistency across 8 edge functions**: Functions like `career-analysis`, `skill-validation`, `learning-plan`, `project-generation`, `job-matching`, `upload-resume` use the old minimal CORS headers missing `x-supabase-client-platform` headers. This can cause preflight failures on some clients. Only `advisor-chat-stream`, `interview-prep`, and `smart-analysis` have the full headers.
+### New Edge Function: `supabase/functions/career-goal-score/index.ts`
 
-3. **Landing page has no chat feature**: The `landing-chat` edge function exists but is never used on the landing page -- dead code or missing feature.
+- Receives `resume_id` as input
+- Fetches career analysis result and resume data from the database
+- Sends the short-term role, user's skills, education, experience, and goal to the AI
+- Generates structured JSON with:
+  - `goal_score` (0-100): How ready the user is to achieve their short-term goal
+  - `score_breakdown`: Categories like Skills Match, Experience Level, Education Fit, Portfolio Strength, Market Readiness (each with sub-score)
+  - `recommendations`: 5-7 prioritized actions to boost the score (each with title, description, impact level, estimated time)
+  - `ninety_day_plan`: 12 weeks grouped into 3 phases (Weeks 1-4, 5-8, 9-12), each week has 2-3 specific tasks
+- Stores results in `career_goal_score_result` table
+- Updates `journey_state` with `goal_score_completed` flag
+- Standard CORS headers and 429/402 error handling
 
-### B. Error Handling Gaps
+### New Database Table: `career_goal_score_result`
 
-4. **6 edge functions lack 429/402 handling**: `skill-validation`, `learning-plan`, `project-generation`, `job-matching`, `ai-role-analysis`, `career-trajectory` all throw generic errors when rate limited. Only `career-analysis`, `interview-prep`, `smart-analysis`, `resume-upgrade`, and `resume-upgrade-jd` properly handle these.
+| Column | Type | Notes |
+|--------|------|-------|
+| id | uuid | PK, default gen_random_uuid() |
+| resume_id | text | NOT NULL |
+| goal_score | integer | 0-100 |
+| score_breakdown | jsonb | Category sub-scores |
+| recommendations | jsonb | Array of recommendation objects |
+| ninety_day_plan | jsonb | 3 phases, 12 weeks of tasks |
+| target_role | text | The short-term role being scored against |
+| created_at | timestamptz | default now() |
 
-5. **Sigma pipeline doesn't surface rate limit errors**: If any step in the 6-step pipeline hits a 429, the user sees a generic "Analysis Error" toast with no actionable guidance. The pipeline should detect rate limits and offer retry.
+RLS: Public insert and select (matching existing pattern).
 
-6. **Career Trajectory page has no error recovery**: If the trajectory generation fails, the user is stuck with a toast and no retry button.
+### Database Migration: Add `goal_score_completed` to `journey_state`
 
-### C. UX/Flow Issues
-
-7. **No "Retry" on Sigma pipeline errors**: When a step fails, the error state shows "Analysis Failed" with no retry button. Users must reload the entire page.
-
-8. **Dashboard has no loading skeletons**: Shows a single spinner for the entire dashboard load -- should show skeleton cards for progressive loading feel.
-
-9. **No dark mode toggle**: The app uses `next-themes` dependency but has no toggle anywhere in the UI.
-
-10. **Session persistence uses sessionStorage**: Closing the tab loses all progress. The "View Previous Results" feature on the landing page mitigates this, but users don't know their resume ID unless they saved it. Should show the resume ID more prominently after upload.
-
-11. **Dashboard "Start Over" lacks confirmation**: One click wipes the entire session with no "Are you sure?" dialog.
-
-### D. Missing Polish Features
-
-12. **No mobile-responsive navigation**: The dashboard header items overflow on mobile screens.
-
-13. **No loading state on Career Trajectory CTA**: Clicking "View Trajectory" navigates immediately with no visual feedback until the next page loads.
-
-14. **PDF report doesn't include AI roles section**: The `generateAndShareAnalysis` function builds the PDF but skips the AI Future Roles data entirely.
-
-## Changes
-
-### 1. Fix Broken Job URL Button (Dashboard)
-Fix line 976 in `DashboardNoAuth.tsx` to render a proper link button:
-```tsx
-{job.job_url && (
-  <Button size="sm" variant="outline" asChild>
-    <a href={job.job_url} target="_blank" rel="noopener noreferrer">
-      <ExternalLink className="w-4 h-4 mr-1" />
-      Apply
-    </a>
-  </Button>
-)}
+```sql
+ALTER TABLE journey_state ADD COLUMN IF NOT EXISTS goal_score_completed boolean DEFAULT false;
 ```
 
-### 2. Standardize CORS Headers Across All Edge Functions
-Update the 8 functions with incomplete CORS to use the full header set:
-- `career-analysis`, `skill-validation`, `learning-plan`, `project-generation`, `job-matching`, `upload-resume`, `career-trajectory`, `ai-role-analysis`
+### Sigma Pipeline Changes (`SigmaNoAuth.tsx`)
 
-### 3. Add 429/402 Error Handling to Remaining Edge Functions
-Add the standard rate limit response pattern to these 6 functions:
-- `skill-validation`
-- `learning-plan`
-- `project-generation`
-- `job-matching`
-- `ai-role-analysis`
-- `career-trajectory`
+- Add `goal_score` to `StepStatus` interface and `StepId` type
+- Add `runGoalScore()` function that calls the new edge function
+- Insert it as Step 2 in the pipeline: Career Analysis -> **Goal Score** -> AI Role Analysis -> ...
+- After career analysis completes, it triggers `runGoalScore()` instead of `runAiRoleAnalysis()`
+- After goal score completes, it triggers `runAiRoleAnalysis()`
+- Add result state and preview rendering for the goal score step
 
-### 4. Add Retry Buttons to Sigma Pipeline
-When a step fails, show a "Retry" button next to the error state that re-runs just that step and continues the pipeline from there.
+### Dashboard Component: `CareerGoalScoreCard`
 
-### 5. Add Confirmation Dialog to "Start Over"
-Wrap the "Start Over" button action in an AlertDialog that asks "Are you sure? This will clear all your session data."
+Placed at the very top of the dashboard (before Overall Assessment), this is a visually prominent section with:
 
-### 6. Fix Career Trajectory Error Recovery
-Add a "Try Again" button on the Career Trajectory page when loading fails, instead of just a toast.
+**Score Hero Area:**
+- Large circular progress ring showing the score (color-coded: red < 40, amber 40-69, green >= 70)
+- Target role name and "Goal Readiness Score" label
+- Score breakdown as small progress bars (Skills Match, Experience, Education, Portfolio, Market)
 
-### 7. Show Resume ID Prominently After Upload
-On the Sigma page, display the resume ID in a copyable badge so users can save it for later access.
+**Recommendations Section:**
+- Cards with priority badges (High/Medium/Low impact)
+- Each recommendation shows: title, description, estimated time, and impact level
 
-### 8. Remove Dead Landing Chat Function
-The `landing-chat` edge function is unused. Remove it from the codebase and config, or integrate it into the landing page as a quick "Ask about Sigma" chatbot.
+**90-Day Plan Section (Collapsible):**
+- 3-phase timeline: Foundation (Weeks 1-4), Acceleration (Weeks 5-8), Achievement (Weeks 9-12)
+- Each week shows 2-3 tasks with checkboxes (visual only, not persisted)
+- Color-coded phases matching the career roadmap colors (emerald, amber, violet)
+
+### Dashboard Data Loading
+
+Update `loadData()` in `DashboardNoAuth.tsx` to also fetch from `career_goal_score_result` and pass the data to `CareerGoalScoreCard`.
 
 ## Technical Details
 
-### CORS Header Standard (apply to all functions)
-```typescript
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
-```
+### AI Prompt Output Structure
 
-### Rate Limit Handler Pattern (apply to 6 functions)
-```typescript
-if (!response.ok) {
-  const errorText = await response.text();
-  console.error('AI API error:', response.status, errorText);
-  if (response.status === 429) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'Rate limit exceeded. Please try again in a moment.' }),
-      { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-  if (response.status === 402) {
-    return new Response(
-      JSON.stringify({ success: false, error: 'AI credits exhausted. Please try again later.' }),
-      { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
-  }
-  throw new Error(`AI API error: ${response.status}`);
+```json
+{
+  "goal_score": 62,
+  "score_breakdown": {
+    "skills_match": { "score": 70, "label": "Skills Match" },
+    "experience_level": { "score": 45, "label": "Experience Level" },
+    "education_fit": { "score": 80, "label": "Education Fit" },
+    "portfolio_strength": { "score": 40, "label": "Portfolio Strength" },
+    "market_readiness": { "score": 55, "label": "Market Readiness" }
+  },
+  "recommendations": [
+    {
+      "title": "Build a REST API project",
+      "description": "Create a full-stack project using Node.js and Express to demonstrate backend skills",
+      "impact": "high",
+      "estimated_time": "2 weeks",
+      "category": "portfolio"
+    }
+  ],
+  "ninety_day_plan": {
+    "phase_1": {
+      "name": "Foundation",
+      "weeks": {
+        "week_1": { "focus": "Skill Assessment", "tasks": ["Complete React fundamentals course", "Set up GitHub portfolio"] },
+        "week_2": { "focus": "Core Skills", "tasks": ["Build first component library", "Practice coding challenges"] },
+        "week_3": { "focus": "...", "tasks": ["..."] },
+        "week_4": { "focus": "...", "tasks": ["..."] }
+      }
+    },
+    "phase_2": {
+      "name": "Acceleration",
+      "weeks": { "week_5": {}, "week_6": {}, "week_7": {}, "week_8": {} }
+    },
+    "phase_3": {
+      "name": "Achievement",
+      "weeks": { "week_9": {}, "week_10": {}, "week_11": {}, "week_12": {} }
+    }
+  },
+  "target_role": "Junior Frontend Developer"
 }
 ```
 
-### Sigma Pipeline Retry Logic
-```typescript
-// Add retry handler per step
-const retryStep = (stepId: StepId) => {
-  const stepRunners: Record<StepId, () => void> = {
-    career_analysis: runCareerAnalysis,
-    ai_role_analysis: runAiRoleAnalysis,
-    skill_validation: runSkillValidation,
-    learning_plan: runLearningPlan,
-    project_ideas: runProjectGeneration,
-    job_matching: runJobMatching,
-  };
-  stepRunners[stepId]?.();
-};
+### Files to Create
 
-// In error state render:
-<Button size="sm" onClick={() => retryStep(selectedStep)}>
-  <RefreshCw className="w-4 h-4 mr-2" /> Retry
-</Button>
-```
+| File | Purpose |
+|------|---------|
+| `supabase/functions/career-goal-score/index.ts` | Edge function |
+| `src/components/dashboard/CareerGoalScoreCard.tsx` | Dashboard component |
 
 ### Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/DashboardNoAuth.tsx` | Fix broken job URL button (line 976), add Start Over confirmation dialog |
-| `src/pages/SigmaNoAuth.tsx` | Add retry buttons for failed steps, show copyable resume ID |
-| `src/pages/CareerTrajectoryNoAuth.tsx` | Add retry button on load failure |
-| `supabase/functions/career-analysis/index.ts` | Standardize CORS headers |
-| `supabase/functions/skill-validation/index.ts` | Standardize CORS, add 429/402 handling |
-| `supabase/functions/learning-plan/index.ts` | Standardize CORS, add 429/402 handling |
-| `supabase/functions/project-generation/index.ts` | Standardize CORS, add 429/402 handling |
-| `supabase/functions/job-matching/index.ts` | Standardize CORS, add 429/402 handling |
-| `supabase/functions/ai-role-analysis/index.ts` | Standardize CORS, add 429/402 handling |
-| `supabase/functions/career-trajectory/index.ts` | Standardize CORS, add 429/402 handling |
-| `supabase/functions/upload-resume/index.ts` | Standardize CORS headers |
+| `src/pages/SigmaNoAuth.tsx` | Add goal_score step to pipeline (Step 2) |
+| `src/pages/DashboardNoAuth.tsx` | Load and display goal score data at top |
+| `supabase/config.toml` | Add `[functions.career-goal-score]` entry |
+
+### Database Migration
+
+- Add `career_goal_score_result` table
+- Add `goal_score_completed` column to `journey_state`
+- RLS policies for public insert/select
 
 ### Deployment
-All 8 modified edge functions need redeployment after changes.
+
+- Deploy `career-goal-score` edge function
+- Run database migration
 
