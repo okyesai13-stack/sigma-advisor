@@ -83,8 +83,17 @@ interface JobMatchData {
   skill_tags: string[];
 }
 
+interface GoalScoreData {
+  goal_score: number;
+  score_breakdown: Record<string, { score: number; label: string }>;
+  recommendations: { title: string; description: string; impact: string; estimated_time: string; category: string }[];
+  ninety_day_plan: any;
+  target_role: string;
+}
+
 interface StepStatus {
   career_analysis: 'pending' | 'running' | 'completed' | 'error';
+  goal_score: 'pending' | 'running' | 'completed' | 'error';
   ai_role_analysis: 'pending' | 'running' | 'completed' | 'error';
   skill_validation: 'pending' | 'running' | 'completed' | 'error';
   learning_plan: 'pending' | 'running' | 'completed' | 'error';
@@ -101,6 +110,7 @@ const SigmaNoAuth = () => {
   
   const [stepStatus, setStepStatus] = useState<StepStatus>({
     career_analysis: 'pending',
+    goal_score: 'pending',
     ai_role_analysis: 'pending',
     skill_validation: 'pending',
     learning_plan: 'pending',
@@ -116,6 +126,7 @@ const SigmaNoAuth = () => {
   const [learningPlans, setLearningPlans] = useState<LearningPlanData[]>([]);
   const [projectIdeas, setProjectIdeas] = useState<ProjectIdeaData[]>([]);
   const [jobMatches, setJobMatches] = useState<JobMatchData[]>([]);
+  const [goalScoreData, setGoalScoreData] = useState<GoalScoreData | null>(null);
 
   const [selectedStep, setSelectedStep] = useState<StepId>('career_analysis');
   const [currentRunningStep, setCurrentRunningStep] = useState<string>('career_analysis');
@@ -159,7 +170,7 @@ const SigmaNoAuth = () => {
       setStepStatus(prev => ({ ...prev, career_analysis: 'completed' }));
       setSelectedStep('career_analysis');
       
-      runAiRoleAnalysis();
+      runGoalScore();
 
     } catch (error) {
       console.error('Career analysis error:', error);
@@ -169,6 +180,40 @@ const SigmaNoAuth = () => {
         description: error instanceof Error ? error.message : 'Failed to analyze career',
         variant: "destructive",
       });
+    }
+  };
+
+  const runGoalScore = async () => {
+    setCurrentRunningStep('goal_score');
+    setStepStatus(prev => ({ ...prev, goal_score: 'running' }));
+
+    try {
+      const response = await fetch(
+        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/career-goal-score',
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ resume_id: resumeId }),
+        }
+      );
+
+      const result = await response.json();
+      if (!response.ok || !result.success) throw new Error(result.error || 'Goal score failed');
+
+      setGoalScoreData(result.data || null);
+      setStepStatus(prev => ({ ...prev, goal_score: 'completed' }));
+      setSelectedStep('goal_score');
+      runAiRoleAnalysis();
+
+    } catch (error) {
+      console.error('Goal score error:', error);
+      setStepStatus(prev => ({ ...prev, goal_score: 'error' }));
+      toast({
+        title: "Goal Score Error",
+        description: error instanceof Error ? error.message : 'Failed to generate goal score',
+        variant: "destructive",
+      });
+      runAiRoleAnalysis();
     }
   };
 
@@ -335,6 +380,7 @@ const SigmaNoAuth = () => {
 
   const steps = [
     { id: 'career_analysis' as StepId, name: 'Career Analysis', icon: Brain, description: 'Analyzing your career path' },
+    { id: 'goal_score' as StepId, name: 'Goal Score', icon: Target, description: 'Scoring goal readiness' },
     { id: 'ai_role_analysis' as StepId, name: 'AI Role Analysis', icon: Sparkles, description: 'Finding AI-enhanced roles' },
     { id: 'skill_validation' as StepId, name: 'Skill Validation', icon: Target, description: 'Assessing your skills' },
     { id: 'learning_plan' as StepId, name: 'Learning Plan', icon: BookOpen, description: 'Creating learning roadmap' },
@@ -359,6 +405,7 @@ const SigmaNoAuth = () => {
   const retryStep = (stepId: StepId) => {
     const stepRunners: Record<StepId, () => void> = {
       career_analysis: runCareerAnalysis,
+      goal_score: runGoalScore,
       ai_role_analysis: runAiRoleAnalysis,
       skill_validation: runSkillValidation,
       learning_plan: runLearningPlan,
@@ -408,6 +455,8 @@ const SigmaNoAuth = () => {
     switch (selectedStep) {
       case 'career_analysis':
         return renderCareerAnalysis();
+      case 'goal_score':
+        return renderGoalScore();
       case 'ai_role_analysis':
         return renderAiRoleAnalysis();
       case 'skill_validation':
@@ -462,6 +511,52 @@ const SigmaNoAuth = () => {
             <p className="text-sm text-muted-foreground mt-1">{role.salary_range}</p>
           </motion.div>
         ))
+      )}
+    </div>
+  );
+
+  const renderGoalScore = () => (
+    <div className="space-y-4">
+      {!goalScoreData ? (
+        <p className="text-muted-foreground text-center py-8">No goal score data</p>
+      ) : (
+        <>
+          <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <span className="text-sm font-medium">Goal Readiness Score</span>
+                <p className="text-xs text-muted-foreground">{goalScoreData.target_role}</p>
+              </div>
+              <span className="text-3xl font-bold text-primary">{goalScoreData.goal_score}</span>
+            </div>
+            <div className="w-full bg-primary/20 rounded-full h-2">
+              <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${goalScoreData.goal_score}%` }} />
+            </div>
+          </div>
+          {Object.entries(goalScoreData.score_breakdown || {}).map(([key, item]) => (
+            <div key={key} className="flex items-center gap-3 px-2">
+              <span className="text-xs text-muted-foreground w-28 text-right">{item.label}</span>
+              <div className="flex-1 bg-muted rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full" style={{ width: `${item.score}%` }} />
+              </div>
+              <span className="text-xs font-medium w-8">{item.score}%</span>
+            </div>
+          ))}
+          {goalScoreData.recommendations?.length > 0 && (
+            <div className="pt-2">
+              <p className="text-sm font-medium mb-2">Top Recommendations</p>
+              {goalScoreData.recommendations.slice(0, 3).map((rec, i) => (
+                <div key={i} className="p-3 rounded-lg border bg-card mb-2">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h4 className="text-sm font-semibold">{rec.title}</h4>
+                    <Badge variant="outline" className="text-xs capitalize">{rec.impact}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{rec.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </div>
   );

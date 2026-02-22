@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.resume-upgrade-jd]
 verify_jwt = false
+
+[functions.career-goal-score]
+verify_jwt = false
