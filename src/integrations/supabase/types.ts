@@ -99,6 +99,39 @@ export type Database = {
           },
         ]
       }
+      career_goal_score_result: {
+        Row: {
+          created_at: string
+          goal_score: number | null
+          id: string
+          ninety_day_plan: Json | null
+          recommendations: Json | null
+          resume_id: string
+          score_breakdown: Json | null
+          target_role: string | null
+        }
+        Insert: {
+          created_at?: string
+          goal_score?: number | null
+          id?: string
+          ninety_day_plan?: Json | null
+          recommendations?: Json | null
+          resume_id: string
+          score_breakdown?: Json | null
+          target_role?: string | null
+        }
+        Update: {
+          created_at?: string
+          goal_score?: number | null
+          id?: string
+          ninety_day_plan?: Json | null
+          recommendations?: Json | null
+          resume_id?: string
+          score_breakdown?: Json | null
+          target_role?: string | null
+        }
+        Relationships: []
+      }
       career_trajectory_result: {
         Row: {
           created_at: string
@@ -277,6 +310,7 @@ export type Database = {
           ai_role_analysis_completed: boolean | null
           career_analysis_completed: boolean | null
           created_at: string
+          goal_score_completed: boolean | null
           job_matching_completed: boolean | null
           learning_plan_completed: boolean | null
           project_ideas_completed: boolean | null
@@ -288,6 +322,7 @@ export type Database = {
           ai_role_analysis_completed?: boolean | null
           career_analysis_completed?: boolean | null
           created_at?: string
+          goal_score_completed?: boolean | null
           job_matching_completed?: boolean | null
           learning_plan_completed?: boolean | null
           project_ideas_completed?: boolean | null
@@ -299,6 +334,7 @@ export type Database = {
           ai_role_analysis_completed?: boolean | null
           career_analysis_completed?: boolean | null
           created_at?: string
+          goal_score_completed?: boolean | null
           job_matching_completed?: boolean | null
           learning_plan_completed?: boolean | null
           project_ideas_completed?: boolean | null
