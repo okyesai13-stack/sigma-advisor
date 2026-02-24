@@ -22,7 +22,7 @@ serve(async (req) => {
     // Fetch resume + career analysis in parallel
     const [resumeRes, careerRes] = await Promise.all([
       supabase.from('resume_store').select('*').eq('resume_id', resume_id).single(),
-      supabase.from('career_analysis_result').select('*').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('career_analysis_result').select('career_roles').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     if (resumeRes.error || !resumeRes.data) throw new Error('Resume not found');
@@ -144,6 +144,9 @@ Generate 5-7 recommendations with mix of high/medium/low impact. Make the 90-day
     else if (cleanJson.startsWith('```')) cleanJson = cleanJson.replace(/```\n?/g, '');
 
     const data = JSON.parse(cleanJson);
+
+    // Idempotency: delete existing score before inserting new one
+    await supabase.from('career_goal_score_result').delete().eq('resume_id', resume_id);
 
     // Store results
     const { error: insertError } = await supabase.from('career_goal_score_result').insert({

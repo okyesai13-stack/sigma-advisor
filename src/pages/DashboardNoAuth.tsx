@@ -143,7 +143,7 @@ const DashboardNoAuth = () => {
         ascending: false
       }).limit(1).maybeSingle(), supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId), supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId), supabase.from('job_matching_result').select('*').eq('resume_id', resumeId).order('relevance_score', {
         ascending: false
-      }), supabase.from('interview_preparation_result').select('job_id').eq('resume_id', resumeId), supabase.from('smart_analysis_result').select('job_id').eq('resume_id', resumeId), supabase.from('project_build_session').select('project_id').eq('resume_id', resumeId), supabase.from('career_goal_score_result' as any).select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle()]);
+      }), supabase.from('interview_preparation_result').select('job_id').eq('resume_id', resumeId), supabase.from('smart_analysis_result').select('job_id').eq('resume_id', resumeId), supabase.from('project_build_session').select('project_id').eq('resume_id', resumeId), supabase.from('career_goal_score_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle()]);
       if (careerRes.data) {
         if (careerRes.data.career_roles) {
           setCareerRoles(careerRes.data.career_roles as unknown as CareerRole[]);
