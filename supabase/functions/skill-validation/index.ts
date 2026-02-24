@@ -124,6 +124,11 @@ Provide a realistic readiness score and identify skill gaps.`;
     
     const validation = JSON.parse(content.trim());
 
+    // Normalize missing_skills to always be string[]
+    const normalizedMissing = (validation.missing_skills || []).map(
+      (s: any) => typeof s === 'string' ? s : (s.name || s.skill || String(s))
+    );
+
     // Store results
     const { error: insertError } = await supabase
       .from('skill_validation_result')
@@ -131,7 +136,7 @@ Provide a realistic readiness score and identify skill gaps.`;
         resume_id: resume_id,
         target_role: roleToValidate,
         matched_skills: validation.matched_skills || { strong: [], partial: [] },
-        missing_skills: validation.missing_skills || [],
+        missing_skills: normalizedMissing,
         readiness_score: validation.readiness_score || 0,
         recommended_next_step: validation.recommended_next_step || 'learn',
       });

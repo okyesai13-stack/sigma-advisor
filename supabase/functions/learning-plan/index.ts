@@ -33,6 +33,9 @@ serve(async (req) => {
 
     const missingSkills = (skillData?.missing_skills as any[]) || [];
     const targetRole = skillData?.target_role || 'Professional';
+
+    // Idempotency: delete existing plans before inserting new ones
+    await supabase.from('learning_plan_result').delete().eq('resume_id', resume_id);
     
     if (missingSkills.length === 0) {
       await supabase.rpc('update_journey_state_flag', {
@@ -133,6 +136,14 @@ Include 2-3 real courses and 2-3 real YouTube videos with actual working URLs.`;
     // Run all AI calls in parallel
     const results = await Promise.all(skillsToLearn.map(generatePlanForSkill));
     const learningPlans = results.filter(Boolean);
+
+    // If all plans failed (likely rate limited), return error
+    if (learningPlans.length === 0 && skillsToLearn.length > 0) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'All learning plan generations failed. Please try again later.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
+      );
+    }
 
     // Update journey state
     await supabase.rpc('update_journey_state_flag', {

@@ -24,12 +24,13 @@ serve(async (req) => {
 
     // Get all relevant data
     const [resumeResult, careerResult, skillResult] = await Promise.all([
-      supabase.from('resume_store').select('*').eq('resume_id', resume_id).single(),
+      supabase.from('resume_store').select('*').eq('resume_id', resume_id).maybeSingle(),
       supabase.from('career_analysis_result').select('career_roles').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('skill_validation_result').select('*').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     const resumeData = resumeResult.data;
+    if (!resumeData) throw new Error('Resume not found');
     const careerRoles = careerResult.data?.career_roles as any[] || [];
     const skillData = skillResult.data;
 
@@ -124,6 +125,9 @@ Generate realistic job URLs that follow the pattern of actual job boards. Includ
       console.error('Jobs is not an array:', typeof jobs);
       jobs = [];
     }
+
+    // Idempotency: delete existing jobs before inserting new ones
+    await supabase.from('job_matching_result').delete().eq('resume_id', resume_id);
 
     const savedJobs = [];
 

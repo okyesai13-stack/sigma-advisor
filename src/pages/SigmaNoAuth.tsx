@@ -209,8 +209,8 @@ const SigmaNoAuth = () => {
       console.error('Goal score error:', error);
       setStepStatus(prev => ({ ...prev, goal_score: 'error' }));
       toast({
-        title: "Goal Score Error",
-        description: error instanceof Error ? error.message : 'Failed to generate goal score',
+        title: "Goal Score Skipped",
+        description: "Goal score failed, continuing with remaining steps...",
         variant: "destructive",
       });
       runAiRoleAnalysis();
