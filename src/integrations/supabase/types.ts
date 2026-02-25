@@ -243,6 +243,87 @@ export type Database = {
           },
         ]
       }
+      job_finder_result: {
+        Row: {
+          ats_keywords: string[] | null
+          company_name: string
+          company_type: string | null
+          created_at: string
+          domain: string | null
+          experience_level: string | null
+          id: string
+          is_saved: boolean | null
+          job_description: string | null
+          job_title: string
+          job_url: string | null
+          location: string | null
+          match_reasoning: string | null
+          match_score: number | null
+          matched_skills: Json | null
+          preferences: Json
+          resume_id: string
+          salary_range: string | null
+          sector: string | null
+          session_id: string
+          skill_gaps: Json | null
+          source: string | null
+          why_apply: string | null
+          work_mode: string | null
+        }
+        Insert: {
+          ats_keywords?: string[] | null
+          company_name: string
+          company_type?: string | null
+          created_at?: string
+          domain?: string | null
+          experience_level?: string | null
+          id?: string
+          is_saved?: boolean | null
+          job_description?: string | null
+          job_title: string
+          job_url?: string | null
+          location?: string | null
+          match_reasoning?: string | null
+          match_score?: number | null
+          matched_skills?: Json | null
+          preferences?: Json
+          resume_id: string
+          salary_range?: string | null
+          sector?: string | null
+          session_id?: string
+          skill_gaps?: Json | null
+          source?: string | null
+          why_apply?: string | null
+          work_mode?: string | null
+        }
+        Update: {
+          ats_keywords?: string[] | null
+          company_name?: string
+          company_type?: string | null
+          created_at?: string
+          domain?: string | null
+          experience_level?: string | null
+          id?: string
+          is_saved?: boolean | null
+          job_description?: string | null
+          job_title?: string
+          job_url?: string | null
+          location?: string | null
+          match_reasoning?: string | null
+          match_score?: number | null
+          matched_skills?: Json | null
+          preferences?: Json
+          resume_id?: string
+          salary_range?: string | null
+          sector?: string | null
+          session_id?: string
+          skill_gaps?: Json | null
+          source?: string | null
+          why_apply?: string | null
+          work_mode?: string | null
+        }
+        Relationships: []
+      }
       job_matching_result: {
         Row: {
           career_role: string
