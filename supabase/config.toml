@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.career-goal-score]
 verify_jwt = false
+
+[functions.job-finder-agent]
+verify_jwt = false

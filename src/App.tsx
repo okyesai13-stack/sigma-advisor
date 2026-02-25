@@ -19,6 +19,7 @@ import CareerTrajectoryNoAuth from "./pages/CareerTrajectoryNoAuth";
 import AILearningHubNoAuth from "./pages/AILearningHubNoAuth";
 import ProjectBuilderNoAuth from "./pages/ProjectBuilderNoAuth";
 import AIRolesNoAuth from "./pages/AIRolesNoAuth";
+import JobFinderNoAuth from "./pages/JobFinderNoAuth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -45,6 +46,7 @@ const App = () => (
             <Route path="/ai-learning" element={<AILearningHubNoAuth />} />
             <Route path="/project-builder" element={<ProjectBuilderNoAuth />} />
             <Route path="/ai-roles" element={<AIRolesNoAuth />} />
+            <Route path="/job-finder" element={<JobFinderNoAuth />} />
             
             <Route path="*" element={<NotFound />} />
           </Routes>
