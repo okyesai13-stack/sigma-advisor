@@ -52,7 +52,7 @@ serve(async (req) => {
       projectResult,
       jobResult
     ] = await Promise.all([
-      supabase.from('resume_store').select('*').eq('resume_id', resume_id).single(),
+      supabase.from('resume_store').select('*').eq('resume_id', resume_id).maybeSingle(),
       supabase.from('career_analysis_result').select('*').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('skill_validation_result').select('*').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       supabase.from('learning_plan_result').select('*').eq('resume_id', resume_id),

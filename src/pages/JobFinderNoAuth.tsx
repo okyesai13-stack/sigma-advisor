@@ -60,13 +60,13 @@ const JobFinderNoAuth = () => {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
-        .from('job_finder_result' as any)
+        .from('job_finder_result')
         .select('*')
         .eq('resume_id', resumeId)
         .order('match_score', { ascending: false });
 
       if (error) throw error;
-      setJobs((data as any as JobFinderResult[]) || []);
+      setJobs((data as JobFinderResult[]) || []);
     } catch (error) {
       console.error('Error loading jobs:', error);
     } finally {
@@ -76,7 +76,7 @@ const JobFinderNoAuth = () => {
 
   const toggleSave = async (jobId: string, currentSaved: boolean) => {
     try {
-      await (supabase.from('job_finder_result' as any) as any)
+      await supabase.from('job_finder_result')
         .update({ is_saved: !currentSaved })
         .eq('id', jobId);
       setJobs(prev => prev.map(j => j.id === jobId ? { ...j, is_saved: !currentSaved } : j));

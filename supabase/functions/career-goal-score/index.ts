@@ -21,7 +21,7 @@ serve(async (req) => {
 
     // Fetch resume + career analysis in parallel
     const [resumeRes, careerRes] = await Promise.all([
-      supabase.from('resume_store').select('*').eq('resume_id', resume_id).single(),
+      supabase.from('resume_store').select('*').eq('resume_id', resume_id).maybeSingle(),
       supabase.from('career_analysis_result').select('career_roles').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     ]);
 

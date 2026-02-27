@@ -27,10 +27,10 @@ serve(async (req) => {
       .from('resume_store')
       .select('*')
       .eq('resume_id', resume_id)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !resumeData) {
-      throw new Error('Resume not found: ' + (fetchError?.message || 'Unknown error'));
+      throw new Error('Resume not found');
     }
 
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -174,6 +174,9 @@ Return this EXACT JSON format:
     }
     
     const careerAdvice = JSON.parse(cleanJson);
+
+    // Idempotency: delete existing before inserting
+    await supabase.from('career_analysis_result').delete().eq('resume_id', resume_id);
 
     // Store results
     const { error: insertError } = await supabase
