@@ -1,140 +1,95 @@
 
 
-# Platform Issue Analysis and Fix Plan
+# Remaining Platform Issues Fix Plan
 
 ## Issues Found
 
-### 1. Database Function `get_journey_state` Missing `goal_score_completed`
-The `get_journey_state` RPC function hardcodes which columns it returns. It does NOT include the new `goal_score_completed` column added during the Career Goal Score migration. This means any code relying on this function to check pipeline completion state will never see the goal score flag.
+### 1. `JobFinderNoAuth.tsx` Still Uses `as any` Casts
+The `job_finder_result` table is now in the generated types file, but `JobFinderNoAuth.tsx` (lines 63, 79) still uses `supabase.from('job_finder_result' as any)` and `(supabase.from('job_finder_result' as any) as any)`. These should be removed for type safety.
 
-**Fix:** Update the `get_journey_state` database function to include `goal_score_completed` in its returned JSON object and its default state.
+### 2. `career-analysis` Edge Function Uses `.single()` on `resume_store`
+`supabase/functions/career-analysis/index.ts` (line 30) uses `.single()` instead of `.maybeSingle()`. If the resume doesn't exist, it throws a generic Supabase error rather than a clear "Resume not found" message.
 
-### 2. `career_goal_score_result` Table Not in TypeScript Types (Uses `as any` Cast)
-In `DashboardNoAuth.tsx` line 146, the query uses `supabase.from('career_goal_score_result' as any)` because the auto-generated types file doesn't include this table. This bypasses type safety and could lead to silent runtime errors.
+### 3. `career-goal-score` Edge Function Uses `.single()` on `resume_store`
+`supabase/functions/career-goal-score/index.ts` (line 24) uses `.single()` on `resume_store`. Same issue as above.
 
-**Fix:** Regenerate the Supabase types file so `career_goal_score_result` is properly typed, then remove the `as any` cast.
+### 4. `skill-validation` Edge Function Uses `.single()` on `resume_store`
+`supabase/functions/skill-validation/index.ts` (line 30) uses `.single()` instead of `.maybeSingle()`.
 
-### 3. Duplicate Data on Re-runs (No Idempotency)
-Every edge function (career-analysis, skill-validation, learning-plan, project-generation, job-matching, career-goal-score) inserts new rows on every call. If a user retries a step or the pipeline re-runs, duplicate records accumulate. The dashboard fetches with `.limit(1)` for single-result tables but learning plans, project ideas, and job matches fetch ALL rows, causing duplicates to appear.
+### 5. `ai-role-analysis` Edge Function Uses `.single()` on `resume_store`
+`supabase/functions/ai-role-analysis/index.ts` (line 35) uses `.single()`.
 
-**Fix:** Add delete-before-insert logic to the 4 multi-row edge functions: `learning-plan`, `project-generation`, `job-matching`, and `career-goal-score`. Before inserting new results, delete existing rows for that `resume_id`.
+### 6. `advisor-chat` and `advisor-chat-stream` Use `.single()` on `resume_store`
+Both `supabase/functions/advisor-chat/index.ts` (line 55) and `supabase/functions/advisor-chat-stream/index.ts` (line 55) use `.single()` on `resume_store`.
 
-### 4. `missing_skills` Could Be Objects, Not Strings
-The `skill-validation` edge function returns `missing_skills` as an array. The AI may return objects like `{name: "React", priority: "high"}` instead of plain strings. The dashboard casts `missing_skills as string[]` in multiple places (lines 406, 763), which would render `[object Object]` if the AI returns objects.
+### 7. `career-analysis` Lacks Idempotency
+The `career-analysis` edge function inserts a new row on every call but never deletes old rows. If the pipeline is retried, duplicates accumulate. The `career_analysis_result` table currently has no DELETE RLS policy, which would need to be added.
 
-**Fix:** Normalize `missing_skills` in the `skill-validation` edge function to always be a flat string array before storing.
+### 8. `skill-validation` Lacks Idempotency
+Same issue -- inserts a new row each time without deleting old ones. No DELETE policy exists on `skill_validation_result`.
 
-### 5. Sigma Pipeline Continues After Goal Score Error
-In `SigmaNoAuth.tsx` line 216, when `runGoalScore` fails, it calls `runAiRoleAnalysis()` to continue the pipeline. This is correct resilient behavior. However, the error toast doesn't tell users that the pipeline is continuing despite the error, which may cause confusion.
+### 9. `ai-role-analysis` Lacks Idempotency
+Same pattern -- no cleanup of old rows, no DELETE policy on `ai_role_analysis_result`.
 
-**Fix:** Update the error toast in `runGoalScore` to say "Goal score failed, continuing with remaining steps..."
+### 10. `SigmaNoAuth.tsx` Retry Creates Cascading Re-runs
+When a user clicks "Retry This Step" on an errored step (e.g., career_analysis), it calls `runCareerAnalysis()` which, upon completion, automatically chains to `runGoalScore()` -> `runAiRoleAnalysis()` -> etc., re-running the entire remaining pipeline. A retry should only re-run the single failed step.
 
-### 6. `learning-plan` Edge Function Silently Swallows Rate Limit Errors
-In the `learning-plan` function (line 94-99), when a per-skill AI call hits a 429/402, it logs the error and returns `null`. The function then continues, and the null results are filtered out. The function reports success even if all skills failed due to rate limiting, returning `{ success: true, data: [] }`.
-
-**Fix:** Track rate limit failures and return an appropriate error response if ALL skill plans failed due to rate limiting.
-
-### 7. `resume_store.select('*').single()` in Multiple Edge Functions
-The `project-generation` (line 27) and `job-matching` (line 27) functions use `.single()` instead of `.maybeSingle()` for `resume_store` queries. If the resume doesn't exist, `.single()` throws an error that gets caught as a generic error rather than a clear "Resume not found" message.
-
-**Fix:** Change `.single()` to `.maybeSingle()` and add explicit null checks with clear error messages.
-
-### 8. `career-goal-score` Uses `select('*')` on `career_analysis_result`
-The function fetches all columns from `career_analysis_result` but only uses `career_roles`. This is wasteful for large records.
-
-**Fix:** Change to `.select('career_roles')` to fetch only what's needed.
+### 11. `SigmaNoAuth.tsx` Missing `useEffect` Dependency
+The `useEffect` on line 135 has `resumeId` in the dependency array but references `toast` and `navigate` without including them. While functionally this works because React Router's `navigate` is stable, it's technically a lint issue.
 
 ## Technical Changes
 
 ### Database Migration
-Update the `get_journey_state` function to include `goal_score_completed`:
+Add DELETE policies for 3 tables that currently lack them, plus add idempotency support:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_journey_state(p_resume_id text)
- RETURNS jsonb
- LANGUAGE plpgsql
- SECURITY DEFINER
- SET search_path TO 'public'
-AS $function$
-DECLARE
-  result jsonb;
-BEGIN
-  SELECT jsonb_build_object(
-    'career_analysis_completed', COALESCE(career_analysis_completed, false),
-    'goal_score_completed', COALESCE(goal_score_completed, false),
-    'skill_validation_completed', COALESCE(skill_validation_completed, false),
-    'learning_plan_completed', COALESCE(learning_plan_completed, false),
-    'project_ideas_completed', COALESCE(project_ideas_completed, false),
-    'job_matching_completed', COALESCE(job_matching_completed, false)
-  ) INTO result
-  FROM public.journey_state
-  WHERE resume_id = p_resume_id;
+-- Allow public delete on career_analysis_result
+CREATE POLICY "Anyone can delete career analysis"
+  ON public.career_analysis_result FOR DELETE USING (true);
 
-  IF result IS NULL THEN
-    INSERT INTO public.journey_state (resume_id)
-    VALUES (p_resume_id)
-    ON CONFLICT (resume_id) DO NOTHING;
+-- Allow public delete on skill_validation_result
+CREATE POLICY "Anyone can delete skill validation"
+  ON public.skill_validation_result FOR DELETE USING (true);
 
-    result := jsonb_build_object(
-      'career_analysis_completed', false,
-      'goal_score_completed', false,
-      'skill_validation_completed', false,
-      'learning_plan_completed', false,
-      'project_ideas_completed', false,
-      'job_matching_completed', false
-    );
-  END IF;
-
-  RETURN result;
-END;
-$function$
+-- Allow public delete on ai_role_analysis_result
+CREATE POLICY "Anyone can delete ai_role_analysis"
+  ON public.ai_role_analysis_result FOR DELETE USING (true);
 ```
 
 ### Edge Function Changes
 
 | File | Change |
 |------|--------|
-| `supabase/functions/learning-plan/index.ts` | Delete existing plans for resume_id before inserting; track rate limit failures and return error if all failed |
-| `supabase/functions/project-generation/index.ts` | Delete existing projects before inserting; change `.single()` to `.maybeSingle()` |
-| `supabase/functions/job-matching/index.ts` | Delete existing jobs before inserting; change `.single()` to `.maybeSingle()` |
-| `supabase/functions/career-goal-score/index.ts` | Delete existing score before inserting; narrow `career_analysis_result` select to `career_roles` only |
-| `supabase/functions/skill-validation/index.ts` | Normalize `missing_skills` to flat string array |
+| `career-analysis/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
+| `skill-validation/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
+| `career-goal-score/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check |
+| `ai-role-analysis/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
+| `advisor-chat/index.ts` | Change `.single()` to `.maybeSingle()` on `resume_store` |
+| `advisor-chat-stream/index.ts` | Change `.single()` to `.maybeSingle()` on `resume_store` |
 
 ### Frontend Changes
 
 | File | Change |
 |------|--------|
-| `src/pages/DashboardNoAuth.tsx` | Remove `as any` cast on `career_goal_score_result` query (after types regenerate) |
-| `src/pages/SigmaNoAuth.tsx` | Update goal score error toast to indicate pipeline continues |
+| `src/pages/JobFinderNoAuth.tsx` | Remove `as any` casts on `job_finder_result` queries (lines 63, 79) |
+| `src/pages/SigmaNoAuth.tsx` | Fix retry logic so individual step retry does not cascade into re-running all subsequent steps |
 
-### Idempotency Pattern (Applied to 4 Functions)
+### Retry Fix Pattern
+Each step function will accept an optional `continueChain` parameter (default `true`). The retry handler will pass `false` to prevent cascading:
+
 ```typescript
-// Before inserting new results, clean up old ones
-await supabase
-  .from('table_name')
-  .delete()
-  .eq('resume_id', resume_id);
-```
+const runCareerAnalysis = async (continueChain = true) => {
+  // ... existing logic ...
+  if (continueChain) runGoalScore();
+};
 
-### Skill Normalization Pattern
-```typescript
-// Ensure missing_skills is always string[]
-const normalizedMissing = (validation.missing_skills || []).map(
-  (s: any) => typeof s === 'string' ? s : (s.name || s.skill || String(s))
-);
+const retryStep = (stepId: StepId) => {
+  // Pass false to prevent cascading
+  stepRunners[stepId]?.(false);
+};
 ```
-
-### Files to Modify
-- `supabase/functions/learning-plan/index.ts`
-- `supabase/functions/project-generation/index.ts`
-- `supabase/functions/job-matching/index.ts`
-- `supabase/functions/career-goal-score/index.ts`
-- `supabase/functions/skill-validation/index.ts`
-- `src/pages/SigmaNoAuth.tsx`
-- `src/pages/DashboardNoAuth.tsx`
 
 ### Deployment
-- Database migration for `get_journey_state` function update
-- Redeploy 5 edge functions
-- Types will auto-regenerate after migration
+- Database migration for 3 new DELETE policies
+- Redeploy 6 edge functions: `career-analysis`, `skill-validation`, `career-goal-score`, `ai-role-analysis`, `advisor-chat`, `advisor-chat-stream`
 
