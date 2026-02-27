@@ -27,7 +27,7 @@ serve(async (req) => {
       .from('resume_store')
       .select('*')
       .eq('resume_id', resume_id)
-      .single();
+      .maybeSingle();
 
     if (fetchError || !resumeData) {
       throw new Error('Resume not found');
@@ -128,6 +128,9 @@ Provide a realistic readiness score and identify skill gaps.`;
     const normalizedMissing = (validation.missing_skills || []).map(
       (s: any) => typeof s === 'string' ? s : (s.name || s.skill || String(s))
     );
+
+    // Idempotency: delete existing before inserting
+    await supabase.from('skill_validation_result').delete().eq('resume_id', resume_id);
 
     // Store results
     const { error: insertError } = await supabase

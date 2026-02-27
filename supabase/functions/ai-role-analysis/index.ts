@@ -32,7 +32,7 @@ serve(async (req) => {
       .from('resume_store')
       .select('parsed_data, resume_text, goal')
       .eq('resume_id', resume_id)
-      .single();
+      .maybeSingle();
 
     if (resumeError || !resumeData) {
       console.error('[AI Role Analysis] Resume fetch error:', resumeError);
@@ -253,6 +253,9 @@ Provide a comprehensive AI career analysis with exactly 3 AI-enhanced roles that
     }
 
     console.log('[AI Role Analysis] Storing results in database...');
+
+    // Idempotency: delete existing before inserting
+    await supabase.from('ai_role_analysis_result').delete().eq('resume_id', resume_id);
 
     // Store in database
     const { error: insertError } = await supabase

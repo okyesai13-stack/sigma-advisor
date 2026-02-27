@@ -146,7 +146,7 @@ const SigmaNoAuth = () => {
     runCareerAnalysis();
   }, [resumeId]);
 
-  const runCareerAnalysis = async () => {
+  const runCareerAnalysis = async (continueChain = true) => {
     setCurrentRunningStep('career_analysis');
     setStepStatus(prev => ({ ...prev, career_analysis: 'running' }));
 
@@ -170,7 +170,7 @@ const SigmaNoAuth = () => {
       setStepStatus(prev => ({ ...prev, career_analysis: 'completed' }));
       setSelectedStep('career_analysis');
       
-      runGoalScore();
+      if (continueChain) runGoalScore();
 
     } catch (error) {
       console.error('Career analysis error:', error);
@@ -183,7 +183,7 @@ const SigmaNoAuth = () => {
     }
   };
 
-  const runGoalScore = async () => {
+  const runGoalScore = async (continueChain = true) => {
     setCurrentRunningStep('goal_score');
     setStepStatus(prev => ({ ...prev, goal_score: 'running' }));
 
@@ -203,7 +203,7 @@ const SigmaNoAuth = () => {
       setGoalScoreData(result.data || null);
       setStepStatus(prev => ({ ...prev, goal_score: 'completed' }));
       setSelectedStep('goal_score');
-      runAiRoleAnalysis();
+      if (continueChain) runAiRoleAnalysis();
 
     } catch (error) {
       console.error('Goal score error:', error);
@@ -213,11 +213,11 @@ const SigmaNoAuth = () => {
         description: "Goal score failed, continuing with remaining steps...",
         variant: "destructive",
       });
-      runAiRoleAnalysis();
+      if (continueChain) runAiRoleAnalysis();
     }
   };
 
-  const runAiRoleAnalysis = async () => {
+  const runAiRoleAnalysis = async (continueChain = true) => {
     setCurrentRunningStep('ai_role_analysis');
     setStepStatus(prev => ({ ...prev, ai_role_analysis: 'running' }));
 
@@ -242,7 +242,7 @@ const SigmaNoAuth = () => {
       setStepStatus(prev => ({ ...prev, ai_role_analysis: 'completed' }));
       setSelectedStep('ai_role_analysis');
       
-      runSkillValidation();
+      if (continueChain) runSkillValidation();
 
     } catch (error) {
       console.error('AI Role analysis error:', error);
@@ -252,11 +252,11 @@ const SigmaNoAuth = () => {
         description: error instanceof Error ? error.message : 'Failed to analyze AI roles',
         variant: "destructive",
       });
-      runSkillValidation();
+      if (continueChain) runSkillValidation();
     }
   };
 
-  const runSkillValidation = async () => {
+  const runSkillValidation = async (continueChain = true) => {
     setCurrentRunningStep('skill_validation');
     setStepStatus(prev => ({ ...prev, skill_validation: 'running' }));
 
@@ -276,16 +276,16 @@ const SigmaNoAuth = () => {
       setSkillValidation(result.data || null);
       setStepStatus(prev => ({ ...prev, skill_validation: 'completed' }));
       setSelectedStep('skill_validation');
-      runLearningPlan();
+      if (continueChain) runLearningPlan();
 
     } catch (error) {
       console.error('Skill validation error:', error);
       setStepStatus(prev => ({ ...prev, skill_validation: 'error' }));
-      runLearningPlan();
+      if (continueChain) runLearningPlan();
     }
   };
 
-  const runLearningPlan = async () => {
+  const runLearningPlan = async (continueChain = true) => {
     setCurrentRunningStep('learning_plan');
     setStepStatus(prev => ({ ...prev, learning_plan: 'running' }));
 
@@ -305,16 +305,16 @@ const SigmaNoAuth = () => {
       setLearningPlans(result.data || []);
       setStepStatus(prev => ({ ...prev, learning_plan: 'completed' }));
       setSelectedStep('learning_plan');
-      runProjectGeneration();
+      if (continueChain) runProjectGeneration();
 
     } catch (error) {
       console.error('Learning plan error:', error);
       setStepStatus(prev => ({ ...prev, learning_plan: 'error' }));
-      runProjectGeneration();
+      if (continueChain) runProjectGeneration();
     }
   };
 
-  const runProjectGeneration = async () => {
+  const runProjectGeneration = async (continueChain = true) => {
     setCurrentRunningStep('project_ideas');
     setStepStatus(prev => ({ ...prev, project_ideas: 'running' }));
 
@@ -334,16 +334,16 @@ const SigmaNoAuth = () => {
       setProjectIdeas(result.data || []);
       setStepStatus(prev => ({ ...prev, project_ideas: 'completed' }));
       setSelectedStep('project_ideas');
-      runJobMatching();
+      if (continueChain) runJobMatching();
 
     } catch (error) {
       console.error('Project generation error:', error);
       setStepStatus(prev => ({ ...prev, project_ideas: 'error' }));
-      runJobMatching();
+      if (continueChain) runJobMatching();
     }
   };
 
-  const runJobMatching = async () => {
+  const runJobMatching = async (continueChain = true) => {
     setCurrentRunningStep('job_matching');
     setStepStatus(prev => ({ ...prev, job_matching: 'running' }));
 
@@ -403,7 +403,7 @@ const SigmaNoAuth = () => {
   };
 
   const retryStep = (stepId: StepId) => {
-    const stepRunners: Record<StepId, () => void> = {
+    const stepRunners: Record<StepId, (continueChain?: boolean) => void> = {
       career_analysis: runCareerAnalysis,
       goal_score: runGoalScore,
       ai_role_analysis: runAiRoleAnalysis,
@@ -412,7 +412,7 @@ const SigmaNoAuth = () => {
       project_ideas: runProjectGeneration,
       job_matching: runJobMatching,
     };
-    stepRunners[stepId]?.();
+    stepRunners[stepId]?.(false);
   };
 
   const renderStepContent = () => {
