@@ -1,95 +1,60 @@
 
 
-# Remaining Platform Issues Fix Plan
+# Two-Panel Layout: Chat Left, Content Right
 
-## Issues Found
+## Overview
+Create a persistent two-panel layout for all pages except the landing page. The **left panel** shows the embedded AI Advisor chat, and the **right panel** shows the current page content.
 
-### 1. `JobFinderNoAuth.tsx` Still Uses `as any` Casts
-The `job_finder_result` table is now in the generated types file, but `JobFinderNoAuth.tsx` (lines 63, 79) still uses `supabase.from('job_finder_result' as any)` and `(supabase.from('job_finder_result' as any) as any)`. These should be removed for type safety.
-
-### 2. `career-analysis` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/career-analysis/index.ts` (line 30) uses `.single()` instead of `.maybeSingle()`. If the resume doesn't exist, it throws a generic Supabase error rather than a clear "Resume not found" message.
-
-### 3. `career-goal-score` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/career-goal-score/index.ts` (line 24) uses `.single()` on `resume_store`. Same issue as above.
-
-### 4. `skill-validation` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/skill-validation/index.ts` (line 30) uses `.single()` instead of `.maybeSingle()`.
-
-### 5. `ai-role-analysis` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/ai-role-analysis/index.ts` (line 35) uses `.single()`.
-
-### 6. `advisor-chat` and `advisor-chat-stream` Use `.single()` on `resume_store`
-Both `supabase/functions/advisor-chat/index.ts` (line 55) and `supabase/functions/advisor-chat-stream/index.ts` (line 55) use `.single()` on `resume_store`.
-
-### 7. `career-analysis` Lacks Idempotency
-The `career-analysis` edge function inserts a new row on every call but never deletes old rows. If the pipeline is retried, duplicates accumulate. The `career_analysis_result` table currently has no DELETE RLS policy, which would need to be added.
-
-### 8. `skill-validation` Lacks Idempotency
-Same issue -- inserts a new row each time without deleting old ones. No DELETE policy exists on `skill_validation_result`.
-
-### 9. `ai-role-analysis` Lacks Idempotency
-Same pattern -- no cleanup of old rows, no DELETE policy on `ai_role_analysis_result`.
-
-### 10. `SigmaNoAuth.tsx` Retry Creates Cascading Re-runs
-When a user clicks "Retry This Step" on an errored step (e.g., career_analysis), it calls `runCareerAnalysis()` which, upon completion, automatically chains to `runGoalScore()` -> `runAiRoleAnalysis()` -> etc., re-running the entire remaining pipeline. A retry should only re-run the single failed step.
-
-### 11. `SigmaNoAuth.tsx` Missing `useEffect` Dependency
-The `useEffect` on line 135 has `resumeId` in the dependency array but references `toast` and `navigate` without including them. While functionally this works because React Router's `navigate` is stable, it's technically a lint issue.
-
-## Technical Changes
-
-### Database Migration
-Add DELETE policies for 3 tables that currently lack them, plus add idempotency support:
-
-```sql
--- Allow public delete on career_analysis_result
-CREATE POLICY "Anyone can delete career analysis"
-  ON public.career_analysis_result FOR DELETE USING (true);
-
--- Allow public delete on skill_validation_result
-CREATE POLICY "Anyone can delete skill validation"
-  ON public.skill_validation_result FOR DELETE USING (true);
-
--- Allow public delete on ai_role_analysis_result
-CREATE POLICY "Anyone can delete ai_role_analysis"
-  ON public.ai_role_analysis_result FOR DELETE USING (true);
+```text
+┌──────────────────────────────────────────────────────┐
+│  AppLayout                                           │
+│ ┌──────────────────┬─┬───────────────────────────┐   │
+│ │  Left Panel      │ │  Right Panel              │   │
+│ │  (~35%)          │H│  (~65%)                   │   │
+│ │                  │a│                            │   │
+│ │  AdvisorChat     │n│  <Outlet /> (page content) │   │
+│ │  (embedded)      │d│                            │   │
+│ │                  │l│                            │   │
+│ │                  │e│                            │   │
+│ └──────────────────┴─┴───────────────────────────┘   │
+└──────────────────────────────────────────────────────┘
 ```
 
-### Edge Function Changes
+## Files to Create
 
-| File | Change |
-|------|--------|
-| `career-analysis/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
-| `skill-validation/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
-| `career-goal-score/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check |
-| `ai-role-analysis/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
-| `advisor-chat/index.ts` | Change `.single()` to `.maybeSingle()` on `resume_store` |
-| `advisor-chat-stream/index.ts` | Change `.single()` to `.maybeSingle()` on `resume_store` |
+### 1. `src/components/advisor/AdvisorChatPanel.tsx`
+- Extract all chat logic from `AdvisorNoAuth.tsx` (messages, streaming, input, suggestion cards, history loading)
+- Remove page-level wrapper (no `h-screen`, no back button header)
+- Render as a panel that fills its parent container height
+- Keep streaming, `formatMessage`, suggestion cards, scroll behavior
 
-### Frontend Changes
+### 2. `src/components/layout/AppLayout.tsx`
+- Uses `ResizablePanelGroup` (horizontal) from existing `src/components/ui/resizable.tsx`
+- **Left panel** (default 35%, min 25%): `<AdvisorChatPanel />`
+- **ResizableHandle** with grip
+- **Right panel** (default 65%, min 40%): `<Outlet />` from react-router
+- Slim top header bar: logo + page title breadcrumb + optional collapse toggle
+- On mobile (< 768px): hide left panel, show floating chat button that opens a `Drawer` (vaul)
+- Store collapsed state in `localStorage`
 
-| File | Change |
-|------|--------|
-| `src/pages/JobFinderNoAuth.tsx` | Remove `as any` casts on `job_finder_result` queries (lines 63, 79) |
-| `src/pages/SigmaNoAuth.tsx` | Fix retry logic so individual step retry does not cascade into re-running all subsequent steps |
+## Files to Modify
 
-### Retry Fix Pattern
-Each step function will accept an optional `continueChain` parameter (default `true`). The retry handler will pass `false` to prevent cascading:
+### 3. `src/App.tsx`
+- Wrap all non-landing routes inside `<Route element={<AppLayout />}>` with nested `<Route>` children
+- Remove standalone `/advisor` route (chat is now always visible in left panel)
+- Keep `/` (landing) and `*` (NotFound) outside the layout
 
-```typescript
-const runCareerAnalysis = async (continueChain = true) => {
-  // ... existing logic ...
-  if (continueChain) runGoalScore();
-};
+### 4. `src/pages/AdvisorNoAuth.tsx`
+- Simplify to just redirect to `/dashboard` (or remove entirely) since chat is embedded
 
-const retryStep = (stepId: StepId) => {
-  // Pass false to prevent cascading
-  stepRunners[stepId]?.(false);
-};
-```
+### 5. All inner pages (12 files)
+- Remove back-button headers and standalone navigation where redundant
+- Ensure pages use `h-full overflow-auto` instead of `h-screen` so they fit within the right panel
+- Pages affected: `SetupNoAuth`, `SigmaNoAuth`, `DashboardNoAuth`, `InterviewPrepNoAuth`, `SmartAnalysisNoAuth`, `ResumeUpgradeNoAuth`, `MockInterviewNoAuth`, `CareerTrajectoryNoAuth`, `AILearningHubNoAuth`, `ProjectBuilderNoAuth`, `AIRolesNoAuth`, `JobFinderNoAuth`
 
-### Deployment
-- Database migration for 3 new DELETE policies
-- Redeploy 6 edge functions: `career-analysis`, `skill-validation`, `career-goal-score`, `ai-role-analysis`, `advisor-chat`, `advisor-chat-stream`
+## Technical Details
+- `react-resizable-panels` and `vaul` are already installed
+- `ResumeContext` is already at the app root, so the chat panel reads `resumeId` from context automatically
+- Chat history persists via the existing `chat_history` table keyed by `resume_id`
+- The chat panel will show suggestion cards when no `resumeId` is set (e.g., on the setup page before upload)
 
