@@ -151,6 +151,7 @@ Generate 5-7 recommendations with mix of high/medium/low impact. Make the 90-day
     // Store results
     const { error: insertError } = await supabase.from('career_goal_score_result').insert({
       resume_id,
+      user_id: resumeRes.data?.user_id || null,
       goal_score: data.goal_score || 0,
       score_breakdown: data.score_breakdown || {},
       recommendations: data.recommendations || [],

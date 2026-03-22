@@ -22,6 +22,15 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
+    // Extract user_id from auth token if present
+    let userId: string | null = null;
+    const authHeader = req.headers.get('Authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.replace('Bearer ', '');
+      const { data } = await supabase.auth.getUser(token);
+      userId = data?.user?.id || null;
+    }
+
     // If parsedData is not provided, call the AI to parse it
     let finalParsedData = parsedData;
     
@@ -79,16 +88,17 @@ Return ONLY valid JSON with this exact structure:
       }
     }
 
-    // Insert into resume_store - the resume_id is auto-generated
+    // Insert into resume_store
     const { data: resumeData, error: insertError } = await supabase
       .from('resume_store')
       .insert({
-        resume_text: resumeText.slice(0, 50000), // Limit text size
+        resume_text: resumeText.slice(0, 50000),
         parsed_data: finalParsedData,
         goal: goal || null,
         challenge: challenge || null,
         user_type: userType || 'student',
         file_name: fileName || 'resume.pdf',
+        user_id: userId,
       })
       .select('resume_id')
       .single();
@@ -99,12 +109,12 @@ Return ONLY valid JSON with this exact structure:
     }
 
     const resumeId = resumeData.resume_id;
-    console.log('Resume stored with ID:', resumeId);
+    console.log('Resume stored with ID:', resumeId, 'user_id:', userId);
 
     // Create initial journey state
     await supabase
       .from('journey_state')
-      .insert({ resume_id: resumeId })
+      .insert({ resume_id: resumeId, user_id: userId })
       .select()
       .single();
 

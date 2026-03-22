@@ -183,6 +183,7 @@ Return this EXACT JSON format:
       .from('career_analysis_result')
       .insert({
         resume_id: resume_id,
+        user_id: resumeData?.user_id || null,
         career_roles: careerAdvice.career_roles || [],
         skill_analysis: careerAdvice.skill_analysis || {},
         career_roadmap: careerAdvice.career_roadmap || {},

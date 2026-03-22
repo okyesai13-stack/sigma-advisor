@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -119,11 +120,15 @@ const SetupNoAuth = () => {
       }
 
       // Upload to backend
+      const { data: { session } } = await supabase.auth.getSession();
       const response = await fetch(
         `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/upload-resume`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(session?.access_token ? { 'Authorization': `Bearer ${session.access_token}` } : {}),
+          },
           body: JSON.stringify({
             resumeText: resumeText.slice(0, 20000),
             fileName: file.name,
