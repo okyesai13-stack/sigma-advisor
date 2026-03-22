@@ -1,95 +1,143 @@
 
 
-# Remaining Platform Issues Fix Plan
+# Add Authentication and User-Linked Data to Platform
 
-## Issues Found
+## Overview
+Add Supabase Auth with login/signup pages, create a profiles table, add `user_id` to all 18 data tables, create an `AuthProvider` context, protect all routes behind auth, and update the ResumeContext to auto-load the user's resume after login.
 
-### 1. `JobFinderNoAuth.tsx` Still Uses `as any` Casts
-The `job_finder_result` table is now in the generated types file, but `JobFinderNoAuth.tsx` (lines 63, 79) still uses `supabase.from('job_finder_result' as any)` and `(supabase.from('job_finder_result' as any) as any)`. These should be removed for type safety.
+## Architecture
 
-### 2. `career-analysis` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/career-analysis/index.ts` (line 30) uses `.single()` instead of `.maybeSingle()`. If the resume doesn't exist, it throws a generic Supabase error rather than a clear "Resume not found" message.
+```text
+Landing (/) → "Start Career" → Auth (/auth) → Login/Signup
+                                                    ↓
+                                              On success
+                                                    ↓
+                                          /setup (protected)
+                                                    ↓
+                                    All data tables now keyed by user_id
+                                    resume_id still exists but user_id is primary
+```
 
-### 3. `career-goal-score` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/career-goal-score/index.ts` (line 24) uses `.single()` on `resume_store`. Same issue as above.
+## Changes
 
-### 4. `skill-validation` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/skill-validation/index.ts` (line 30) uses `.single()` instead of `.maybeSingle()`.
+### 1. Database Migration
 
-### 5. `ai-role-analysis` Edge Function Uses `.single()` on `resume_store`
-`supabase/functions/ai-role-analysis/index.ts` (line 35) uses `.single()`.
+**New table: `profiles`**
+- `id` (uuid, PK, references auth.users(id) ON DELETE CASCADE)
+- `full_name` (text, nullable)
+- `avatar_url` (text, nullable)
+- `email` (text, nullable)
+- `created_at`, `updated_at` (timestamptz)
+- RLS: users can read/update only their own profile
 
-### 6. `advisor-chat` and `advisor-chat-stream` Use `.single()` on `resume_store`
-Both `supabase/functions/advisor-chat/index.ts` (line 55) and `supabase/functions/advisor-chat-stream/index.ts` (line 55) use `.single()` on `resume_store`.
+**Trigger**: Auto-create profile on signup via `handle_new_user_profile()` trigger on `auth.users`.
 
-### 7. `career-analysis` Lacks Idempotency
-The `career-analysis` edge function inserts a new row on every call but never deletes old rows. If the pipeline is retried, duplicates accumulate. The `career_analysis_result` table currently has no DELETE RLS policy, which would need to be added.
+**Add `user_id` column to all 18 tables:**
+- `resume_store`, `career_analysis_result`, `skill_validation_result`, `career_goal_score_result`, `ai_role_analysis_result`, `learning_plan_result`, `project_ideas_result`, `job_matching_result`, `job_finder_result`, `journey_state`, `chat_history`, `interview_preparation_result`, `smart_analysis_result`, `upgraded_resume_result`, `mock_interview_session`, `project_build_session`, `learning_content`, `career_trajectory_result`
+- All as `uuid REFERENCES auth.users(id) ON DELETE CASCADE`, nullable (to preserve existing data)
+- Update RLS policies: authenticated users can only SELECT/INSERT/UPDATE/DELETE their own rows (where `user_id = auth.uid()`), keep public INSERT for backward compat during transition
 
-### 8. `skill-validation` Lacks Idempotency
-Same issue -- inserts a new row each time without deleting old ones. No DELETE policy exists on `skill_validation_result`.
+### 2. New Auth Page: `src/pages/AuthPage.tsx`
+- Tab-based login/signup form (email + password)
+- Uses `supabase.auth.signUp()` and `supabase.auth.signInWithPassword()`
+- On successful auth, redirect to `/setup` (new user) or `/dashboard` (returning user with existing resume)
+- Clean, modern UI matching the platform's design language
 
-### 9. `ai-role-analysis` Lacks Idempotency
-Same pattern -- no cleanup of old rows, no DELETE policy on `ai_role_analysis_result`.
+### 3. New Auth Context: `src/contexts/AuthContext.tsx`
+- Wraps the app with auth state via `supabase.auth.onAuthStateChange()`
+- Provides `user`, `session`, `signOut`, `loading` state
+- Set up `onAuthStateChange` listener BEFORE calling `getSession()`
 
-### 10. `SigmaNoAuth.tsx` Retry Creates Cascading Re-runs
-When a user clicks "Retry This Step" on an errored step (e.g., career_analysis), it calls `runCareerAnalysis()` which, upon completion, automatically chains to `runGoalScore()` -> `runAiRoleAnalysis()` -> etc., re-running the entire remaining pipeline. A retry should only re-run the single failed step.
+### 4. Protected Route Component: `src/components/auth/ProtectedRoute.tsx`
+- Checks auth state; redirects to `/auth` if not logged in
+- Shows loading spinner while auth state resolves
 
-### 11. `SigmaNoAuth.tsx` Missing `useEffect` Dependency
-The `useEffect` on line 135 has `resumeId` in the dependency array but references `toast` and `navigate` without including them. While functionally this works because React Router's `navigate` is stable, it's technically a lint issue.
+### 5. Update `ResumeContext.tsx`
+- After auth, auto-fetch the user's most recent `resume_id` from `resume_store` where `user_id = auth.uid()`
+- Remove sessionStorage dependency; use the authenticated user's data instead
+- Keep `resumeId` in state but load it from DB on auth
 
-## Technical Changes
+### 6. Update `upload-resume` Edge Function
+- Accept optional `user_id` from the auth token (extract from `Authorization` header)
+- Store `user_id` alongside `resume_id` in `resume_store` and `journey_state`
+
+### 7. Update All Edge Functions (18 functions)
+- Extract `user_id` from the auth JWT in the `Authorization` header
+- Store `user_id` when inserting rows
+- Functions: `career-analysis`, `career-goal-score`, `skill-validation`, `ai-role-analysis`, `learning-plan`, `project-generation`, `job-matching`, `job-finder-agent`, `interview-prep`, `smart-analysis`, `resume-upgrade`, `resume-upgrade-jd`, `career-trajectory`, `mock-interview`, `project-builder`, `advisor-chat`, `advisor-chat-stream`, `upload-resume`
+
+### 8. Update `App.tsx` Routing
+- Add `/auth` route (outside layout, like landing)
+- Wrap `AppLayout` routes with `ProtectedRoute`
+- Landing page "Start Career" button navigates to `/auth` instead of `/setup`
+
+### 9. Update `LandingNoAuth.tsx`
+- "Start Career" button → navigate to `/auth`
+- "View Previous Results" section: after entering resume ID, require login first
+
+### 10. Update `DashboardNoAuth.tsx` and other pages
+- Load data by `user_id` (via auth) instead of just `resume_id` from context
+- The `resumeId` is still used as a secondary key but `user_id` ensures data isolation
+
+### 11. Add Sign Out to Layout
+- Add user avatar + sign out button in `AppLayout` header area
+
+## Technical Details
+
+### Profile Trigger
+```sql
+CREATE OR REPLACE FUNCTION public.handle_new_user_profile()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path = 'public' AS $$
+BEGIN
+  INSERT INTO public.profiles (id, email, full_name)
+  VALUES (NEW.id, NEW.email, NEW.raw_user_meta_data->>'full_name');
+  RETURN NEW;
+END;
+$$;
+
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user_profile();
+```
+
+### Auth JWT Extraction in Edge Functions
+```typescript
+const authHeader = req.headers.get('Authorization');
+const { data: { user } } = await supabase.auth.getUser(authHeader?.replace('Bearer ', ''));
+const userId = user?.id;
+```
+
+### RLS Pattern for User-Owned Data
+```sql
+CREATE POLICY "Users can access own data"
+  ON public.resume_store FOR SELECT TO authenticated
+  USING (user_id = auth.uid());
+```
+
+### Files to Create
+| File | Purpose |
+|------|---------|
+| `src/pages/AuthPage.tsx` | Login/signup page |
+| `src/contexts/AuthContext.tsx` | Auth state provider |
+| `src/components/auth/ProtectedRoute.tsx` | Route guard |
+
+### Files to Modify
+| File | Change |
+|------|--------|
+| `src/App.tsx` | Add auth route, wrap routes with ProtectedRoute, add AuthProvider |
+| `src/contexts/ResumeContext.tsx` | Auto-load user's resume from DB after auth |
+| `src/pages/LandingNoAuth.tsx` | "Start Career" → `/auth` |
+| `src/components/layout/AppLayout.tsx` | Add sign-out button |
+| `supabase/functions/upload-resume/index.ts` | Store user_id |
+| 17 other edge functions | Extract and store user_id |
 
 ### Database Migration
-Add DELETE policies for 3 tables that currently lack them, plus add idempotency support:
-
-```sql
--- Allow public delete on career_analysis_result
-CREATE POLICY "Anyone can delete career analysis"
-  ON public.career_analysis_result FOR DELETE USING (true);
-
--- Allow public delete on skill_validation_result
-CREATE POLICY "Anyone can delete skill validation"
-  ON public.skill_validation_result FOR DELETE USING (true);
-
--- Allow public delete on ai_role_analysis_result
-CREATE POLICY "Anyone can delete ai_role_analysis"
-  ON public.ai_role_analysis_result FOR DELETE USING (true);
-```
-
-### Edge Function Changes
-
-| File | Change |
-|------|--------|
-| `career-analysis/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
-| `skill-validation/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
-| `career-goal-score/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check |
-| `ai-role-analysis/index.ts` | Change `.single()` to `.maybeSingle()`, add explicit null check, add delete-before-insert idempotency |
-| `advisor-chat/index.ts` | Change `.single()` to `.maybeSingle()` on `resume_store` |
-| `advisor-chat-stream/index.ts` | Change `.single()` to `.maybeSingle()` on `resume_store` |
-
-### Frontend Changes
-
-| File | Change |
-|------|--------|
-| `src/pages/JobFinderNoAuth.tsx` | Remove `as any` casts on `job_finder_result` queries (lines 63, 79) |
-| `src/pages/SigmaNoAuth.tsx` | Fix retry logic so individual step retry does not cascade into re-running all subsequent steps |
-
-### Retry Fix Pattern
-Each step function will accept an optional `continueChain` parameter (default `true`). The retry handler will pass `false` to prevent cascading:
-
-```typescript
-const runCareerAnalysis = async (continueChain = true) => {
-  // ... existing logic ...
-  if (continueChain) runGoalScore();
-};
-
-const retryStep = (stepId: StepId) => {
-  // Pass false to prevent cascading
-  stepRunners[stepId]?.(false);
-};
-```
+- Create `profiles` table + trigger
+- Add `user_id` column (nullable uuid) to all 18 data tables
+- Update RLS policies for authenticated access
+- Keep existing public policies as fallback (can remove later)
 
 ### Deployment
-- Database migration for 3 new DELETE policies
-- Redeploy 6 edge functions: `career-analysis`, `skill-validation`, `career-goal-score`, `ai-role-analysis`, `advisor-chat`, `advisor-chat-stream`
+- Run database migration
+- Redeploy all 18 edge functions
 
