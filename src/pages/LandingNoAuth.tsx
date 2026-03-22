@@ -125,7 +125,7 @@ const LandingNoAuth = () => {
             Upload your resume, set your goal, and get a personalized career roadmap instantly — to achieve your career goal.
           </p>
 
-          <Button size="lg" className="h-14 px-8 text-lg gap-2" onClick={() => navigate('/setup')}>
+          <Button size="lg" className="h-14 px-8 text-lg gap-2" onClick={() => navigate('/auth')}>
             Start Career
             <ArrowRight className="w-5 h-5" />
           </Button>

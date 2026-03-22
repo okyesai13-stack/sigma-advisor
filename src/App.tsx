@@ -3,13 +3,16 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { ResumeProvider } from "@/contexts/ResumeContext";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 // Layout
 import AppLayout from "@/components/layout/AppLayout";
 
-// No-auth pages
+// Pages
 import LandingNoAuth from "./pages/LandingNoAuth";
+import AuthPage from "./pages/AuthPage";
 import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
@@ -28,36 +31,43 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ResumeProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Landing page - no layout */}
-            <Route path="/" element={<LandingNoAuth />} />
+    <AuthProvider>
+      <ResumeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<LandingNoAuth />} />
+              <Route path="/auth" element={<AuthPage />} />
 
-            {/* All other pages wrapped in two-panel layout */}
-            <Route element={<AppLayout />}>
-              <Route path="/setup" element={<SetupNoAuth />} />
-              <Route path="/sigma" element={<SigmaNoAuth />} />
-              <Route path="/dashboard" element={<DashboardNoAuth />} />
-              <Route path="/interview-prep" element={<InterviewPrepNoAuth />} />
-              <Route path="/smart-analysis" element={<SmartAnalysisNoAuth />} />
-              <Route path="/resume-upgrade" element={<ResumeUpgradeNoAuth />} />
-              <Route path="/mock-interview" element={<MockInterviewNoAuth />} />
-              <Route path="/career-trajectory" element={<CareerTrajectoryNoAuth />} />
-              <Route path="/ai-learning" element={<AILearningHubNoAuth />} />
-              <Route path="/project-builder" element={<ProjectBuilderNoAuth />} />
-              <Route path="/ai-roles" element={<AIRolesNoAuth />} />
-              <Route path="/job-finder" element={<JobFinderNoAuth />} />
-            </Route>
+              {/* Protected routes with two-panel layout */}
+              <Route element={
+                <ProtectedRoute>
+                  <AppLayout />
+                </ProtectedRoute>
+              }>
+                <Route path="/setup" element={<SetupNoAuth />} />
+                <Route path="/sigma" element={<SigmaNoAuth />} />
+                <Route path="/dashboard" element={<DashboardNoAuth />} />
+                <Route path="/interview-prep" element={<InterviewPrepNoAuth />} />
+                <Route path="/smart-analysis" element={<SmartAnalysisNoAuth />} />
+                <Route path="/resume-upgrade" element={<ResumeUpgradeNoAuth />} />
+                <Route path="/mock-interview" element={<MockInterviewNoAuth />} />
+                <Route path="/career-trajectory" element={<CareerTrajectoryNoAuth />} />
+                <Route path="/ai-learning" element={<AILearningHubNoAuth />} />
+                <Route path="/project-builder" element={<ProjectBuilderNoAuth />} />
+                <Route path="/ai-roles" element={<AIRolesNoAuth />} />
+                <Route path="/job-finder" element={<JobFinderNoAuth />} />
+              </Route>
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ResumeProvider>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ResumeProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
