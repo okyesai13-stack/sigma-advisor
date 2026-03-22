@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface ResumeContextType {
   resumeId: string | null;
@@ -15,11 +16,6 @@ interface ResumeContextType {
 
 const ResumeContext = createContext<ResumeContextType | undefined>(undefined);
 
-const STORAGE_KEY = 'sigma_resume_id';
-const GOAL_KEY = 'sigma_goal';
-const CHALLENGE_KEY = 'sigma_challenge';
-const USER_TYPE_KEY = 'sigma_user_type';
-
 export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const [resumeId, setResumeIdState] = useState<string | null>(null);
   const [goal, setGoalState] = useState<string | null>(null);
@@ -27,51 +23,72 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const [userType, setUserTypeState] = useState<string>('student');
   const [isReady, setIsReady] = useState(false);
 
-  // Load from sessionStorage on mount
+  // Auto-load resume from DB based on authenticated user
   useEffect(() => {
-    const storedResumeId = sessionStorage.getItem(STORAGE_KEY);
-    const storedGoal = sessionStorage.getItem(GOAL_KEY);
-    const storedChallenge = sessionStorage.getItem(CHALLENGE_KEY);
-    const storedUserType = sessionStorage.getItem(USER_TYPE_KEY);
-    
-    if (storedResumeId) setResumeIdState(storedResumeId);
-    if (storedGoal) setGoalState(storedGoal);
-    if (storedChallenge) setChallengeState(storedChallenge);
-    if (storedUserType) setUserTypeState(storedUserType);
-    
-    setIsReady(true);
+    const loadUserResume = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data } = await (supabase.from('resume_store') as any)
+          .select('resume_id, goal, challenge, user_type')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data) {
+          setResumeIdState(data.resume_id);
+          if (data.goal) setGoalState(data.goal);
+          if (data.challenge) setChallengeState(data.challenge);
+          if (data.user_type) setUserTypeState(data.user_type);
+        }
+      }
+      setIsReady(true);
+    };
+
+    loadUserResume();
+
+    // Listen for auth changes to reload resume
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (session?.user) {
+        const { data } = await (supabase.from('resume_store') as any)
+          .select('resume_id, goal, challenge, user_type')
+          .eq('user_id', session.user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (data) {
+          setResumeIdState(data.resume_id);
+          if (data.goal) setGoalState(data.goal);
+          if (data.challenge) setChallengeState(data.challenge);
+          if (data.user_type) setUserTypeState(data.user_type);
+        }
+      } else {
+        // User signed out
+        setResumeIdState(null);
+        setGoalState(null);
+        setChallengeState(null);
+        setUserTypeState('student');
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const setResumeId = (id: string | null) => {
     setResumeIdState(id);
-    if (id) {
-      sessionStorage.setItem(STORAGE_KEY, id);
-    } else {
-      sessionStorage.removeItem(STORAGE_KEY);
-    }
   };
 
   const setGoal = (newGoal: string | null) => {
     setGoalState(newGoal);
-    if (newGoal) {
-      sessionStorage.setItem(GOAL_KEY, newGoal);
-    } else {
-      sessionStorage.removeItem(GOAL_KEY);
-    }
   };
 
   const setChallenge = (newChallenge: string | null) => {
     setChallengeState(newChallenge);
-    if (newChallenge) {
-      sessionStorage.setItem(CHALLENGE_KEY, newChallenge);
-    } else {
-      sessionStorage.removeItem(CHALLENGE_KEY);
-    }
   };
 
   const setUserType = (type: string) => {
     setUserTypeState(type);
-    sessionStorage.setItem(USER_TYPE_KEY, type);
   };
 
   const clearSession = () => {
@@ -79,10 +96,6 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
     setGoalState(null);
     setChallengeState(null);
     setUserTypeState('student');
-    sessionStorage.removeItem(STORAGE_KEY);
-    sessionStorage.removeItem(GOAL_KEY);
-    sessionStorage.removeItem(CHALLENGE_KEY);
-    sessionStorage.removeItem(USER_TYPE_KEY);
   };
 
   return (
