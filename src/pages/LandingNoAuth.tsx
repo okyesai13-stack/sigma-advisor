@@ -71,8 +71,8 @@ const LandingNoAuth = () => {
         description: "Loading your career analysis results..."
       });
 
-      // Navigate to dashboard
-      navigate('/dashboard');
+      // Navigate to auth (dashboard is protected, will redirect after login)
+      navigate('/auth');
     } catch (error) {
       console.error('Error fetching resume:', error);
       toast({
