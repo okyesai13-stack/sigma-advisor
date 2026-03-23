@@ -139,7 +139,7 @@ Return JSON array:
         .from('project_ideas_result')
         .insert({
           resume_id: resume_id,
-          user_id: resumeResult.data?.user_id || null,
+          
           title: project.title,
           description: project.description,
           problem: project.problem,

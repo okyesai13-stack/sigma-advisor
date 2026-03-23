@@ -262,7 +262,7 @@ Provide a comprehensive AI career analysis with exactly 3 AI-enhanced roles that
       .from('ai_role_analysis_result')
       .insert({
         resume_id,
-        user_id: resumeData?.user_id || null,
+        
         roles_at_risk: analysisData.roles_at_risk || [],
         ai_enhanced_roles: analysisData.ai_enhanced_roles || [],
         current_ai_ready_skills: analysisData.current_ai_ready_skills || [],
