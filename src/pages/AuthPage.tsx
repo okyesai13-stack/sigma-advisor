@@ -30,17 +30,28 @@ const AuthPage = () => {
 
   const checkExistingResume = async () => {
     if (!user) return;
-    const { data } = await (supabase
-      .from('resume_store') as any)
-      .select('resume_id')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    try {
+      const { data, error } = await (supabase
+        .from('resume_store') as any)
+        .select('resume_id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
 
-    if (data?.resume_id) {
-      navigate('/dashboard', { replace: true });
-    } else {
+      if (error) {
+        console.error('Resume check error:', error);
+        navigate('/setup', { replace: true });
+        return;
+      }
+
+      if (data?.resume_id) {
+        navigate('/dashboard', { replace: true });
+      } else {
+        navigate('/setup', { replace: true });
+      }
+    } catch (err) {
+      console.error('Resume check failed:', err);
       navigate('/setup', { replace: true });
     }
   };
