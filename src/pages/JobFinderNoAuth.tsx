@@ -61,14 +61,30 @@ const JobFinderNoAuth = () => {
     if (!resumeId) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('job_finder_result')
-        .select('*')
-        .eq('resume_id', resumeId)
-        .order('match_score', { ascending: false });
+      const [jobsRes, interviewRes, smartRes] = await Promise.all([
+        supabase
+          .from('job_finder_result')
+          .select('*')
+          .eq('resume_id', resumeId)
+          .order('match_score', { ascending: false }),
+        supabase
+          .from('interview_preparation_result')
+          .select('job_id')
+          .eq('resume_id', resumeId),
+        supabase
+          .from('smart_analysis_result')
+          .select('job_id')
+          .eq('resume_id', resumeId),
+      ]);
 
-      if (error) throw error;
-      setJobs((data as JobFinderResult[]) || []);
+      if (jobsRes.error) throw jobsRes.error;
+      setJobs((jobsRes.data as JobFinderResult[]) || []);
+      if (interviewRes.data) {
+        setInterviewPrepJobIds(new Set(interviewRes.data.map(r => r.job_id)));
+      }
+      if (smartRes.data) {
+        setSmartAnalysisJobIds(new Set(smartRes.data.map(r => r.job_id)));
+      }
     } catch (error) {
       console.error('Error loading jobs:', error);
     } finally {
