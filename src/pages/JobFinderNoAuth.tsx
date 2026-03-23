@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Sparkles, ArrowLeft, Search, MapPin, Building2, ExternalLink, Bookmark,
   BookmarkCheck, Briefcase, Target, TrendingUp, Globe, DollarSign, Brain,
-  FileSearch, Mic, Loader2, RefreshCw, Layers, Zap
+  FileSearch, Mic, Loader2, RefreshCw, Layers, Zap, BarChart3
 } from 'lucide-react';
 import JobFinderDialog from '@/components/job-finder/JobFinderDialog';
 
@@ -46,6 +46,8 @@ const JobFinderNoAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  const [interviewPrepJobIds, setInterviewPrepJobIds] = useState<Set<string>>(new Set());
+  const [smartAnalysisJobIds, setSmartAnalysisJobIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!resumeId) {
@@ -59,14 +61,30 @@ const JobFinderNoAuth = () => {
     if (!resumeId) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('job_finder_result')
-        .select('*')
-        .eq('resume_id', resumeId)
-        .order('match_score', { ascending: false });
+      const [jobsRes, interviewRes, smartRes] = await Promise.all([
+        supabase
+          .from('job_finder_result')
+          .select('*')
+          .eq('resume_id', resumeId)
+          .order('match_score', { ascending: false }),
+        supabase
+          .from('interview_preparation_result')
+          .select('job_id')
+          .eq('resume_id', resumeId),
+        supabase
+          .from('smart_analysis_result')
+          .select('job_id')
+          .eq('resume_id', resumeId),
+      ]);
 
-      if (error) throw error;
-      setJobs((data as JobFinderResult[]) || []);
+      if (jobsRes.error) throw jobsRes.error;
+      setJobs((jobsRes.data as JobFinderResult[]) || []);
+      if (interviewRes.data) {
+        setInterviewPrepJobIds(new Set(interviewRes.data.map(r => r.job_id)));
+      }
+      if (smartRes.data) {
+        setSmartAnalysisJobIds(new Set(smartRes.data.map(r => r.job_id)));
+      }
     } catch (error) {
       console.error('Error loading jobs:', error);
     } finally {
@@ -367,6 +385,34 @@ const JobFinderNoAuth = () => {
                             </a>
                           </Button>
                         )}
+
+                        <Button
+                          size="sm"
+                          variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"}
+                          onClick={() => navigate(`/interview-prep?jobId=${job.id}`)}
+                        >
+                          <FileSearch className="w-4 h-4 mr-1" />
+                          {interviewPrepJobIds.has(job.id) ? 'View Prep' : 'Interview Prep'}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/mock-interview?jobId=${job.id}`)}
+                          className="border-primary/50 text-primary hover:bg-primary/10"
+                        >
+                          <Mic className="w-4 h-4 mr-1" />
+                          Mock Interview
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant={smartAnalysisJobIds.has(job.id) ? "default" : "outline"}
+                          onClick={() => navigate(`/smart-analysis?jobId=${job.id}`)}
+                        >
+                          <BarChart3 className="w-4 h-4 mr-1" />
+                          {smartAnalysisJobIds.has(job.id) ? 'View Analysis' : 'Smart Analysis'}
+                        </Button>
 
                         <Button
                           size="sm"
