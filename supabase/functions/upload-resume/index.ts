@@ -113,7 +113,7 @@ Return ONLY valid JSON with this exact structure:
     // Create initial journey state
     await supabase
       .from('journey_state')
-      .insert({ resume_id: resumeId, user_id: userId })
+      .insert({ resume_id: resumeId })
       .select()
       .single();
 
