@@ -98,7 +98,6 @@ Return ONLY valid JSON with this exact structure:
         challenge: challenge || null,
         user_type: userType || 'student',
         file_name: fileName || 'resume.pdf',
-        user_id: userId,
       })
       .select('resume_id')
       .single();
