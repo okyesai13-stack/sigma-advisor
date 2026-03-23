@@ -388,6 +388,34 @@ const JobFinderNoAuth = () => {
 
                         <Button
                           size="sm"
+                          variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"}
+                          onClick={() => navigate(`/interview-prep?jobId=${job.id}`)}
+                        >
+                          <FileSearch className="w-4 h-4 mr-1" />
+                          {interviewPrepJobIds.has(job.id) ? 'View Prep' : 'Interview Prep'}
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => navigate(`/mock-interview?jobId=${job.id}`)}
+                          className="border-primary/50 text-primary hover:bg-primary/10"
+                        >
+                          <Mic className="w-4 h-4 mr-1" />
+                          Mock Interview
+                        </Button>
+
+                        <Button
+                          size="sm"
+                          variant={smartAnalysisJobIds.has(job.id) ? "default" : "outline"}
+                          onClick={() => navigate(`/smart-analysis?jobId=${job.id}`)}
+                        >
+                          <BarChart3 className="w-4 h-4 mr-1" />
+                          {smartAnalysisJobIds.has(job.id) ? 'View Analysis' : 'Smart Analysis'}
+                        </Button>
+
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => navigate(`/resume-upgrade`)}
                         >
