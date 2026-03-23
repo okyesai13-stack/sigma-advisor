@@ -46,6 +46,8 @@ const JobFinderNoAuth = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [expandedJob, setExpandedJob] = useState<string | null>(null);
+  const [interviewPrepJobIds, setInterviewPrepJobIds] = useState<Set<string>>(new Set());
+  const [smartAnalysisJobIds, setSmartAnalysisJobIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!resumeId) {
