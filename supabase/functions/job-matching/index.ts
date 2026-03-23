@@ -136,7 +136,7 @@ Generate realistic job URLs that follow the pattern of actual job boards. Includ
         .from('job_matching_result')
         .insert({
           resume_id: resume_id,
-          user_id: resumeData?.user_id || null,
+          
           job_title: job.job_title,
           company_name: job.company_name,
           career_role: job.career_role || targetRole,

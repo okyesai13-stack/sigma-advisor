@@ -137,7 +137,7 @@ Provide a realistic readiness score and identify skill gaps.`;
       .from('skill_validation_result')
       .insert({
         resume_id: resume_id,
-        user_id: resumeData?.user_id || null,
+        
         target_role: roleToValidate,
         matched_skills: validation.matched_skills || { strong: [], partial: [] },
         missing_skills: normalizedMissing,

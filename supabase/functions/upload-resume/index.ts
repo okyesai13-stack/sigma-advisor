@@ -98,7 +98,6 @@ Return ONLY valid JSON with this exact structure:
         challenge: challenge || null,
         user_type: userType || 'student',
         file_name: fileName || 'resume.pdf',
-        user_id: userId,
       })
       .select('resume_id')
       .single();
@@ -114,7 +113,7 @@ Return ONLY valid JSON with this exact structure:
     // Create initial journey state
     await supabase
       .from('journey_state')
-      .insert({ resume_id: resumeId, user_id: userId })
+      .insert({ resume_id: resumeId })
       .select()
       .single();
 

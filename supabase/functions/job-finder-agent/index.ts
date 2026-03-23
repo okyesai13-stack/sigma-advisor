@@ -169,7 +169,7 @@ IMPORTANT: Make URLs realistic following actual job board URL patterns. Vary com
         .from('job_finder_result')
         .insert({
           resume_id,
-          user_id: resumeResult.data?.user_id || null,
+          
           session_id: sessionId,
           preferences: prefs,
           job_title: job.job_title || 'Unknown Role',

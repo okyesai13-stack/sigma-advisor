@@ -116,7 +116,7 @@ Include 2-3 real courses and 2-3 real YouTube videos with actual working URLs.`;
           .from('learning_plan_result')
           .insert({
             resume_id: resume_id,
-            user_id: (skillData as any)?.user_id || null,
+            
             skill_name: skillName,
             career_title: targetRole,
             learning_steps: [],
