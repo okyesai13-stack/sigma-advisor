@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import {
   Sparkles, ArrowLeft, Search, MapPin, Building2, ExternalLink, Bookmark,
   BookmarkCheck, Briefcase, Target, TrendingUp, Globe, DollarSign, Brain,
-  FileSearch, Mic, Loader2, RefreshCw, Layers, Zap
+  FileSearch, Mic, Loader2, RefreshCw, Layers, Zap, BarChart3
 } from 'lucide-react';
 import JobFinderDialog from '@/components/job-finder/JobFinderDialog';
 
