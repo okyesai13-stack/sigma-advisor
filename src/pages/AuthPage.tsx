@@ -56,6 +56,25 @@ const AuthPage = () => {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!loginEmail) {
+      toast({ title: 'Enter your email', description: 'Type your email address above, then click "Forgot your password?"', variant: 'destructive' });
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(loginEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      toast({ title: 'Reset email sent', description: 'Check your inbox for a password reset link.' });
+    } catch (error: any) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -175,6 +194,14 @@ const AuthPage = () => {
                     {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                     Sign In
                   </Button>
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="w-full text-sm text-primary hover:underline mt-1"
+                    disabled={isLoading}
+                  >
+                    Forgot your password?
+                  </button>
                 </form>
               </TabsContent>
 
