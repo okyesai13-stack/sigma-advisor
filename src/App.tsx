@@ -13,6 +13,7 @@ import AppLayout from "@/components/layout/AppLayout";
 // Pages
 import LandingNoAuth from "./pages/LandingNoAuth";
 import AuthPage from "./pages/AuthPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
@@ -41,6 +42,7 @@ const App = () => (
               {/* Public routes */}
               <Route path="/" element={<LandingNoAuth />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected routes with two-panel layout */}
               <Route element={
