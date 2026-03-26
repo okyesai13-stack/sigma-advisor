@@ -27,7 +27,7 @@ serve(async (req) => {
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch resume data
+    // Fetch resume data directly - no dependency on career_analysis_result
     const { data: resumeData, error: resumeError } = await supabase
       .from('resume_store')
       .select('parsed_data, resume_text, goal')
@@ -42,22 +42,12 @@ serve(async (req) => {
       );
     }
 
-    // Fetch career analysis for context
-    const { data: careerData } = await supabase
-      .from('career_analysis_result')
-      .select('career_roles, skill_analysis')
-      .eq('resume_id', resume_id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
     const parsedData = resumeData.parsed_data || {};
     const skills = parsedData.skills || [];
     const experience = parsedData.experience || [];
     const education = parsedData.education || [];
     const resumeText = resumeData.resume_text || '';
     const careerGoal = resumeData.goal || '';
-    const careerRoles = careerData?.career_roles || [];
 
     const systemPrompt = `You are an AI Career Futurist expert analyzing how AI technology will impact careers. Your task is to:
 1. Identify roles in the user's current career path that are at risk of AI automation
@@ -125,8 +115,6 @@ EDUCATION: ${JSON.stringify(education)}
 
 CAREER GOAL: ${careerGoal}
 
-CURRENT CAREER ROLES IDENTIFIED: ${JSON.stringify(careerRoles)}
-
 RESUME TEXT (for additional context): ${resumeText.substring(0, 2000)}
 
 Provide a comprehensive AI career analysis with exactly 3 AI-enhanced roles that match their background.`;
@@ -188,7 +176,6 @@ Provide a comprehensive AI career analysis with exactly 3 AI-enhanced roles that
       }
     } catch (parseError) {
       console.error('[AI Role Analysis] Parse error:', parseError);
-      // Return a default structure if parsing fails
       analysisData = {
         roles_at_risk: [],
         ai_enhanced_roles: [
@@ -262,7 +249,6 @@ Provide a comprehensive AI career analysis with exactly 3 AI-enhanced roles that
       .from('ai_role_analysis_result')
       .insert({
         resume_id,
-        
         roles_at_risk: analysisData.roles_at_risk || [],
         ai_enhanced_roles: analysisData.ai_enhanced_roles || [],
         current_ai_ready_skills: analysisData.current_ai_ready_skills || [],

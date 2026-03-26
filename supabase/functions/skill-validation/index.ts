@@ -33,23 +33,23 @@ serve(async (req) => {
       throw new Error('Resume not found');
     }
 
-    // Get the target role - either passed in or from career analysis
+    // Get the target role - either passed in or from AI role analysis (top role)
     let roleToValidate = target_role;
     
     if (!roleToValidate) {
-      // Fetch from career analysis - use short term role
-      const { data: careerData } = await supabase
-        .from('career_analysis_result')
-        .select('career_roles')
+      // Fetch from AI role analysis - use top AI-enhanced role (highest match_score)
+      const { data: aiRoleData } = await supabase
+        .from('ai_role_analysis_result')
+        .select('ai_enhanced_roles')
         .eq('resume_id', resume_id)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
 
-      if (careerData?.career_roles) {
-        const roles = careerData.career_roles as any[];
-        const shortTermRole = roles.find((r: any) => r.progression_stage === 'short_term');
-        roleToValidate = shortTermRole?.role || roles[0]?.role;
+      if (aiRoleData?.ai_enhanced_roles) {
+        const roles = aiRoleData.ai_enhanced_roles as any[];
+        // Roles are sorted by match_score (highest first) by the ai-role-analysis function
+        roleToValidate = roles[0]?.role;
       }
     }
 
@@ -65,29 +65,29 @@ serve(async (req) => {
     const parsedData = resumeData.parsed_data || {};
     const userSkills = parsedData.skills || [];
 
-    const systemPrompt = `You are a skill assessment expert. Analyze how well a candidate's skills match a target role.
+    const systemPrompt = `You are a skill assessment expert specializing in AI and emerging technology roles. Analyze how well a candidate's skills match a target AI-enhanced role.
 Return ONLY valid JSON with this structure:
 {
   "matched_skills": {
     "strong": ["skills with solid match"],
     "partial": ["skills with partial match"]
   },
-  "missing_skills": ["critical skills the candidate lacks"],
+  "missing_skills": ["critical skills the candidate lacks for this AI role"],
   "readiness_score": <number 0-100>,
   "recommended_next_step": "learn" | "project" | "apply",
   "assessment_summary": "Brief assessment text"
 }`;
 
-    const userPrompt = `Assess this candidate's readiness for: ${roleToValidate}
+    const userPrompt = `Assess this candidate's readiness for the AI-enhanced role: ${roleToValidate}
 
 Current Skills: ${userSkills.join(', ') || 'None specified'}
 
 Education: ${JSON.stringify(parsedData.education || [])}
 Experience: ${JSON.stringify(parsedData.experience || [])}
 
-Provide a realistic readiness score and identify skill gaps.`;
+Provide a realistic readiness score and identify skill gaps specific to this AI role.`;
 
-    console.log('Validating skills for role:', roleToValidate);
+    console.log('Validating skills for AI role:', roleToValidate);
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -137,7 +137,6 @@ Provide a realistic readiness score and identify skill gaps.`;
       .from('skill_validation_result')
       .insert({
         resume_id: resume_id,
-        
         target_role: roleToValidate,
         matched_skills: validation.matched_skills || { strong: [], partial: [] },
         missing_skills: normalizedMissing,
@@ -156,7 +155,7 @@ Provide a realistic readiness score and identify skill gaps.`;
       p_flag_value: true
     });
 
-    console.log('Skill validation completed for:', resume_id);
+    console.log('Skill validation completed for AI role:', roleToValidate);
 
     return new Response(
       JSON.stringify({

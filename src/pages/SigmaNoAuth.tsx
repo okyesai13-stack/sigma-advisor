@@ -27,18 +27,6 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 
-interface CareerRole {
-  role: string;
-  domain: string;
-  progression_stage: string;
-  timeline: string;
-  match_score: number;
-  why_fit: string;
-  salary_range: string;
-  top_skills: string[];
-  skills_to_develop: string[];
-}
-
 interface AIEnhancedRole {
   role: string;
   description?: string;
@@ -83,17 +71,7 @@ interface JobMatchData {
   skill_tags: string[];
 }
 
-interface GoalScoreData {
-  goal_score: number;
-  score_breakdown: Record<string, { score: number; label: string }>;
-  recommendations: { title: string; description: string; impact: string; estimated_time: string; category: string }[];
-  ninety_day_plan: any;
-  target_role: string;
-}
-
 interface StepStatus {
-  career_analysis: 'pending' | 'running' | 'completed' | 'error';
-  goal_score: 'pending' | 'running' | 'completed' | 'error';
   ai_role_analysis: 'pending' | 'running' | 'completed' | 'error';
   skill_validation: 'pending' | 'running' | 'completed' | 'error';
   learning_plan: 'pending' | 'running' | 'completed' | 'error';
@@ -109,8 +87,6 @@ const SigmaNoAuth = () => {
   const { resumeId, goal } = useResume();
   
   const [stepStatus, setStepStatus] = useState<StepStatus>({
-    career_analysis: 'pending',
-    goal_score: 'pending',
     ai_role_analysis: 'pending',
     skill_validation: 'pending',
     learning_plan: 'pending',
@@ -119,17 +95,15 @@ const SigmaNoAuth = () => {
   });
 
   // Store results for each step
-  const [careerRoles, setCareerRoles] = useState<CareerRole[]>([]);
   const [aiRoles, setAiRoles] = useState<AIEnhancedRole[]>([]);
   const [aiReadinessScore, setAiReadinessScore] = useState<number>(0);
   const [skillValidation, setSkillValidation] = useState<SkillValidationData | null>(null);
   const [learningPlans, setLearningPlans] = useState<LearningPlanData[]>([]);
   const [projectIdeas, setProjectIdeas] = useState<ProjectIdeaData[]>([]);
   const [jobMatches, setJobMatches] = useState<JobMatchData[]>([]);
-  const [goalScoreData, setGoalScoreData] = useState<GoalScoreData | null>(null);
 
-  const [selectedStep, setSelectedStep] = useState<StepId>('career_analysis');
-  const [currentRunningStep, setCurrentRunningStep] = useState<string>('career_analysis');
+  const [selectedStep, setSelectedStep] = useState<StepId>('ai_role_analysis');
+  const [currentRunningStep, setCurrentRunningStep] = useState<string>('ai_role_analysis');
   const [isComplete, setIsComplete] = useState(false);
 
   useEffect(() => {
@@ -143,79 +117,9 @@ const SigmaNoAuth = () => {
       return;
     }
 
-    runCareerAnalysis();
+    // Start with AI Role Analysis as Step 1
+    runAiRoleAnalysis();
   }, [resumeId]);
-
-  const runCareerAnalysis = async (continueChain = true) => {
-    setCurrentRunningStep('career_analysis');
-    setStepStatus(prev => ({ ...prev, career_analysis: 'running' }));
-
-    try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/career-analysis',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }
-      );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Career analysis failed');
-      }
-
-      setCareerRoles(result.data?.career_roles || []);
-      setStepStatus(prev => ({ ...prev, career_analysis: 'completed' }));
-      setSelectedStep('career_analysis');
-      
-      if (continueChain) runGoalScore();
-
-    } catch (error) {
-      console.error('Career analysis error:', error);
-      setStepStatus(prev => ({ ...prev, career_analysis: 'error' }));
-      toast({
-        title: "Analysis Error",
-        description: error instanceof Error ? error.message : 'Failed to analyze career',
-        variant: "destructive",
-      });
-    }
-  };
-
-  const runGoalScore = async (continueChain = true) => {
-    setCurrentRunningStep('goal_score');
-    setStepStatus(prev => ({ ...prev, goal_score: 'running' }));
-
-    try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/career-goal-score',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok || !result.success) throw new Error(result.error || 'Goal score failed');
-
-      setGoalScoreData(result.data || null);
-      setStepStatus(prev => ({ ...prev, goal_score: 'completed' }));
-      setSelectedStep('goal_score');
-      if (continueChain) runAiRoleAnalysis();
-
-    } catch (error) {
-      console.error('Goal score error:', error);
-      setStepStatus(prev => ({ ...prev, goal_score: 'error' }));
-      toast({
-        title: "Goal Score Skipped",
-        description: "Goal score failed, continuing with remaining steps...",
-        variant: "destructive",
-      });
-      if (continueChain) runAiRoleAnalysis();
-    }
-  };
 
   const runAiRoleAnalysis = async (continueChain = true) => {
     setCurrentRunningStep('ai_role_analysis');
@@ -252,7 +156,6 @@ const SigmaNoAuth = () => {
         description: error instanceof Error ? error.message : 'Failed to analyze AI roles',
         variant: "destructive",
       });
-      if (continueChain) runSkillValidation();
     }
   };
 
@@ -368,7 +271,7 @@ const SigmaNoAuth = () => {
 
       toast({
         title: "Analysis Complete! 🎉",
-        description: "Your personalized career roadmap is ready",
+        description: "Your AI career roadmap is ready",
       });
 
     } catch (error) {
@@ -379,13 +282,11 @@ const SigmaNoAuth = () => {
   };
 
   const steps = [
-    { id: 'career_analysis' as StepId, name: 'Career Analysis', icon: Brain, description: 'Analyzing your career path' },
-    { id: 'goal_score' as StepId, name: 'Goal Score', icon: Target, description: 'Scoring goal readiness' },
-    { id: 'ai_role_analysis' as StepId, name: 'AI Role Analysis', icon: Sparkles, description: 'Finding AI-enhanced roles' },
-    { id: 'skill_validation' as StepId, name: 'Skill Validation', icon: Target, description: 'Assessing your skills' },
-    { id: 'learning_plan' as StepId, name: 'Learning Plan', icon: BookOpen, description: 'Creating learning roadmap' },
-    { id: 'project_ideas' as StepId, name: 'Project Ideas', icon: Lightbulb, description: 'Generating portfolio projects' },
-    { id: 'job_matching' as StepId, name: 'Job Matching', icon: Briefcase, description: 'Finding matching jobs' },
+    { id: 'ai_role_analysis' as StepId, name: 'AI Role Analysis', icon: Sparkles, description: 'Finding AI-enhanced future roles' },
+    { id: 'skill_validation' as StepId, name: 'Skill Validation', icon: Target, description: 'Assessing your AI role readiness' },
+    { id: 'learning_plan' as StepId, name: 'Learning Plan', icon: BookOpen, description: 'Creating AI skill roadmap' },
+    { id: 'project_ideas' as StepId, name: 'Project Ideas', icon: Lightbulb, description: 'Generating AI portfolio projects' },
+    { id: 'job_matching' as StepId, name: 'Job Matching', icon: Briefcase, description: 'Finding AI role opportunities' },
   ];
 
   const getStepIcon = (stepId: StepId) => {
@@ -404,8 +305,6 @@ const SigmaNoAuth = () => {
 
   const retryStep = (stepId: StepId) => {
     const stepRunners: Record<StepId, (continueChain?: boolean) => void> = {
-      career_analysis: runCareerAnalysis,
-      goal_score: runGoalScore,
       ai_role_analysis: runAiRoleAnalysis,
       skill_validation: runSkillValidation,
       learning_plan: runLearningPlan,
@@ -451,12 +350,7 @@ const SigmaNoAuth = () => {
       );
     }
 
-    // Render completed step results
     switch (selectedStep) {
-      case 'career_analysis':
-        return renderCareerAnalysis();
-      case 'goal_score':
-        return renderGoalScore();
       case 'ai_role_analysis':
         return renderAiRoleAnalysis();
       case 'skill_validation':
@@ -471,95 +365,6 @@ const SigmaNoAuth = () => {
         return null;
     }
   };
-
-  const renderCareerAnalysis = () => (
-    <div className="space-y-4">
-      {careerRoles.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">No career roles found</p>
-      ) : (
-        careerRoles.map((role, index) => (
-          <motion.div 
-            key={index}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className={`p-4 rounded-lg border-l-4 ${
-              role.progression_stage === 'short_term' ? 'border-l-emerald-500 bg-emerald-500/5' :
-              role.progression_stage === 'mid_term' ? 'border-l-amber-500 bg-amber-500/5' :
-              'border-l-violet-500 bg-violet-500/5'
-            }`}
-          >
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  {role.progression_stage === 'short_term' && <Clock className="w-4 h-4 text-emerald-500" />}
-                  {role.progression_stage === 'mid_term' && <TrendingUp className="w-4 h-4 text-amber-500" />}
-                  {role.progression_stage === 'long_term' && <Target className="w-4 h-4 text-violet-500" />}
-                  <Badge variant="outline" className="capitalize">
-                    {role.progression_stage.replace('_', ' ')}
-                  </Badge>
-                  <span className="text-xs text-muted-foreground">{role.timeline}</span>
-                </div>
-                <h3 className="font-semibold text-lg">{role.role}</h3>
-                <p className="text-sm text-muted-foreground">{role.domain}</p>
-              </div>
-              <Badge className="bg-primary/10 text-primary">
-                {role.match_score}% Match
-              </Badge>
-            </div>
-            <p className="text-sm mt-2">{role.why_fit}</p>
-            <p className="text-sm text-muted-foreground mt-1">{role.salary_range}</p>
-          </motion.div>
-        ))
-      )}
-    </div>
-  );
-
-  const renderGoalScore = () => (
-    <div className="space-y-4">
-      {!goalScoreData ? (
-        <p className="text-muted-foreground text-center py-8">No goal score data</p>
-      ) : (
-        <>
-          <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <span className="text-sm font-medium">Goal Readiness Score</span>
-                <p className="text-xs text-muted-foreground">{goalScoreData.target_role}</p>
-              </div>
-              <span className="text-3xl font-bold text-primary">{goalScoreData.goal_score}</span>
-            </div>
-            <div className="w-full bg-primary/20 rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: `${goalScoreData.goal_score}%` }} />
-            </div>
-          </div>
-          {Object.entries(goalScoreData.score_breakdown || {}).map(([key, item]) => (
-            <div key={key} className="flex items-center gap-3 px-2">
-              <span className="text-xs text-muted-foreground w-28 text-right">{item.label}</span>
-              <div className="flex-1 bg-muted rounded-full h-2">
-                <div className="bg-primary h-2 rounded-full" style={{ width: `${item.score}%` }} />
-              </div>
-              <span className="text-xs font-medium w-8">{item.score}%</span>
-            </div>
-          ))}
-          {goalScoreData.recommendations?.length > 0 && (
-            <div className="pt-2">
-              <p className="text-sm font-medium mb-2">Top Recommendations</p>
-              {goalScoreData.recommendations.slice(0, 3).map((rec, i) => (
-                <div key={i} className="p-3 rounded-lg border bg-card mb-2">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h4 className="text-sm font-semibold">{rec.title}</h4>
-                    <Badge variant="outline" className="text-xs capitalize">{rec.impact}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">{rec.description}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
 
   const renderAiRoleAnalysis = () => (
     <div className="space-y-4">
@@ -638,9 +443,8 @@ const SigmaNoAuth = () => {
         <p className="text-muted-foreground text-center py-8">No skill data available</p>
       ) : (
         <>
-          {/* Target Role & Score */}
           <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
-            <p className="text-sm text-muted-foreground mb-1">Target Role</p>
+            <p className="text-sm text-muted-foreground mb-1">Target AI Role</p>
             <h3 className="font-semibold text-lg mb-2">{skillValidation.target_role}</h3>
             <div className="flex items-center gap-2">
               <span className="text-sm">Readiness:</span>
@@ -648,7 +452,6 @@ const SigmaNoAuth = () => {
             </div>
           </div>
 
-          {/* Matched Skills - Strong */}
           {skillValidation.matched_skills?.strong?.length > 0 && (
             <div className="p-4 rounded-lg border bg-card">
               <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -665,7 +468,6 @@ const SigmaNoAuth = () => {
             </div>
           )}
 
-          {/* Matched Skills - Partial */}
           {skillValidation.matched_skills?.partial?.length > 0 && (
             <div className="p-4 rounded-lg border bg-card">
               <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -682,7 +484,6 @@ const SigmaNoAuth = () => {
             </div>
           )}
 
-          {/* Missing Skills */}
           {skillValidation.missing_skills?.length > 0 && (
             <div className="p-4 rounded-lg border bg-card">
               <h4 className="font-medium mb-3 flex items-center gap-2">
@@ -699,7 +500,6 @@ const SigmaNoAuth = () => {
             </div>
           )}
 
-          {/* Next Step */}
           {skillValidation.recommended_next_step && (
             <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
               <p className="text-sm"><strong>Next Step:</strong> {skillValidation.recommended_next_step}</p>
@@ -733,7 +533,6 @@ const SigmaNoAuth = () => {
             {plan.career_title && (
               <p className="text-sm text-muted-foreground mb-3">For: {plan.career_title}</p>
             )}
-            {/* Recommended Courses */}
             {plan.recommended_courses?.length > 0 && (
               <div className="mb-3">
                 <p className="text-xs font-medium text-muted-foreground mb-2">📚 Courses</p>
@@ -752,7 +551,6 @@ const SigmaNoAuth = () => {
                 </div>
               </div>
             )}
-            {/* Recommended Videos */}
             {plan.recommended_videos?.length > 0 && (
               <div>
                 <p className="text-xs font-medium text-muted-foreground mb-2">🎥 Videos</p>
@@ -768,7 +566,6 @@ const SigmaNoAuth = () => {
                 </div>
               </div>
             )}
-            {/* Fallback: learning_steps if present */}
             {plan.learning_steps?.length > 0 && !plan.recommended_courses?.length && (
               <div className="space-y-2">
                 {plan.learning_steps.slice(0, 3).map((step, i) => (
@@ -901,8 +698,8 @@ const SigmaNoAuth = () => {
         <div className="max-w-5xl mx-auto">
           {/* Goal Display */}
           <div className="mb-8 text-center">
-            <p className="text-muted-foreground">Your Goal</p>
-            <h1 className="text-2xl font-bold text-foreground">{goal || 'Career Analysis'}</h1>
+            <p className="text-muted-foreground">Your AI Career Goal</p>
+            <h1 className="text-2xl font-bold text-foreground">{goal || 'AI Career Analysis'}</h1>
             {resumeId && (
               <button
                 onClick={() => {
@@ -921,7 +718,7 @@ const SigmaNoAuth = () => {
             {/* Progress Panel */}
             <Card className="md:col-span-1">
               <CardHeader>
-                <CardTitle className="text-lg">Analysis Progress</CardTitle>
+                <CardTitle className="text-lg">AI Analysis Progress</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {steps.map((step) => {
