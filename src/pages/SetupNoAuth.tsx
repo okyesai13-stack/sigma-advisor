@@ -287,18 +287,18 @@ const SetupNoAuth = () => {
           <div className="space-y-8 animate-in fade-in duration-300">
             <div className="text-center space-y-3">
               <Target className="w-12 h-12 text-primary mx-auto" />
-              <h1 className="text-3xl font-bold text-foreground">What's Your Career Goal?</h1>
+              <h1 className="text-3xl font-bold text-foreground">What's Your AI Career Goal?</h1>
               <p className="text-muted-foreground">
-                Tell us your dream role and we'll create a personalized roadmap
+                Tell us your dream AI role and we'll find the best AI-enhanced career paths for you
               </p>
             </div>
 
             <div className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="goal">🎯 Your Ultimate Career Goal</Label>
+                <Label htmlFor="goal">🎯 Your AI Career Goal</Label>
                 <Textarea
                   id="goal"
-                  placeholder="e.g., Become a Senior Data Scientist at a top tech company, Lead AI/ML engineering team, Start my own SaaS company..."
+                  placeholder="e.g., Become an AI Product Manager, Lead ML engineering team, Transition into AI/ML roles, Become a Prompt Engineer..."
                   value={goalText}
                   onChange={(e) => setGoalText(e.target.value)}
                   className="min-h-[100px] text-lg"
