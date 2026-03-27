@@ -64,9 +64,10 @@ Return ONLY valid JSON with this exact structure:
           model: 'google/gemini-3-flash-preview',
           messages: [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `Parse this resume:\n\n${resumeText.slice(0, 15000)}` }
+            { role: 'user', content: `Parse this resume:\n\n${resumeText.slice(0, 8000)}` }
           ],
-          temperature: 0.3,
+          temperature: 0.1,
+          max_tokens: 3000,
         }),
       });
 
