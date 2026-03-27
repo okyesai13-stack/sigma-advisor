@@ -23,9 +23,11 @@ import { useResume } from "@/contexts/ResumeContext";
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
 
-// Set up PDF.js worker - use cdnjs for reliability
-const pdfjsVersion = pdfjsLib.version || "4.10.38";
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.mjs`;
+// Set up PDF.js worker using unpkg which hosts all npm versions
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url
+).toString();
 
 const SetupNoAuth = () => {
   const navigate = useNavigate();
