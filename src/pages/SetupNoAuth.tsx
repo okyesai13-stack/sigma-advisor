@@ -22,12 +22,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useResume } from "@/contexts/ResumeContext";
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-// Set up PDF.js worker using unpkg which hosts all npm versions
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url
-).toString();
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const SetupNoAuth = () => {
   const navigate = useNavigate();
