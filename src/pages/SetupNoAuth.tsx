@@ -23,9 +23,9 @@ import { useResume } from "@/contexts/ResumeContext";
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
 
-// Set up PDF.js worker
+// Set up PDF.js worker - use cdnjs for reliability
 const pdfjsVersion = pdfjsLib.version || "4.10.38";
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsVersion}/build/pdf.worker.min.mjs`;
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.mjs`;
 
 const SetupNoAuth = () => {
   const navigate = useNavigate();
@@ -119,8 +119,11 @@ const SetupNoAuth = () => {
         return;
       }
 
-      // Upload to backend
+      // Upload to backend with timeout
       const { data: { session } } = await supabase.auth.getSession();
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 min timeout
+
       const response = await fetch(
         `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/upload-resume`,
         {
@@ -136,9 +139,11 @@ const SetupNoAuth = () => {
             challenge: challengeText || null,
             userType: userType,
           }),
+          signal: controller.signal,
         }
       );
 
+      clearTimeout(timeoutId);
       const result = await response.json();
 
       if (!response.ok || !result.success) {
