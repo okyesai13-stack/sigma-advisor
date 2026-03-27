@@ -258,10 +258,15 @@ const SetupNoAuth = () => {
               Sigma Advisor
             </span>
           </div>
-          <Button variant="ghost" onClick={() => navigate('/')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
+              View Dashboard
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
+          </div>
         </div>
       </header>
 

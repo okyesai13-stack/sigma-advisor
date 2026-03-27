@@ -46,6 +46,7 @@ const AuthPage = () => {
       }
 
       if (data?.resume_id) {
+        // Existing user with resume — go straight to dashboard
         navigate('/dashboard', { replace: true });
       } else {
         navigate('/setup', { replace: true });
