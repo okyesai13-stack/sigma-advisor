@@ -22,10 +22,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useResume } from "@/contexts/ResumeContext";
 import * as pdfjsLib from "pdfjs-dist";
 import mammoth from "mammoth";
+import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?url";
 
-// Set up PDF.js worker - use cdnjs for reliability
-const pdfjsVersion = pdfjsLib.version || "4.10.38";
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.mjs`;
+// Set up PDF.js worker
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 const SetupNoAuth = () => {
   const navigate = useNavigate();
