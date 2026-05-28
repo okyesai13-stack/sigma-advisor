@@ -9,14 +9,12 @@ import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileSearch, Brain, Send, FileUp, Mic, TrendingUp as TrendingUpIcon, MessageCircle, FileText, Share2, Loader2, Search, Zap } from 'lucide-react';
-import JobFinderDialog from '@/components/job-finder/JobFinderDialog';
+import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileText, Share2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import OverallAssessmentCard from '@/components/dashboard/OverallAssessmentCard';
 import CareerGoalScoreCard from '@/components/dashboard/CareerGoalScoreCard';
 import CareerRoadmapTimeline from '@/components/dashboard/CareerRoadmapTimeline';
 import SkillGapAnalysis from '@/components/dashboard/SkillGapAnalysis';
-import GuidanceSection from '@/components/dashboard/GuidanceSection';
 import AIRolesSection from '@/components/dashboard/AIRolesSection';
 import html2pdf from 'html2pdf.js';
 interface CareerRole {
@@ -118,12 +116,8 @@ const DashboardNoAuth = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
   const [showSavedJobs, setShowSavedJobs] = useState(false);
-  const [interviewPrepJobIds, setInterviewPrepJobIds] = useState<Set<string>>(new Set());
-  const [smartAnalysisJobIds, setSmartAnalysisJobIds] = useState<Set<string>>(new Set());
-  const [projectBlueprintIds, setProjectBlueprintIds] = useState<Set<string>>(new Set());
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [goalScoreData, setGoalScoreData] = useState<any>(null);
-  const [showJobFinder, setShowJobFinder] = useState(false);
   const pdfContentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!resumeId) {
@@ -139,13 +133,14 @@ const DashboardNoAuth = () => {
     if (!resumeId) return;
     setIsLoading(true);
     try {
-      const [careerRes, skillRes, learningRes, projectRes, jobRes, interviewRes, smartRes, projectSessionRes, goalScoreRes] = await Promise.all([supabase.from('career_analysis_result').select('career_roles, overall_assessment, career_roadmap, skill_analysis').eq('resume_id', resumeId).order('created_at', {
-        ascending: false
-      }).limit(1).maybeSingle(), supabase.from('skill_validation_result').select('*').eq('resume_id', resumeId).order('created_at', {
-        ascending: false
-      }).limit(1).maybeSingle(), supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId), supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId), supabase.from('job_matching_result').select('*').eq('resume_id', resumeId).order('relevance_score', {
-        ascending: false
-      }), supabase.from('interview_preparation_result').select('job_id').eq('resume_id', resumeId), supabase.from('smart_analysis_result').select('job_id').eq('resume_id', resumeId), supabase.from('project_build_session').select('project_id').eq('resume_id', resumeId), supabase.from('career_goal_score_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle()]);
+      const [careerRes, skillRes, learningRes, projectRes, jobRes, goalScoreRes] = await Promise.all([
+        supabase.from('career_analysis_result').select('career_roles, overall_assessment, career_roadmap, skill_analysis').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('skill_validation_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId),
+        supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId),
+        supabase.from('job_matching_result').select('*').eq('resume_id', resumeId).order('relevance_score', { ascending: false }),
+        supabase.from('career_goal_score_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ]);
       if (careerRes.data) {
         if (careerRes.data.career_roles) {
           setCareerRoles(careerRes.data.career_roles as unknown as CareerRole[]);
@@ -154,37 +149,14 @@ const DashboardNoAuth = () => {
         setCareerRoadmap(careerRes.data.career_roadmap as CareerRoadmap | null);
         setSkillAnalysisData(careerRes.data.skill_analysis as SkillAnalysisData | null);
       }
-      if (skillRes.data) {
-        setSkillValidation(skillRes.data as unknown as SkillValidation);
-      }
-      if (learningRes.data) {
-        setLearningPlans(learningRes.data as unknown as LearningPlan[]);
-      }
-      if (projectRes.data) {
-        setProjects(projectRes.data as unknown as Project[]);
-      }
-      if (jobRes.data) {
-        setJobs(jobRes.data as unknown as Job[]);
-      }
-      if (interviewRes.data) {
-        setInterviewPrepJobIds(new Set(interviewRes.data.map(r => r.job_id)));
-      }
-      if (smartRes.data) {
-        setSmartAnalysisJobIds(new Set(smartRes.data.map(r => r.job_id)));
-      }
-      if (projectSessionRes.data) {
-        setProjectBlueprintIds(new Set(projectSessionRes.data.map(r => r.project_id)));
-      }
-      if (goalScoreRes.data) {
-        setGoalScoreData(goalScoreRes.data);
-      }
+      if (skillRes.data) setSkillValidation(skillRes.data as unknown as SkillValidation);
+      if (learningRes.data) setLearningPlans(learningRes.data as unknown as LearningPlan[]);
+      if (projectRes.data) setProjects(projectRes.data as unknown as Project[]);
+      if (jobRes.data) setJobs(jobRes.data as unknown as Job[]);
+      if (goalScoreRes.data) setGoalScoreData(goalScoreRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -214,12 +186,6 @@ const DashboardNoAuth = () => {
         variant: "destructive"
       });
     }
-  };
-  const handleInterviewPrep = (jobId: string) => {
-    navigate(`/interview-prep?jobId=${jobId}`);
-  };
-  const handleSmartAnalysis = (jobId: string) => {
-    navigate(`/smart-analysis?jobId=${jobId}`);
   };
   const toggleSkillExpand = (skillId: string) => {
     setExpandedSkills(prev => {
