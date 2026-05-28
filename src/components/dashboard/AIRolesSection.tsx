@@ -175,15 +175,6 @@ const AIRolesSection = ({ resumeId }: AIRolesSectionProps) => {
             ))}
           </div>
 
-          {/* Full View Button */}
-          <Button 
-            onClick={() => navigate('/ai-roles')}
-            className="w-full gap-2"
-            variant="outline"
-          >
-            Full View
-            <ArrowRight className="w-4 h-4" />
-          </Button>
         </CardContent>
       </Card>
     </section>
