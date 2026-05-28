@@ -44,15 +44,6 @@ const App = () => (
                 <Route path="/setup" element={<SetupNoAuth />} />
                 <Route path="/sigma" element={<SigmaNoAuth />} />
                 <Route path="/dashboard" element={<DashboardNoAuth />} />
-                <Route path="/interview-prep" element={<InterviewPrepNoAuth />} />
-                <Route path="/smart-analysis" element={<SmartAnalysisNoAuth />} />
-                <Route path="/resume-upgrade" element={<ResumeUpgradeNoAuth />} />
-                <Route path="/mock-interview" element={<MockInterviewNoAuth />} />
-                <Route path="/career-trajectory" element={<CareerTrajectoryNoAuth />} />
-                <Route path="/ai-learning" element={<AILearningHubNoAuth />} />
-                <Route path="/project-builder" element={<ProjectBuilderNoAuth />} />
-                <Route path="/ai-roles" element={<AIRolesNoAuth />} />
-                <Route path="/job-finder" element={<JobFinderNoAuth />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
