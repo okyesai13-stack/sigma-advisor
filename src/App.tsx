@@ -17,15 +17,6 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
-import InterviewPrepNoAuth from "./pages/InterviewPrepNoAuth";
-import SmartAnalysisNoAuth from "./pages/SmartAnalysisNoAuth";
-import ResumeUpgradeNoAuth from "./pages/ResumeUpgradeNoAuth";
-import MockInterviewNoAuth from "./pages/MockInterviewNoAuth";
-import CareerTrajectoryNoAuth from "./pages/CareerTrajectoryNoAuth";
-import AILearningHubNoAuth from "./pages/AILearningHubNoAuth";
-import ProjectBuilderNoAuth from "./pages/ProjectBuilderNoAuth";
-import AIRolesNoAuth from "./pages/AIRolesNoAuth";
-import JobFinderNoAuth from "./pages/JobFinderNoAuth";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
