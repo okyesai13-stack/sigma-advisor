@@ -9,14 +9,12 @@ import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileSearch, Brain, Send, FileUp, Mic, TrendingUp as TrendingUpIcon, MessageCircle, FileText, Share2, Loader2, Search, Zap } from 'lucide-react';
-import JobFinderDialog from '@/components/job-finder/JobFinderDialog';
+import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileText, Share2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import OverallAssessmentCard from '@/components/dashboard/OverallAssessmentCard';
-import CareerGoalScoreCard from '@/components/dashboard/CareerGoalScoreCard';
+
 import CareerRoadmapTimeline from '@/components/dashboard/CareerRoadmapTimeline';
 import SkillGapAnalysis from '@/components/dashboard/SkillGapAnalysis';
-import GuidanceSection from '@/components/dashboard/GuidanceSection';
 import AIRolesSection from '@/components/dashboard/AIRolesSection';
 import html2pdf from 'html2pdf.js';
 interface CareerRole {
@@ -118,12 +116,8 @@ const DashboardNoAuth = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [expandedSkills, setExpandedSkills] = useState<Set<string>>(new Set());
   const [showSavedJobs, setShowSavedJobs] = useState(false);
-  const [interviewPrepJobIds, setInterviewPrepJobIds] = useState<Set<string>>(new Set());
-  const [smartAnalysisJobIds, setSmartAnalysisJobIds] = useState<Set<string>>(new Set());
-  const [projectBlueprintIds, setProjectBlueprintIds] = useState<Set<string>>(new Set());
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [goalScoreData, setGoalScoreData] = useState<any>(null);
-  const [showJobFinder, setShowJobFinder] = useState(false);
   const pdfContentRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!resumeId) {
@@ -139,13 +133,14 @@ const DashboardNoAuth = () => {
     if (!resumeId) return;
     setIsLoading(true);
     try {
-      const [careerRes, skillRes, learningRes, projectRes, jobRes, interviewRes, smartRes, projectSessionRes, goalScoreRes] = await Promise.all([supabase.from('career_analysis_result').select('career_roles, overall_assessment, career_roadmap, skill_analysis').eq('resume_id', resumeId).order('created_at', {
-        ascending: false
-      }).limit(1).maybeSingle(), supabase.from('skill_validation_result').select('*').eq('resume_id', resumeId).order('created_at', {
-        ascending: false
-      }).limit(1).maybeSingle(), supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId), supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId), supabase.from('job_matching_result').select('*').eq('resume_id', resumeId).order('relevance_score', {
-        ascending: false
-      }), supabase.from('interview_preparation_result').select('job_id').eq('resume_id', resumeId), supabase.from('smart_analysis_result').select('job_id').eq('resume_id', resumeId), supabase.from('project_build_session').select('project_id').eq('resume_id', resumeId), supabase.from('career_goal_score_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle()]);
+      const [careerRes, skillRes, learningRes, projectRes, jobRes, goalScoreRes] = await Promise.all([
+        supabase.from('career_analysis_result').select('career_roles, overall_assessment, career_roadmap, skill_analysis').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('skill_validation_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+        supabase.from('learning_plan_result').select('*').eq('resume_id', resumeId),
+        supabase.from('project_ideas_result').select('*').eq('resume_id', resumeId),
+        supabase.from('job_matching_result').select('*').eq('resume_id', resumeId).order('relevance_score', { ascending: false }),
+        supabase.from('career_goal_score_result').select('*').eq('resume_id', resumeId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      ]);
       if (careerRes.data) {
         if (careerRes.data.career_roles) {
           setCareerRoles(careerRes.data.career_roles as unknown as CareerRole[]);
@@ -154,37 +149,14 @@ const DashboardNoAuth = () => {
         setCareerRoadmap(careerRes.data.career_roadmap as CareerRoadmap | null);
         setSkillAnalysisData(careerRes.data.skill_analysis as SkillAnalysisData | null);
       }
-      if (skillRes.data) {
-        setSkillValidation(skillRes.data as unknown as SkillValidation);
-      }
-      if (learningRes.data) {
-        setLearningPlans(learningRes.data as unknown as LearningPlan[]);
-      }
-      if (projectRes.data) {
-        setProjects(projectRes.data as unknown as Project[]);
-      }
-      if (jobRes.data) {
-        setJobs(jobRes.data as unknown as Job[]);
-      }
-      if (interviewRes.data) {
-        setInterviewPrepJobIds(new Set(interviewRes.data.map(r => r.job_id)));
-      }
-      if (smartRes.data) {
-        setSmartAnalysisJobIds(new Set(smartRes.data.map(r => r.job_id)));
-      }
-      if (projectSessionRes.data) {
-        setProjectBlueprintIds(new Set(projectSessionRes.data.map(r => r.project_id)));
-      }
-      if (goalScoreRes.data) {
-        setGoalScoreData(goalScoreRes.data);
-      }
+      if (skillRes.data) setSkillValidation(skillRes.data as unknown as SkillValidation);
+      if (learningRes.data) setLearningPlans(learningRes.data as unknown as LearningPlan[]);
+      if (projectRes.data) setProjects(projectRes.data as unknown as Project[]);
+      if (jobRes.data) setJobs(jobRes.data as unknown as Job[]);
+      if (goalScoreRes.data) setGoalScoreData(goalScoreRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load dashboard data",
-        variant: "destructive"
-      });
+      toast({ title: "Error", description: "Failed to load dashboard data", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -214,12 +186,6 @@ const DashboardNoAuth = () => {
         variant: "destructive"
       });
     }
-  };
-  const handleInterviewPrep = (jobId: string) => {
-    navigate(`/interview-prep?jobId=${jobId}`);
-  };
-  const handleSmartAnalysis = (jobId: string) => {
-    navigate(`/smart-analysis?jobId=${jobId}`);
   };
   const toggleSkillExpand = (skillId: string) => {
     setExpandedSkills(prev => {
@@ -595,38 +561,7 @@ _Generated by Sigma AI Career Advisor_
       <main className="container mx-auto px-6 py-8">
         {/* Action Buttons */}
         <div className="mb-6 flex flex-col sm:flex-row gap-3">
-          <Button 
-            onClick={() => navigate('/advisor')}
-            size="lg"
-            className="flex-1 sm:flex-none gap-3 bg-gradient-to-r from-violet-600 via-primary to-violet-600 hover:from-violet-700 hover:via-primary/90 hover:to-violet-700 shadow-lg shadow-primary/25 text-lg py-6"
-          >
-            <MessageCircle className="w-5 h-5" />
-            Sigma AI Advisor
-            <ArrowRight className="w-5 h-5" />
-          </Button>
-          
-          <Button 
-            onClick={() => setShowJobFinder(true)}
-            size="lg"
-            className="flex-1 sm:flex-none gap-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:from-emerald-700 hover:to-emerald-700 shadow-lg shadow-emerald-500/25 text-lg py-6"
-          >
-            <Search className="w-5 h-5" />
-            Find Job
-            <Zap className="w-5 h-5" />
-          </Button>
-
-          <Button 
-            onClick={() => navigate('/job-finder')}
-            size="lg"
-            variant="outline"
-            className="flex-1 sm:flex-none gap-3 border-2 border-primary/50 hover:bg-primary/10 hover:border-primary text-lg py-6"
-          >
-            <Briefcase className="w-5 h-5 text-primary" />
-            View Jobs
-            <ArrowRight className="w-5 h-5 text-primary" />
-          </Button>
-
-          <Button 
+          <Button
             onClick={generateAndShareAnalysis}
             disabled={isGeneratingPdf}
             size="lg"
@@ -707,33 +642,6 @@ _Generated by Sigma AI Career Advisor_
 
         {/* 5. Career Roadmap Timeline */}
         <CareerRoadmapTimeline careerRoadmap={careerRoadmap} />
-
-        {/* 6. 5-Year Career Trajectory */}
-        <section className="mb-8">
-          <Card className="bg-gradient-to-br from-emerald-500/10 via-teal-500/5 to-cyan-500/10 border-emerald-500/20 overflow-hidden">
-            <CardContent className="py-6 px-6">
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                <div className="flex items-center gap-4">
-                  <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500/30">
-                    <TrendingUpIcon className="w-7 h-7 text-emerald-500" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-bold mb-1 flex items-center gap-2">
-                      5-Year Career Trajectory
-                      <Badge variant="secondary" className="text-xs">Interactive</Badge>
-                    </h2>
-                    <p className="text-muted-foreground">Visualize your career growth with salary projections and skill milestones</p>
-                  </div>
-                </div>
-                <Button size="lg" onClick={() => navigate('/career-trajectory')} className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20">
-                  <TrendingUpIcon className="w-5 h-5" />
-                  View Trajectory
-                  <ArrowRight className="w-4 h-4" />
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
 
         {/* 7. Skill Gap Analysis */}
         <SkillGapAnalysis skillAnalysis={skillAnalysisData} />
@@ -823,16 +731,6 @@ _Generated by Sigma AI Career Advisor_
                       </CollapsibleTrigger>
                       
                       <CollapsibleContent className="mt-4 space-y-4">
-                        <Button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            navigate(`/ai-learning?skillId=${plan.id}&skill=${encodeURIComponent(plan.skill_name)}`);
-                          }}
-                          className="w-full gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
-                        >
-                          <Brain className="w-4 h-4" />
-                          Learn with AI
-                        </Button>
 
                         {(plan.recommended_courses as any[])?.length > 0 && (
                           <div>
@@ -908,23 +806,6 @@ _Generated by Sigma AI Career Advisor_
                         <Badge key={i} variant="outline" className="text-xs">{skill}</Badge>
                       ))}
                     </div>
-                    <Button 
-                      onClick={() => navigate(`/project-builder?projectId=${project.id}`)}
-                      className={`w-full mt-4 gap-2 ${projectBlueprintIds.has(project.id) ? '' : 'bg-gradient-to-r from-violet-600 to-primary hover:from-violet-700 hover:to-primary/90'}`}
-                      variant={projectBlueprintIds.has(project.id) ? 'outline' : 'default'}
-                    >
-                      {projectBlueprintIds.has(project.id) ? (
-                        <>
-                          <FileSearch className="w-4 h-4" />
-                          View Project
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4" />
-                          Build with AI
-                        </>
-                      )}
-                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -961,14 +842,6 @@ _Generated by Sigma AI Career Advisor_
                             <h3 className="font-semibold">{job.job_title}</h3>
                             <p className="text-sm text-muted-foreground">{job.company_name}</p>
                             <p className="text-xs text-muted-foreground">{job.location}</p>
-                            <div className="flex gap-2 mt-3">
-                              <Button size="sm" variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"} onClick={() => handleInterviewPrep(job.id)}>
-                                {interviewPrepJobIds.has(job.id) ? 'View' : 'Prep'}
-                              </Button>
-                              <Button size="sm" variant={smartAnalysisJobIds.has(job.id) ? "default" : "outline"} onClick={() => handleSmartAnalysis(job.id)}>
-                                {smartAnalysisJobIds.has(job.id) ? 'View' : 'Analyze'}
-                              </Button>
-                            </div>
                           </CardContent>
                         </Card>
                       ))
@@ -1002,40 +875,23 @@ _Generated by Sigma AI Career Advisor_
                         <Badge key={i} variant="outline" className="text-xs">{tag}</Badge>
                       ))}
                     </div>
-                    <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/50">
-                      <Button size="sm" variant={interviewPrepJobIds.has(job.id) ? "default" : "outline"} onClick={() => handleInterviewPrep(job.id)}>
-                        <FileSearch className="w-4 h-4 mr-1" />
-                        {interviewPrepJobIds.has(job.id) ? 'View Prep' : 'Interview Prep'}
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => navigate(`/mock-interview?jobId=${job.id}`)} className="border-primary/50 text-primary hover:bg-primary/10">
-                        <Mic className="w-4 h-4 mr-1" />
-                        Mock Interview
-                      </Button>
-                      <Button size="sm" variant={smartAnalysisJobIds.has(job.id) ? "default" : "outline"} onClick={() => handleSmartAnalysis(job.id)}>
-                        <Brain className="w-4 h-4 mr-1" />
-                        {smartAnalysisJobIds.has(job.id) ? 'View Analysis' : 'Smart Analysis'}
-                      </Button>
-                      {job.job_url && (
+                    {job.job_url && (
+                      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border/50">
                         <Button size="sm" variant="outline" asChild>
                           <a href={job.job_url} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="w-4 h-4 mr-1" />
                             Apply
                           </a>
                         </Button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
             </div>
           </section>
         )}
-
-        {/* 13. Resume Upgrade - Bottom */}
-        <GuidanceSection />
       </main>
-
-      <JobFinderDialog open={showJobFinder} onOpenChange={setShowJobFinder} />
     </div>;
 };
 export default DashboardNoAuth;
