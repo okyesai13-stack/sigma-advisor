@@ -12,7 +12,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Sparkles, Target, TrendingUp, Clock, BookOpen, Lightbulb, Briefcase, CheckCircle2, ArrowRight, RefreshCw, MapPin, ExternalLink, ChevronDown, Bookmark, BookmarkCheck, Video, GraduationCap, FileText, Share2, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import OverallAssessmentCard from '@/components/dashboard/OverallAssessmentCard';
-import CareerGoalScoreCard from '@/components/dashboard/CareerGoalScoreCard';
+
 import CareerRoadmapTimeline from '@/components/dashboard/CareerRoadmapTimeline';
 import SkillGapAnalysis from '@/components/dashboard/SkillGapAnalysis';
 import AIRolesSection from '@/components/dashboard/AIRolesSection';

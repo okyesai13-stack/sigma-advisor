@@ -3,9 +3,6 @@ project_id = "chxelpkvtnlduzlkauep"
 [functions.upload-resume]
 verify_jwt = false
 
-[functions.career-analysis]
-verify_jwt = false
-
 [functions.skill-validation]
 verify_jwt = false
 
@@ -24,53 +21,11 @@ verify_jwt = false
 [functions.advisor-chat-stream]
 verify_jwt = false
 
-[functions.landing-chat]
-verify_jwt = false
-
-[functions.interview-prep]
-verify_jwt = false
-
-[functions.smart-analysis]
-verify_jwt = false
-
-[functions.resume-upgrade]
-verify_jwt = false
-
-[functions.mock-interview]
-verify_jwt = false
-
-[functions.career-trajectory]
-verify_jwt = false
-
-[functions.learning-tutor]
-verify_jwt = false
-
-[functions.learning-quiz]
-verify_jwt = false
-
-[functions.learning-mindmap]
-verify_jwt = false
-
-[functions.learning-flowchart]
-verify_jwt = false
-
-[functions.project-builder]
-verify_jwt = false
-
-[functions.voice-interview]
-verify_jwt = false
-
 [functions.resume-image-parse]
 verify_jwt = false
 
 [functions.ai-role-analysis]
 verify_jwt = false
 
-[functions.resume-upgrade-jd]
-verify_jwt = false
-
 [functions.career-goal-score]
-verify_jwt = false
-
-[functions.job-finder-agent]
 verify_jwt = false
