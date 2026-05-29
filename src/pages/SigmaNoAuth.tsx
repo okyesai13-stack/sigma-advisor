@@ -1,812 +1,144 @@
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useResume } from '@/contexts/ResumeContext';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Sparkles, 
-  ArrowLeft, 
-  CheckCircle2, 
-  Loader2, 
-  Target,
-  TrendingUp,
-  Clock,
-  Brain,
-  BookOpen,
-  Lightbulb,
-  Briefcase,
-  ArrowRight,
-  AlertTriangle,
-  Zap,
-  GraduationCap,
-  Code2,
-  MapPin
-} from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useResume } from "@/contexts/ResumeContext";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
+import { Loader2, Check, AlertTriangle, ArrowRight } from "lucide-react";
 
-interface AIEnhancedRole {
-  role: string;
-  description?: string;
-  match_score: number;
-  growth_potential: string;
-  timeline_to_ready: string;
-  skills_required?: string[];
-  missing_skills?: string[];
-  salary_range?: string;
-}
+type Status = "pending" | "running" | "completed" | "error";
+type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model";
 
-interface SkillValidationData {
-  target_role: string;
-  readiness_score: number;
-  matched_skills: { strong: string[]; partial: string[] };
-  missing_skills: string[];
-  recommended_next_step: string;
-}
-
-interface LearningPlanData {
-  skill_name: string;
-  career_title: string;
-  learning_steps: { step: string; duration: string }[];
-  recommended_courses: { name: string; platform: string; url: string; duration: string; level: string }[];
-  recommended_videos: { title: string; channel: string; url: string; duration: string }[];
-  status: string;
-}
-
-interface ProjectIdeaData {
-  title: string;
-  description: string;
-  complexity: string;
-  estimated_time: string;
-  skills_demonstrated: string[];
-}
-
-interface JobMatchData {
-  job_title: string;
-  company_name: string;
-  location: string;
-  relevance_score: number;
-  skill_tags: string[];
-}
-
-interface StepStatus {
-  ai_role_analysis: 'pending' | 'running' | 'completed' | 'error';
-  skill_validation: 'pending' | 'running' | 'completed' | 'error';
-  learning_plan: 'pending' | 'running' | 'completed' | 'error';
-  project_ideas: 'pending' | 'running' | 'completed' | 'error';
-  job_matching: 'pending' | 'running' | 'completed' | 'error';
-}
-
-type StepId = keyof StepStatus;
+const AGENTS: { id: AgentId; num: string; name: string; endpoint: string; desc: string }[] = [
+  { id: "market_research", num: "01", name: "Market Research", endpoint: "market-research", desc: "Sizing the opportunity and reading the market" },
+  { id: "competitor_analysis", num: "02", name: "Competitor Analysis", endpoint: "competitor-analysis", desc: "Mapping the field and finding white space" },
+  { id: "business_plan", num: "03", name: "Business Plan", endpoint: "business-plan", desc: "Drafting strategy, GTM, and milestones" },
+  { id: "financial_model", num: "04", name: "Financial Model", endpoint: "financial-model", desc: "Building projections and unit economics" },
+];
 
 const SigmaNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { resumeId, goal } = useResume();
-  
-  const [stepStatus, setStepStatus] = useState<StepStatus>({
-    ai_role_analysis: 'pending',
-    skill_validation: 'pending',
-    learning_plan: 'pending',
-    project_ideas: 'pending',
-    job_matching: 'pending',
+  const { business } = useResume();
+  const [status, setStatus] = useState<Record<AgentId, Status>>({
+    market_research: "pending",
+    competitor_analysis: "pending",
+    business_plan: "pending",
+    financial_model: "pending",
   });
-
-  // Store results for each step
-  const [aiRoles, setAiRoles] = useState<AIEnhancedRole[]>([]);
-  const [aiReadinessScore, setAiReadinessScore] = useState<number>(0);
-  const [skillValidation, setSkillValidation] = useState<SkillValidationData | null>(null);
-  const [learningPlans, setLearningPlans] = useState<LearningPlanData[]>([]);
-  const [projectIdeas, setProjectIdeas] = useState<ProjectIdeaData[]>([]);
-  const [jobMatches, setJobMatches] = useState<JobMatchData[]>([]);
-
-  const [selectedStep, setSelectedStep] = useState<StepId>('ai_role_analysis');
-  const [currentRunningStep, setCurrentRunningStep] = useState<string>('ai_role_analysis');
-  const [isComplete, setIsComplete] = useState(false);
+  const [allDone, setAllDone] = useState(false);
 
   useEffect(() => {
-    if (!resumeId) {
-      toast({
-        title: "No Resume Found",
-        description: "Please upload your resume first",
-        variant: "destructive",
-      });
-      navigate('/setup');
+    if (!business) {
+      navigate("/setup");
       return;
     }
+    runAll();
+  }, [business?.id]);
 
-    // Start with AI Role Analysis as Step 1
-    runAiRoleAnalysis();
-  }, [resumeId]);
-
-  const runAiRoleAnalysis = async (continueChain = true) => {
-    setCurrentRunningStep('ai_role_analysis');
-    setStepStatus(prev => ({ ...prev, ai_role_analysis: 'running' }));
-
+  const runAgent = async (a: typeof AGENTS[number]) => {
+    setStatus((p) => ({ ...p, [a.id]: "running" }));
     try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/ai-role-analysis',
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/${a.endpoint}`,
         {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+          },
+          body: JSON.stringify({ business_id: business!.id }),
         }
       );
-
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'AI Role analysis failed');
-      }
-
-      setAiRoles(result.data?.ai_enhanced_roles || []);
-      setAiReadinessScore(result.data?.overall_ai_readiness_score || 0);
-      setStepStatus(prev => ({ ...prev, ai_role_analysis: 'completed' }));
-      setSelectedStep('ai_role_analysis');
-      
-      if (continueChain) runSkillValidation();
-
-    } catch (error) {
-      console.error('AI Role analysis error:', error);
-      setStepStatus(prev => ({ ...prev, ai_role_analysis: 'error' }));
-      toast({
-        title: "AI Role Analysis Error",
-        description: error instanceof Error ? error.message : 'Failed to analyze AI roles',
-        variant: "destructive",
-      });
+      const result = await res.json();
+      if (!res.ok || !result.success) throw new Error(result.error || `${a.name} failed`);
+      setStatus((p) => ({ ...p, [a.id]: "completed" }));
+    } catch (e: any) {
+      console.error(`${a.id} error:`, e);
+      setStatus((p) => ({ ...p, [a.id]: "error" }));
     }
   };
 
-  const runSkillValidation = async (continueChain = true) => {
-    setCurrentRunningStep('skill_validation');
-    setStepStatus(prev => ({ ...prev, skill_validation: 'running' }));
-
-    try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/skill-validation',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-
-      setSkillValidation(result.data || null);
-      setStepStatus(prev => ({ ...prev, skill_validation: 'completed' }));
-      setSelectedStep('skill_validation');
-      if (continueChain) runLearningPlan();
-
-    } catch (error) {
-      console.error('Skill validation error:', error);
-      setStepStatus(prev => ({ ...prev, skill_validation: 'error' }));
-      if (continueChain) runLearningPlan();
-    }
+  const runAll = async () => {
+    await Promise.all(AGENTS.map(runAgent));
+    setAllDone(true);
+    toast({ title: "Strategy session complete", description: "Your dossier is ready." });
   };
 
-  const runLearningPlan = async (continueChain = true) => {
-    setCurrentRunningStep('learning_plan');
-    setStepStatus(prev => ({ ...prev, learning_plan: 'running' }));
-
-    try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/learning-plan',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-
-      setLearningPlans(result.data || []);
-      setStepStatus(prev => ({ ...prev, learning_plan: 'completed' }));
-      setSelectedStep('learning_plan');
-      if (continueChain) runProjectGeneration();
-
-    } catch (error) {
-      console.error('Learning plan error:', error);
-      setStepStatus(prev => ({ ...prev, learning_plan: 'error' }));
-      if (continueChain) runProjectGeneration();
-    }
+  const retry = (id: AgentId) => {
+    const a = AGENTS.find((x) => x.id === id);
+    if (a) runAgent(a);
   };
 
-  const runProjectGeneration = async (continueChain = true) => {
-    setCurrentRunningStep('project_ideas');
-    setStepStatus(prev => ({ ...prev, project_ideas: 'running' }));
-
-    try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/project-generation',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-
-      setProjectIdeas(result.data || []);
-      setStepStatus(prev => ({ ...prev, project_ideas: 'completed' }));
-      setSelectedStep('project_ideas');
-      if (continueChain) runJobMatching();
-
-    } catch (error) {
-      console.error('Project generation error:', error);
-      setStepStatus(prev => ({ ...prev, project_ideas: 'error' }));
-      if (continueChain) runJobMatching();
-    }
-  };
-
-  const runJobMatching = async (continueChain = true) => {
-    setCurrentRunningStep('job_matching');
-    setStepStatus(prev => ({ ...prev, job_matching: 'running' }));
-
-    try {
-      const response = await fetch(
-        'https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/job-matching',
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ resume_id: resumeId }),
-        }
-      );
-
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error);
-
-      setJobMatches(result.data || []);
-      setStepStatus(prev => ({ ...prev, job_matching: 'completed' }));
-      setSelectedStep('job_matching');
-      setIsComplete(true);
-      setCurrentRunningStep('complete');
-
-      toast({
-        title: "Analysis Complete! 🎉",
-        description: "Your AI career roadmap is ready",
-      });
-
-    } catch (error) {
-      console.error('Job matching error:', error);
-      setStepStatus(prev => ({ ...prev, job_matching: 'error' }));
-      setIsComplete(true);
-    }
-  };
-
-  const steps = [
-    { id: 'ai_role_analysis' as StepId, name: 'AI Role Analysis', icon: Sparkles, description: 'Finding AI-enhanced future roles' },
-    { id: 'skill_validation' as StepId, name: 'Skill Validation', icon: Target, description: 'Assessing your AI role readiness' },
-    { id: 'learning_plan' as StepId, name: 'Learning Plan', icon: BookOpen, description: 'Creating AI skill roadmap' },
-    { id: 'project_ideas' as StepId, name: 'Project Ideas', icon: Lightbulb, description: 'Generating AI portfolio projects' },
-    { id: 'job_matching' as StepId, name: 'Job Matching', icon: Briefcase, description: 'Finding AI role opportunities' },
-  ];
-
-  const getStepIcon = (stepId: StepId) => {
-    const status = stepStatus[stepId];
-    if (status === 'completed') return <CheckCircle2 className="w-5 h-5 text-green-500" />;
-    if (status === 'running') return <Loader2 className="w-5 h-5 text-primary animate-spin" />;
-    if (status === 'error') return <AlertTriangle className="w-5 h-5 text-destructive" />;
-    return <span className="w-5 h-5 text-muted-foreground">○</span>;
-  };
-
-  const handleStepClick = (stepId: StepId) => {
-    if (stepStatus[stepId] === 'completed' || stepStatus[stepId] === 'error') {
-      setSelectedStep(stepId);
-    }
-  };
-
-  const retryStep = (stepId: StepId) => {
-    const stepRunners: Record<StepId, (continueChain?: boolean) => void> = {
-      ai_role_analysis: runAiRoleAnalysis,
-      skill_validation: runSkillValidation,
-      learning_plan: runLearningPlan,
-      project_ideas: runProjectGeneration,
-      job_matching: runJobMatching,
-    };
-    stepRunners[stepId]?.(false);
-  };
-
-  const renderStepContent = () => {
-    const status = stepStatus[selectedStep];
-    
-    if (status === 'pending') {
-      return (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Clock className="w-12 h-12 text-muted-foreground mb-4" />
-          <p className="text-lg font-medium text-muted-foreground">Waiting to start...</p>
-        </div>
-      );
-    }
-
-    if (status === 'running') {
-      return (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-          <p className="text-lg font-medium">Processing...</p>
-          <p className="text-sm text-muted-foreground">Gemini 3 is analyzing your data</p>
-        </div>
-      );
-    }
-
-    if (status === 'error') {
-      return (
-        <div className="flex flex-col items-center justify-center py-12 text-center">
-          <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
-          <p className="text-lg font-medium text-destructive">Analysis Failed</p>
-          <p className="text-sm text-muted-foreground mb-4">This step encountered an error</p>
-          <Button size="sm" variant="outline" onClick={() => retryStep(selectedStep)}>
-            <Loader2 className="w-4 h-4 mr-2" />
-            Retry This Step
-          </Button>
-        </div>
-      );
-    }
-
-    switch (selectedStep) {
-      case 'ai_role_analysis':
-        return renderAiRoleAnalysis();
-      case 'skill_validation':
-        return renderSkillValidation();
-      case 'learning_plan':
-        return renderLearningPlan();
-      case 'project_ideas':
-        return renderProjectIdeas();
-      case 'job_matching':
-        return renderJobMatching();
-      default:
-        return null;
-    }
-  };
-
-  const renderAiRoleAnalysis = () => (
-    <div className="space-y-4">
-      {/* AI Readiness Score */}
-      <div className="p-4 rounded-lg bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm font-medium">AI Readiness Score</span>
-          <span className="text-2xl font-bold text-primary">{aiReadinessScore}%</span>
-        </div>
-        <div className="w-full bg-primary/20 rounded-full h-2">
-          <div 
-            className="bg-primary h-2 rounded-full transition-all duration-500"
-            style={{ width: `${aiReadinessScore}%` }}
-          />
-        </div>
-      </div>
-
-      {/* AI Enhanced Roles */}
-      {aiRoles.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">No AI roles found</p>
-      ) : (
-        aiRoles.map((role, index) => (
-          <motion.div 
-            key={index}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-4 rounded-lg border bg-card"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Zap className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold">{role.role}</h3>
-              </div>
-              <Badge className="bg-emerald-500/10 text-emerald-600">
-                {role.match_score}% Match
-              </Badge>
-            </div>
-            {role.description && (
-              <p className="text-sm text-muted-foreground mb-2">{role.description}</p>
-            )}
-            <div className="flex flex-wrap gap-2 text-xs">
-              <span className="px-2 py-1 bg-muted rounded">
-                Growth: {role.growth_potential}
-              </span>
-              <span className="px-2 py-1 bg-muted rounded">
-                Ready in: {role.timeline_to_ready}
-              </span>
-              {role.salary_range && (
-                <span className="px-2 py-1 bg-muted rounded">
-                  {role.salary_range}
-                </span>
-              )}
-            </div>
-            {role.missing_skills && role.missing_skills.length > 0 && (
-              <div className="mt-3 pt-3 border-t">
-                <p className="text-xs text-muted-foreground mb-1">Skills to develop:</p>
-                <div className="flex flex-wrap gap-1">
-                  {role.missing_skills.slice(0, 4).map((skill, i) => (
-                    <Badge key={i} variant="outline" className="text-xs">
-                      {skill}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        ))
-      )}
-    </div>
-  );
-
-  const renderSkillValidation = () => (
-    <div className="space-y-4">
-      {!skillValidation ? (
-        <p className="text-muted-foreground text-center py-8">No skill data available</p>
-      ) : (
-        <>
-          <div className="p-4 rounded-lg bg-gradient-to-r from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20">
-            <p className="text-sm text-muted-foreground mb-1">Target AI Role</p>
-            <h3 className="font-semibold text-lg mb-2">{skillValidation.target_role}</h3>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">Readiness:</span>
-              <span className="text-xl font-bold text-emerald-600">{skillValidation.readiness_score}%</span>
-            </div>
-          </div>
-
-          {skillValidation.matched_skills?.strong?.length > 0 && (
-            <div className="p-4 rounded-lg border bg-card">
-              <h4 className="font-medium mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-green-500" />
-                Strong Skills ({skillValidation.matched_skills.strong.length})
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {skillValidation.matched_skills.strong.map((skill, i) => (
-                  <Badge key={i} variant="secondary" className="bg-green-500/10 text-green-600">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {skillValidation.matched_skills?.partial?.length > 0 && (
-            <div className="p-4 rounded-lg border bg-card">
-              <h4 className="font-medium mb-3 flex items-center gap-2">
-                <Target className="w-4 h-4 text-blue-500" />
-                Partial Match ({skillValidation.matched_skills.partial.length})
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {skillValidation.matched_skills.partial.map((skill, i) => (
-                  <Badge key={i} variant="secondary" className="bg-blue-500/10 text-blue-600">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {skillValidation.missing_skills?.length > 0 && (
-            <div className="p-4 rounded-lg border bg-card">
-              <h4 className="font-medium mb-3 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                Skills to Develop ({skillValidation.missing_skills.length})
-              </h4>
-              <div className="flex flex-wrap gap-2">
-                {skillValidation.missing_skills.map((skill, i) => (
-                  <Badge key={i} variant="outline" className="border-amber-500/50 text-amber-600">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {skillValidation.recommended_next_step && (
-            <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
-              <p className="text-sm"><strong>Next Step:</strong> {skillValidation.recommended_next_step}</p>
-            </div>
-          )}
-        </>
-      )}
-    </div>
-  );
-
-  const renderLearningPlan = () => (
-    <div className="space-y-4">
-      {learningPlans.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">No learning plans generated</p>
-      ) : (
-        learningPlans.map((plan, index) => (
-          <motion.div 
-            key={index}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-4 rounded-lg border bg-card"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <GraduationCap className="w-5 h-5 text-primary" />
-              <h3 className="font-semibold">{plan.skill_name}</h3>
-              <Badge variant="outline" className="ml-auto capitalize">
-                {plan.status || 'not_started'}
-              </Badge>
-            </div>
-            {plan.career_title && (
-              <p className="text-sm text-muted-foreground mb-3">For: {plan.career_title}</p>
-            )}
-            {plan.recommended_courses?.length > 0 && (
-              <div className="mb-3">
-                <p className="text-xs font-medium text-muted-foreground mb-2">📚 Courses</p>
-                <div className="space-y-2">
-                  {plan.recommended_courses.slice(0, 3).map((course, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
-                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
-                        {i + 1}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{course.name}</p>
-                        <p className="text-xs text-muted-foreground">{course.platform} · {course.duration} · {course.level}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {plan.recommended_videos?.length > 0 && (
-              <div>
-                <p className="text-xs font-medium text-muted-foreground mb-2">🎥 Videos</p>
-                <div className="space-y-2">
-                  {plan.recommended_videos.slice(0, 3).map((video, i) => (
-                    <div key={i} className="flex items-center gap-2 text-sm p-2 rounded bg-muted/50">
-                      <span className="flex-1 min-w-0">
-                        <p className="truncate font-medium">{video.title}</p>
-                        <p className="text-xs text-muted-foreground">{video.channel} · {video.duration}</p>
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {plan.learning_steps?.length > 0 && !plan.recommended_courses?.length && (
-              <div className="space-y-2">
-                {plan.learning_steps.slice(0, 3).map((step, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <span className="w-5 h-5 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs">
-                      {i + 1}
-                    </span>
-                    <span className="flex-1">{step.step}</span>
-                    {step.duration && (
-                      <span className="text-xs text-muted-foreground">{step.duration}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        ))
-      )}
-    </div>
-  );
-
-  const renderProjectIdeas = () => (
-    <div className="space-y-4">
-      {projectIdeas.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">No projects generated</p>
-      ) : (
-        projectIdeas.map((project, index) => (
-          <motion.div 
-            key={index}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-4 rounded-lg border bg-card"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <Code2 className="w-5 h-5 text-primary" />
-                <h3 className="font-semibold">{project.title}</h3>
-              </div>
-              <Badge variant="outline" className="capitalize">
-                {project.complexity}
-              </Badge>
-            </div>
-            <p className="text-sm text-muted-foreground mb-3">{project.description}</p>
-            <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
-                <Clock className="w-3 h-3 inline mr-1" />
-                {project.estimated_time}
-              </span>
-            </div>
-            {project.skills_demonstrated?.length > 0 && (
-              <div className="flex flex-wrap gap-1 mt-3 pt-3 border-t">
-                {project.skills_demonstrated.slice(0, 4).map((skill, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        ))
-      )}
-    </div>
-  );
-
-  const renderJobMatching = () => (
-    <div className="space-y-4">
-      {jobMatches.length === 0 ? (
-        <p className="text-muted-foreground text-center py-8">No jobs matched</p>
-      ) : (
-        jobMatches.map((job, index) => (
-          <motion.div 
-            key={index}
-            initial={{ opacity: 0, x: 10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: index * 0.1 }}
-            className="p-4 rounded-lg border bg-card hover:border-primary/50 transition-colors"
-          >
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <h3 className="font-semibold">{job.job_title}</h3>
-                <p className="text-sm text-muted-foreground">{job.company_name}</p>
-              </div>
-              <Badge className="bg-primary/10 text-primary">
-                {job.relevance_score}% Match
-              </Badge>
-            </div>
-            {job.location && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1 mb-2">
-                <MapPin className="w-3 h-3" />
-                {job.location}
-              </p>
-            )}
-            {job.skill_tags?.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {job.skill_tags.slice(0, 4).map((skill, i) => (
-                  <Badge key={i} variant="outline" className="text-xs">
-                    {skill}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </motion.div>
-        ))
-      )}
-    </div>
-  );
-
-  const getSelectedStepInfo = () => {
-    return steps.find(s => s.id === selectedStep);
+  const StatusIcon = ({ s }: { s: Status }) => {
+    if (s === "completed") return <Check className="w-4 h-4" />;
+    if (s === "running") return <Loader2 className="w-4 h-4 animate-spin" />;
+    if (s === "error") return <AlertTriangle className="w-4 h-4" />;
+    return <span className="w-4 h-4 inline-block rounded-full border hairline" />;
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
-      {/* Header */}
-      <header className="border-b border-border/50 bg-card/50 backdrop-blur-md sticky top-0 z-10">
-        <div className="container mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-primary" />
-            <span className="text-xl font-bold">Sigma AI Agent</span>
-          </div>
-          <Button variant="ghost" onClick={() => navigate('/setup')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back
-          </Button>
+    <div className="min-h-full bg-background">
+      <header className="border-b hairline">
+        <div className="px-6 h-14 flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Step 2 of 2 — Strategy Session</span>
+          {allDone && (
+            <Button onClick={() => navigate("/dashboard")} size="sm" className="rounded-none text-xs uppercase tracking-[0.15em]">
+              Open dossier <ArrowRight className="w-3.5 h-3.5" />
+            </Button>
+          )}
         </div>
       </header>
 
-      <main className="container mx-auto px-6 py-8">
-        <div className="max-w-5xl mx-auto">
-          {/* Goal Display */}
-          <div className="mb-8 text-center">
-            <p className="text-muted-foreground">Your AI Career Goal</p>
-            <h1 className="text-2xl font-bold text-foreground">{goal || 'AI Career Analysis'}</h1>
-            {resumeId && (
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(resumeId);
-                  toast({ title: "Copied!", description: "Resume ID copied to clipboard" });
-                }}
-                className="mt-2 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-xs font-mono text-muted-foreground hover:bg-muted/80 transition-colors"
-              >
-                ID: {resumeId.slice(0, 8)}...
-                <span className="text-[10px]">📋</span>
-              </button>
-            )}
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {/* Progress Panel */}
-            <Card className="md:col-span-1">
-              <CardHeader>
-                <CardTitle className="text-lg">AI Analysis Progress</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {steps.map((step) => {
-                  const status = stepStatus[step.id];
-                  const isClickable = status === 'completed' || status === 'error';
-                  const isSelected = selectedStep === step.id;
-                  
-                  return (
-                    <button
-                      key={step.id}
-                      onClick={() => handleStepClick(step.id)}
-                      disabled={!isClickable}
-                      className={`w-full flex items-center gap-3 p-3 rounded-lg text-left transition-all ${
-                        isSelected 
-                          ? 'bg-primary/10 border border-primary/30' 
-                          : isClickable 
-                            ? 'hover:bg-muted cursor-pointer' 
-                            : 'opacity-60 cursor-not-allowed'
-                      }`}
-                    >
-                      {getStepIcon(step.id)}
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-sm font-medium truncate ${
-                          status === 'running' ? 'text-primary' :
-                          status === 'completed' ? 'text-green-600' :
-                          status === 'error' ? 'text-destructive' :
-                          'text-muted-foreground'
-                        }`}>
-                          {step.name}
-                        </p>
-                        {status === 'running' && (
-                          <p className="text-xs text-muted-foreground truncate">{step.description}...</p>
-                        )}
-                      </div>
-                      {isSelected && status === 'completed' && (
-                        <ArrowRight className="w-4 h-4 text-primary flex-shrink-0" />
-                      )}
-                    </button>
-                  );
-                })}
-              </CardContent>
-            </Card>
-
-            {/* Results Panel */}
-            <Card className="md:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  {(() => {
-                    const stepInfo = getSelectedStepInfo();
-                    if (stepInfo?.icon) {
-                      const IconComponent = stepInfo.icon;
-                      return <IconComponent className="w-5 h-5 text-primary" />;
-                    }
-                    return null;
-                  })()}
-                  {getSelectedStepInfo()?.name || 'Results'}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScrollArea className="h-[500px] pr-4">
-                  <AnimatePresence mode="wait">
-                    <motion.div
-                      key={selectedStep}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -10 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      {renderStepContent()}
-                    </motion.div>
-                  </AnimatePresence>
-                </ScrollArea>
-
-                {isComplete && (
-                  <div className="mt-6 pt-6 border-t">
-                    <Button 
-                      onClick={() => navigate('/dashboard')} 
-                      className="w-full h-12 text-lg"
-                    >
-                      View Full Dashboard
-                      <ArrowRight className="w-5 h-5 ml-2" />
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+      <main className="px-6 md:px-12 py-16 max-w-4xl mx-auto">
+        <div className="mb-12">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-4">In session — № 002</p>
+          <h1 className="font-serif text-5xl md:text-6xl leading-tight mb-4">The office is convened.</h1>
+          {business && (
+            <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
+              Four agents are working on <em className="font-serif italic">{business.business_name}</em>. Each runs in parallel, drawing on Gemini 3 to brief their findings.
+            </p>
+          )}
         </div>
+
+        <div className="border-y hairline divide-y divide-border">
+          {AGENTS.map((a) => {
+            const s = status[a.id];
+            return (
+              <div key={a.id} className="py-8 grid grid-cols-12 gap-6 items-start">
+                <span className="col-span-2 font-serif text-3xl text-muted-foreground">{a.num}</span>
+                <div className="col-span-7">
+                  <h3 className="font-serif text-2xl mb-1">{a.name}</h3>
+                  <p className="text-sm text-muted-foreground">{a.desc}</p>
+                  {s === "error" && (
+                    <button onClick={() => retry(a.id)} className="text-xs underline underline-offset-4 mt-2 text-destructive">
+                      Retry agent
+                    </button>
+                  )}
+                </div>
+                <div className="col-span-3 flex items-center justify-end gap-2">
+                  <StatusIcon s={s} />
+                  <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+                    {s === "pending" && "Queued"}
+                    {s === "running" && "Working"}
+                    {s === "completed" && "Filed"}
+                    {s === "error" && "Failed"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {allDone && (
+          <div className="mt-12 text-center">
+            <Button onClick={() => navigate("/dashboard")} size="lg" className="h-12 px-10 rounded-none text-xs uppercase tracking-[0.15em]">
+              Open the strategy dossier
+              <ArrowRight className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
       </main>
     </div>
   );

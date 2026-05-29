@@ -14,298 +14,259 @@ export type Database = {
   }
   public: {
     Tables: {
-      ai_role_analysis_result: {
+      advisor_messages: {
         Row: {
-          ai_enhanced_roles: Json | null
-          created_at: string
-          current_ai_ready_skills: string[] | null
-          id: string
-          key_insights: string | null
-          overall_ai_readiness_score: number | null
-          preparation_roadmap: Json | null
-          resume_id: string
-          roles_at_risk: Json | null
-          skills_to_acquire: Json | null
-        }
-        Insert: {
-          ai_enhanced_roles?: Json | null
-          created_at?: string
-          current_ai_ready_skills?: string[] | null
-          id?: string
-          key_insights?: string | null
-          overall_ai_readiness_score?: number | null
-          preparation_roadmap?: Json | null
-          resume_id: string
-          roles_at_risk?: Json | null
-          skills_to_acquire?: Json | null
-        }
-        Update: {
-          ai_enhanced_roles?: Json | null
-          created_at?: string
-          current_ai_ready_skills?: string[] | null
-          id?: string
-          key_insights?: string | null
-          overall_ai_readiness_score?: number | null
-          preparation_roadmap?: Json | null
-          resume_id?: string
-          roles_at_risk?: Json | null
-          skills_to_acquire?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "ai_role_analysis_result_resume_id_fkey"
-            columns: ["resume_id"]
-            isOneToOne: false
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
-          },
-        ]
-      }
-      career_analysis_result: {
-        Row: {
-          career_roadmap: Json | null
-          career_roles: Json
-          created_at: string
-          id: string
-          overall_assessment: string | null
-          resume_id: string
-          skill_analysis: Json | null
-        }
-        Insert: {
-          career_roadmap?: Json | null
-          career_roles?: Json
-          created_at?: string
-          id?: string
-          overall_assessment?: string | null
-          resume_id: string
-          skill_analysis?: Json | null
-        }
-        Update: {
-          career_roadmap?: Json | null
-          career_roles?: Json
-          created_at?: string
-          id?: string
-          overall_assessment?: string | null
-          resume_id?: string
-          skill_analysis?: Json | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "career_analysis_result_resume_id_fkey"
-            columns: ["resume_id"]
-            isOneToOne: false
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
-          },
-        ]
-      }
-      career_goal_score_result: {
-        Row: {
-          created_at: string
-          goal_score: number | null
-          id: string
-          ninety_day_plan: Json | null
-          recommendations: Json | null
-          resume_id: string
-          score_breakdown: Json | null
-          target_role: string | null
-        }
-        Insert: {
-          created_at?: string
-          goal_score?: number | null
-          id?: string
-          ninety_day_plan?: Json | null
-          recommendations?: Json | null
-          resume_id: string
-          score_breakdown?: Json | null
-          target_role?: string | null
-        }
-        Update: {
-          created_at?: string
-          goal_score?: number | null
-          id?: string
-          ninety_day_plan?: Json | null
-          recommendations?: Json | null
-          resume_id?: string
-          score_breakdown?: Json | null
-          target_role?: string | null
-        }
-        Relationships: []
-      }
-      chat_history: {
-        Row: {
+          business_id: string
           content: string
           created_at: string
           id: string
-          resume_id: string
           role: string
         }
         Insert: {
+          business_id: string
           content: string
           created_at?: string
           id?: string
-          resume_id: string
           role: string
         }
         Update: {
+          business_id?: string
           content?: string
           created_at?: string
           id?: string
-          resume_id?: string
           role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "advisor_messages_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_plan_result: {
+        Row: {
+          business_id: string
+          business_model: Json | null
+          created_at: string
+          executive_summary: string | null
+          go_to_market: Json | null
+          id: string
+          milestones: Json | null
+          risks: Json | null
+          team_needs: Json | null
+          value_proposition: string | null
+        }
+        Insert: {
+          business_id: string
+          business_model?: Json | null
+          created_at?: string
+          executive_summary?: string | null
+          go_to_market?: Json | null
+          id?: string
+          milestones?: Json | null
+          risks?: Json | null
+          team_needs?: Json | null
+          value_proposition?: string | null
+        }
+        Update: {
+          business_id?: string
+          business_model?: Json | null
+          created_at?: string
+          executive_summary?: string | null
+          go_to_market?: Json | null
+          id?: string
+          milestones?: Json | null
+          risks?: Json | null
+          team_needs?: Json | null
+          value_proposition?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_plan_result_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      business_store: {
+        Row: {
+          business_name: string
+          created_at: string
+          geography: string | null
+          id: string
+          industry: string | null
+          pitch: string
+          raw_context: string | null
+          stage: string
+          target_market: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_name: string
+          created_at?: string
+          geography?: string | null
+          id?: string
+          industry?: string | null
+          pitch: string
+          raw_context?: string | null
+          stage?: string
+          target_market?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_name?: string
+          created_at?: string
+          geography?: string | null
+          id?: string
+          industry?: string | null
+          pitch?: string
+          raw_context?: string | null
+          stage?: string
+          target_market?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
-      job_matching_result: {
+      competitor_analysis_result: {
         Row: {
-          career_role: string
-          company_name: string
+          business_id: string
+          competitors: Json | null
           created_at: string
-          domain: string | null
+          differentiation: Json | null
           id: string
-          is_saved: boolean | null
-          job_description: string | null
-          job_link: string | null
-          job_title: string
-          job_url: string | null
-          location: string | null
-          relevance_score: number | null
-          required_skills: string[] | null
-          resume_id: string
-          skill_tags: string[] | null
+          positioning: Json | null
+          summary: string | null
+          swot: Json | null
         }
         Insert: {
-          career_role: string
-          company_name: string
+          business_id: string
+          competitors?: Json | null
           created_at?: string
-          domain?: string | null
+          differentiation?: Json | null
           id?: string
-          is_saved?: boolean | null
-          job_description?: string | null
-          job_link?: string | null
-          job_title: string
-          job_url?: string | null
-          location?: string | null
-          relevance_score?: number | null
-          required_skills?: string[] | null
-          resume_id: string
-          skill_tags?: string[] | null
+          positioning?: Json | null
+          summary?: string | null
+          swot?: Json | null
         }
         Update: {
-          career_role?: string
-          company_name?: string
+          business_id?: string
+          competitors?: Json | null
           created_at?: string
-          domain?: string | null
+          differentiation?: Json | null
           id?: string
-          is_saved?: boolean | null
-          job_description?: string | null
-          job_link?: string | null
-          job_title?: string
-          job_url?: string | null
-          location?: string | null
-          relevance_score?: number | null
-          required_skills?: string[] | null
-          resume_id?: string
-          skill_tags?: string[] | null
+          positioning?: Json | null
+          summary?: string | null
+          swot?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "job_matching_result_resume_id_fkey"
-            columns: ["resume_id"]
+            foreignKeyName: "competitor_analysis_result_business_id_fkey"
+            columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
           },
         ]
       }
-      journey_state: {
+      financial_model_result: {
         Row: {
-          ai_role_analysis_completed: boolean | null
-          career_analysis_completed: boolean | null
+          business_id: string
+          cost_structure: Json | null
           created_at: string
-          goal_score_completed: boolean | null
-          job_matching_completed: boolean | null
-          learning_plan_completed: boolean | null
-          project_ideas_completed: boolean | null
-          resume_id: string
-          skill_validation_completed: boolean | null
-          updated_at: string
+          funding_needs: Json | null
+          id: string
+          key_assumptions: Json | null
+          projections_3yr: Json | null
+          revenue_streams: Json | null
+          summary: string | null
+          unit_economics: Json | null
         }
         Insert: {
-          ai_role_analysis_completed?: boolean | null
-          career_analysis_completed?: boolean | null
+          business_id: string
+          cost_structure?: Json | null
           created_at?: string
-          goal_score_completed?: boolean | null
-          job_matching_completed?: boolean | null
-          learning_plan_completed?: boolean | null
-          project_ideas_completed?: boolean | null
-          resume_id: string
-          skill_validation_completed?: boolean | null
-          updated_at?: string
+          funding_needs?: Json | null
+          id?: string
+          key_assumptions?: Json | null
+          projections_3yr?: Json | null
+          revenue_streams?: Json | null
+          summary?: string | null
+          unit_economics?: Json | null
         }
         Update: {
-          ai_role_analysis_completed?: boolean | null
-          career_analysis_completed?: boolean | null
+          business_id?: string
+          cost_structure?: Json | null
           created_at?: string
-          goal_score_completed?: boolean | null
-          job_matching_completed?: boolean | null
-          learning_plan_completed?: boolean | null
-          project_ideas_completed?: boolean | null
-          resume_id?: string
-          skill_validation_completed?: boolean | null
-          updated_at?: string
+          funding_needs?: Json | null
+          id?: string
+          key_assumptions?: Json | null
+          projections_3yr?: Json | null
+          revenue_streams?: Json | null
+          summary?: string | null
+          unit_economics?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "journey_state_resume_id_fkey"
-            columns: ["resume_id"]
-            isOneToOne: true
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
+            foreignKeyName: "financial_model_result_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
           },
         ]
       }
-      learning_plan_result: {
+      market_research_result: {
         Row: {
-          career_title: string | null
+          business_id: string
           created_at: string
           id: string
-          learning_steps: Json | null
-          recommended_courses: Json | null
-          recommended_videos: Json | null
-          resume_id: string
-          skill_name: string
-          status: string | null
+          market_size: Json | null
+          opportunities: Json | null
+          risks: Json | null
+          summary: string | null
+          tam_sam_som: Json | null
+          target_audience: Json | null
+          trends: Json | null
         }
         Insert: {
-          career_title?: string | null
+          business_id: string
           created_at?: string
           id?: string
-          learning_steps?: Json | null
-          recommended_courses?: Json | null
-          recommended_videos?: Json | null
-          resume_id: string
-          skill_name: string
-          status?: string | null
+          market_size?: Json | null
+          opportunities?: Json | null
+          risks?: Json | null
+          summary?: string | null
+          tam_sam_som?: Json | null
+          target_audience?: Json | null
+          trends?: Json | null
         }
         Update: {
-          career_title?: string | null
+          business_id?: string
           created_at?: string
           id?: string
-          learning_steps?: Json | null
-          recommended_courses?: Json | null
-          recommended_videos?: Json | null
-          resume_id?: string
-          skill_name?: string
-          status?: string | null
+          market_size?: Json | null
+          opportunities?: Json | null
+          risks?: Json | null
+          summary?: string | null
+          tam_sam_som?: Json | null
+          target_audience?: Json | null
+          trends?: Json | null
         }
         Relationships: [
           {
-            foreignKeyName: "learning_plan_result_resume_id_fkey"
-            columns: ["resume_id"]
+            foreignKeyName: "market_research_result_business_id_fkey"
+            columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -336,155 +297,12 @@ export type Database = {
         }
         Relationships: []
       }
-      project_ideas_result: {
-        Row: {
-          budget: number | null
-          complexity: string | null
-          created_at: string
-          description: string | null
-          domain: string | null
-          estimated_time: string | null
-          id: string
-          problem: string | null
-          resume_id: string
-          skills_demonstrated: string[] | null
-          title: string
-        }
-        Insert: {
-          budget?: number | null
-          complexity?: string | null
-          created_at?: string
-          description?: string | null
-          domain?: string | null
-          estimated_time?: string | null
-          id?: string
-          problem?: string | null
-          resume_id: string
-          skills_demonstrated?: string[] | null
-          title: string
-        }
-        Update: {
-          budget?: number | null
-          complexity?: string | null
-          created_at?: string
-          description?: string | null
-          domain?: string | null
-          estimated_time?: string | null
-          id?: string
-          problem?: string | null
-          resume_id?: string
-          skills_demonstrated?: string[] | null
-          title?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "project_ideas_result_resume_id_fkey"
-            columns: ["resume_id"]
-            isOneToOne: false
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
-          },
-        ]
-      }
-      resume_store: {
-        Row: {
-          challenge: string | null
-          created_at: string
-          file_name: string | null
-          goal: string | null
-          goal_type: string | null
-          parsed_data: Json | null
-          resume_file_url: string | null
-          resume_id: string
-          resume_text: string | null
-          user_type: string | null
-        }
-        Insert: {
-          challenge?: string | null
-          created_at?: string
-          file_name?: string | null
-          goal?: string | null
-          goal_type?: string | null
-          parsed_data?: Json | null
-          resume_file_url?: string | null
-          resume_id?: string
-          resume_text?: string | null
-          user_type?: string | null
-        }
-        Update: {
-          challenge?: string | null
-          created_at?: string
-          file_name?: string | null
-          goal?: string | null
-          goal_type?: string | null
-          parsed_data?: Json | null
-          resume_file_url?: string | null
-          resume_id?: string
-          resume_text?: string | null
-          user_type?: string | null
-        }
-        Relationships: []
-      }
-      skill_validation_result: {
-        Row: {
-          created_at: string
-          id: string
-          matched_skills: Json | null
-          missing_skills: Json | null
-          readiness_score: number | null
-          recommended_next_step: string | null
-          resume_id: string
-          target_role: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          matched_skills?: Json | null
-          missing_skills?: Json | null
-          readiness_score?: number | null
-          recommended_next_step?: string | null
-          resume_id: string
-          target_role: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          matched_skills?: Json | null
-          missing_skills?: Json | null
-          readiness_score?: number | null
-          recommended_next_step?: string | null
-          resume_id?: string
-          target_role?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "skill_validation_result_resume_id_fkey"
-            columns: ["resume_id"]
-            isOneToOne: false
-            referencedRelation: "resume_store"
-            referencedColumns: ["resume_id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      get_journey_state: { Args: { p_resume_id: string }; Returns: Json }
-      get_sigma_journey_state: { Args: { p_user_id: string }; Returns: Json }
-      update_journey_state_flag: {
-        Args: {
-          p_flag_name: string
-          p_flag_value: boolean
-          p_resume_id: string
-        }
-        Returns: undefined
-      }
-      update_sigma_state_flag: {
-        Args: { p_flag_name: string; p_flag_value: boolean; p_user_id: string }
-        Returns: undefined
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
