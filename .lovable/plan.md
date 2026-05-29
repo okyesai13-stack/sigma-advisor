@@ -1,83 +1,94 @@
 
+# Pivot to Planz — AI Multi-Agent Business Platform
 
-# Pivot Platform to AI-Roles-First Concept
+Full rebuild from Sigma career advisor → **Planz**: AI agents for market research, competitor analysis, business planning, and financial modeling. Visual direction: **Paper & Ink** (editorial, McKinsey-style — off-white background, rich black ink, refined serif/sans pairing).
 
-## Current Flow
+## New Concept
+
 ```text
-Career Analysis → Goal Score → AI Roles → Skill Validation → Learning → Projects → Jobs
-       ↓                           ↓              ↓
-  (general roles)          (AI future roles)  (validates against
-                                               career analysis
-                                               short-term role)
+User idea/business → 4 AI Agents (parallel) → Unified Strategy Dashboard
+                ├─ Market Research Agent
+                ├─ Competitor Analysis Agent
+                ├─ Business Plan Agent
+                └─ Financial Model Agent
 ```
 
-Skill validation, learning plan, project generation, and job matching all currently pull from `career_analysis_result` (general career roles). AI Role Analysis is just step 3 -- an add-on.
+## Pages
 
-## New Flow: AI Roles as the Core
-```text
-AI Role Analysis → Skill Validation → Learning Plan → Projects → Jobs
-       ↓                  ↓                ↓              ↓          ↓
-  (3 AI future      (validates against  (courses for    (projects   (jobs for
-   roles become      AI role skills)     AI role gaps)   for AI      AI roles)
-   the foundation)                                      roles)
+| Route | Purpose |
+|---|---|
+| `/` | Landing — editorial hero, "Turn your idea into a viable business", agent showcase, how-it-works |
+| `/auth` | Login/signup (kept, rebranded Planz) |
+| `/reset-password` | Kept |
+| `/setup` | Capture business idea: name, one-line pitch, stage (idea/early/established), industry, target market, optional uploaded doc |
+| `/sigma` → `/analysis` | Pipeline runner — runs 4 agents, shows live progress |
+| `/dashboard` | Unified strategy dashboard: Executive Summary, Market, Competitors, Business Plan, Financials |
+
+## Backend — New Tables
+
+Drop old: `career_analysis_result`, `skill_validation_result`, `learning_plan_result`, `project_ideas_result`, `job_matching_result`, `career_goal_score_result`, `ai_role_analysis_result`, `journey_state`, `sigma_journey_state`, `resume_store`.
+
+Create new:
+- `business_store` — id, user_id, business_name, pitch, stage, industry, target_market, raw_context
+- `market_research_result` — business_id, market_size, trends, target_audience, opportunities, tam_sam_som
+- `competitor_analysis_result` — business_id, competitors[], swot, positioning, differentiation
+- `business_plan_result` — business_id, executive_summary, value_prop, business_model, go_to_market, milestones, risks
+- `financial_model_result` — business_id, revenue_streams, cost_structure, projections_3yr, unit_economics, funding_needs
+- `advisor_messages` — business_id, role, content (chat history)
+
+All scoped to `auth.uid()` via `user_id` on `business_store`, joined on `business_id`.
+
+## Backend — Edge Functions
+
+Drop old: `upload-resume`, `resume-image-parse`, `ai-role-analysis`, `career-goal-score`, `skill-validation`, `learning-plan`, `project-generation`, `job-matching`.
+
+Create new:
+- `market-research` — Gemini 3, structured output for market size/trends/audience
+- `competitor-analysis` — Identifies 5-8 competitors, SWOT, positioning map
+- `business-plan` — Generates exec summary, BMC, GTM, milestones
+- `financial-model` — Revenue model, cost structure, 3-yr projections, unit economics
+- `advisor-chat` / `advisor-chat-stream` — kept, repurposed as business strategy advisor
+
+## Frontend Components
+
+New under `src/components/dashboard/`:
+- `ExecutiveSummaryCard`
+- `MarketResearchSection` (TAM/SAM/SOM, trends, audience)
+- `CompetitorMatrix` (table + SWOT)
+- `BusinessPlanSection` (BMC-style grid)
+- `FinancialProjections` (charts via recharts, already in deps)
+
+Rebrand `AdvisorChatPanel` → Business Strategy Advisor persona.
+
+## Design Tokens (Paper & Ink)
+
+```css
+--background: 40 33% 96%;        /* #f5f3ee */
+--card: 40 25% 92%;              /* #e8e4dd */
+--foreground: 0 0% 8%;           /* #0d0d0d */
+--muted-foreground: 0 0% 18%;    /* #2d2d2d */
+--primary: 0 0% 8%;              /* ink black */
+--accent: 0 0% 18%;
 ```
 
-Remove Career Analysis and Goal Score as separate pipeline steps. AI Role Analysis becomes Step 1, and all downstream steps use the AI roles as their source of truth.
+Typography: **Instrument Serif** (display headings) + **Inter** (body). Editorial spacing, hairline dividers, no gradients, no rounded-2xl — restrained `rounded-md`.
 
-## Changes Required
+## Implementation Order
 
-### 1. Reorder Sigma Pipeline (SigmaNoAuth.tsx)
-- Remove `career_analysis` and `goal_score` steps from the pipeline
-- New 5-step pipeline: AI Role Analysis → Skill Validation → Learning Plan → Project Ideas → Job Matching
-- AI Role Analysis becomes the first step, runs on resume upload
-- Update step definitions, chain logic, and UI
+1. Migration: drop old tables, create new business tables + RLS + GRANTs
+2. New edge functions (4 agents + rebranded advisor)
+3. Update `index.css` + `tailwind.config.ts` with Paper & Ink tokens + serif font
+4. New `LandingNoAuth.tsx` — Planz editorial design
+5. New `SetupNoAuth.tsx` — business idea capture
+6. Rename `SigmaNoAuth` → `AnalysisRunner` — runs 4 agents in parallel
+7. New `DashboardNoAuth.tsx` — strategy dashboard
+8. Update `ResumeContext` → `BusinessContext`
+9. Rebrand `AppLayout`, `index.html`, auth pages
+10. Delete obsolete components (AIRolesSection, SkillGapAnalysis, CareerGoalScoreCard, CareerRoadmapTimeline, OverallAssessmentCard)
 
-### 2. Update AI Role Analysis Edge Function
-- Currently depends on `career_analysis_result` for context -- make it standalone
-- It already reads resume data directly, just remove the career_analysis dependency
-- This function already produces the 3 AI-enhanced roles with skills_required, missing_skills, etc.
+## What Stays
+- Auth flow, ProtectedRoute, two-panel layout shell
+- Advisor chat infrastructure (rebranded persona)
+- shadcn/ui, recharts, supabase client
 
-### 3. Update Skill Validation Edge Function
-- Currently fetches target role from `career_analysis_result.career_roles` (short_term)
-- Change to fetch from `ai_role_analysis_result.ai_enhanced_roles` instead
-- Validate skills against the top AI role (highest match_score)
-
-### 4. Update Learning Plan Edge Function
-- Currently reads `skill_validation_result.missing_skills` -- this stays the same
-- But since skill validation now validates against AI roles, the missing skills will automatically be AI-role-focused
-- Update the `target_role` context to reference the AI role
-
-### 5. Update Job Matching Edge Function
-- Currently uses `career_analysis_result` short-term role as target
-- Change to use `ai_role_analysis_result` top AI role instead
-- Update prompt to focus on AI-related positions
-
-### 6. Update Dashboard (DashboardNoAuth.tsx)
-- Remove or repurpose Career Analysis sections that show general career roles
-- Make AI Roles section more prominent (move to top)
-- Skill gap analysis should reference AI roles
-- Career roadmap should show AI role progression
-
-### 7. Update Setup Page Messaging
-- Update labels/copy to reflect AI career focus (e.g., "Your AI Career Goal")
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/pages/SigmaNoAuth.tsx` | Remove career_analysis & goal_score steps, reorder pipeline |
-| `supabase/functions/ai-role-analysis/index.ts` | Remove dependency on career_analysis_result |
-| `supabase/functions/skill-validation/index.ts` | Fetch target role from ai_role_analysis_result instead of career_analysis_result |
-| `supabase/functions/job-matching/index.ts` | Use AI roles as target instead of career roles |
-| `supabase/functions/learning-plan/index.ts` | Already uses skill_validation missing_skills -- no major change needed |
-| `src/pages/DashboardNoAuth.tsx` | Promote AI Roles section, remove/reduce general career analysis display |
-| `src/components/dashboard/AIRolesSection.tsx` | Make this the hero section |
-
-## What Stays the Same
-- Resume upload flow
-- Learning Hub (AI Tutor, Mind Maps, Quizzes)
-- Interview Prep, Mock Interview, Smart Analysis
-- Job Finder Agent (already independent)
-- Project Builder
-- Resume Upgrade
-
+This is a large rebuild. After approval I'll execute in batches and confirm at major checkpoints.
