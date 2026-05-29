@@ -1,241 +1,74 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform",
 };
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
-  }
-
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
-    const { resume_id, message } = await req.json();
+    const { business_id, message } = await req.json();
+    if (!business_id || !message) return j({ error: "business_id and message required" }, 400);
 
-    if (!resume_id) {
-      throw new Error('No resume_id provided');
-    }
-
-    if (!message) {
-      throw new Error('No message provided');
-    }
-
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
-
-    // Save user message to chat history
-    await supabase.from('chat_history').insert({
-      resume_id,
-      role: 'user',
-      content: message
-    });
-
-    // Fetch conversation history from database
-    const { data: historyData } = await supabase
-      .from('chat_history')
-      .select('role, content')
-      .eq('resume_id', resume_id)
-      .order('created_at', { ascending: true })
-      .limit(20);
-
-    const conversationHistory = historyData || [];
-
-    // Fetch all context data in parallel
-    const [
-      resumeResult,
-      careerResult,
-      skillResult,
-      learningResult,
-      projectResult,
-      jobResult
-    ] = await Promise.all([
-      supabase.from('resume_store').select('*').eq('resume_id', resume_id).maybeSingle(),
-      supabase.from('career_analysis_result').select('*').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('skill_validation_result').select('*').eq('resume_id', resume_id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('learning_plan_result').select('*').eq('resume_id', resume_id),
-      supabase.from('project_ideas_result').select('*').eq('resume_id', resume_id),
-      supabase.from('job_matching_result').select('*').eq('resume_id', resume_id)
+    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const [biz, mr, ca, bp, fm, hist] = await Promise.all([
+      supabase.from("business_store").select("*").eq("id", business_id).maybeSingle(),
+      supabase.from("market_research_result").select("*").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("competitor_analysis_result").select("*").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("business_plan_result").select("*").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("financial_model_result").select("*").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("advisor_messages").select("role, content").eq("business_id", business_id).order("created_at", { ascending: true }).limit(20),
     ]);
 
-    const resume = resumeResult.data;
-    const career = careerResult.data;
-    const skills = skillResult.data;
-    const learningPlans = learningResult.data || [];
-    const projects = projectResult.data || [];
-    const jobs = jobResult.data || [];
+    if (!biz.data) return j({ error: "Business not found" }, 404);
+    await supabase.from("advisor_messages").insert({ business_id, role: "user", content: message });
 
-    if (!resume) {
-      throw new Error('Resume not found');
-    }
+    const system = `You are the Resident Strategy Advisor at Planz — sharp, candid, and grounded in the dossier below. Conversational, no markdown headers or bold. Use • for bullets. Reference the dossier by name. End with a pointed follow-up question.
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY not configured');
-    }
+DOSSIER:
+Business: ${biz.data.business_name} (${biz.data.stage})
+Pitch: ${biz.data.pitch}
+Industry: ${biz.data.industry} | Market: ${biz.data.target_market} | Geo: ${biz.data.geography || "Global"}
 
-    // Extract user info
-    const parsedData = resume.parsed_data || {};
-    const userName = parsedData.name?.split(' ')[0] || 'there';
-    const userGoal = resume.goal || 'career growth';
-    const userType = resume.user_type || 'professional';
+Market: ${mr.data?.summary || "—"}
+Competitors: ${(ca.data?.competitors || []).slice(0, 5).map((c: any) => c.name).join(", ") || "—"}
+Differentiation: ${(ca.data?.differentiation || []).slice(0, 3).map((d: any) => d.angle || d).join("; ") || "—"}
+Exec summary: ${bp.data?.executive_summary || "—"}
+GTM beachhead: ${bp.data?.go_to_market?.beachhead || "—"}
+Y3 revenue: ${fm.data?.projections_3yr?.[2]?.revenue || "—"} | Funding: ${fm.data?.funding_needs?.amount || "—"}`;
 
-    // Build context from career analysis
-    const careerRoles = (career?.career_roles as any[]) || [];
-    const shortTermRole = careerRoles.find(r => r.progression_stage === 'short_term');
-    const targetRole = shortTermRole?.role || 'your target role';
+    const history = (hist.data || []).map((m: any) => ({ role: m.role, content: m.content }));
 
-    // Build skill context
-    const matchedSkills = (skills?.matched_skills as any)?.strong || [];
-    const missingSkills = (skills?.missing_skills as any[]) || [];
-    const readinessScore = skills?.readiness_score || 0;
+    const key = Deno.env.get("LOVABLE_API_KEY");
+    if (!key) throw new Error("LOVABLE_API_KEY not configured");
 
-    // Build learning context
-    const learningSkills = learningPlans.map(l => l.skill_name).join(', ') || 'Not started';
-
-    // Build project context
-    const projectTitles = projects.map(p => p.title).slice(0, 3).join(', ') || 'None yet';
-
-    // Build job context
-    const topJobs = jobs.slice(0, 3).map(j => `${j.job_title} at ${j.company_name}`).join(', ') || 'None matched yet';
-
-    const systemPrompt = `You are Sigma, a warm and knowledgeable AI career advisor. You're conversational - like talking to a brilliant friend who happens to be a career expert.
-
-## About the User:
-- Name: ${userName}
-- Goal: ${userGoal}
-- Type: ${userType}
-- Target Role: ${targetRole}
-
-## Their Background:
-- Skills: ${parsedData.skills?.join(', ') || 'Not specified'}
-- Education: ${parsedData.education?.map((e: any) => `${e.degree} from ${e.institution}`).join('; ') || 'Not specified'}
-- Experience: ${parsedData.experience?.map((e: any) => `${e.role} at ${e.company}`).join('; ') || 'Fresh talent'}
-
-## Career Analysis:
-- Short-term goal: ${shortTermRole?.role || 'Being determined'}
-- Readiness Score: ${readinessScore}%
-- Strong Skills: ${matchedSkills.join(', ') || 'Being assessed'}
-- Skills to Develop: ${missingSkills.slice(0, 5).join(', ') || 'None identified'}
-
-## Progress:
-- Learning: ${learningSkills}
-- Projects: ${projectTitles}
-- Job Matches: ${topJobs}
-
-## Response Style:
-Be natural, warm, and conversational. Write in plain paragraphs.
-
-RULES:
-1. Use simple bullet points (•) when listing things
-2. Keep paragraphs short - 2-3 sentences max
-3. End with a friendly follow-up question
-4. Reference their actual data when relevant
-
-NEVER USE:
-- Markdown headers (# ## ###)
-- Bold text with **asterisks**
-- Horizontal lines or dividers
-- Code blocks
-- Excessive formatting
-
-Be genuinely helpful and specific to their situation.`;
-
-    // Build messages array from conversation history (exclude the just-added user message since it's in historyData)
-    const historyMessages = conversationHistory.slice(0, -1).map((msg: any) => ({
-      role: msg.role === 'assistant' ? 'assistant' : 'user',
-      content: msg.content,
-    }));
-
-    console.log('Advisor chat for resume:', resume_id, 'History messages:', historyMessages.length);
-
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          ...historyMessages,
-          { role: 'user', content: message }
-        ],
+        model: "google/gemini-3-flash-preview",
+        messages: [{ role: "system", content: system }, ...history, { role: "user", content: message }],
         temperature: 0.7,
       }),
     });
+    if (res.status === 429) return j({ error: "Rate limit" }, 429);
+    if (res.status === 402) return j({ error: "Credits exhausted" }, 402);
+    if (!res.ok) throw new Error(`AI gateway ${res.status}`);
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: 'Rate limit exceeded. Please try again in a moment.' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 429 }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: 'AI service credits depleted.' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 402 }
-        );
-      }
-      throw new Error('AI Gateway error');
-    }
+    const data = await res.json();
+    let response = data.choices?.[0]?.message?.content || "";
+    response = response.replace(/#{1,6}\s*/g, "").replace(/\*\*([^*]+)\*\*/g, "$1").replace(/^[-*]\s+/gm, "• ").trim();
 
-    const aiResponse = await response.json();
-    let responseText = aiResponse.choices?.[0]?.message?.content || "I'm having trouble responding right now. Please try again.";
-
-    // Clean markdown from response
-    responseText = responseText
-      .replace(/#{1,6}\s*/g, '')
-      .replace(/\*\*([^*]+)\*\*/g, '$1')
-      .replace(/\*([^*]+)\*/g, '$1')
-      .replace(/^[-*]\s+/gm, '• ')
-      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/```[\s\S]*?```/g, '')
-      .replace(/^\s*>\s*/gm, '')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-
-    // Save assistant response to chat history
-    await supabase.from('chat_history').insert({
-      resume_id,
-      role: 'assistant',
-      content: responseText
-    });
-
-    console.log('Advisor response saved for:', resume_id);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        response: responseText,
-        context: {
-          targetRole,
-          readinessScore,
-          skillGaps: missingSkills.length
-        }
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
-    );
-
-  } catch (error) {
-    console.error('Error in advisor-chat:', error);
-    return new Response(
-      JSON.stringify({
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred'
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
-      }
-    );
+    await supabase.from("advisor_messages").insert({ business_id, role: "assistant", content: response });
+    return j({ success: true, response });
+  } catch (e) {
+    console.error("[advisor-chat]", e);
+    return j({ success: false, error: e instanceof Error ? e.message : "Unknown" }, 500);
   }
 });
+
+function j(body: any, status = 200) {
+  return new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+}

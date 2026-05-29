@@ -1,31 +1,19 @@
 project_id = "chxelpkvtnlduzlkauep"
 
-[functions.upload-resume]
+[functions.market-research]
 verify_jwt = false
 
-[functions.skill-validation]
+[functions.competitor-analysis]
 verify_jwt = false
 
-[functions.learning-plan]
+[functions.business-plan]
 verify_jwt = false
 
-[functions.project-generation]
-verify_jwt = false
-
-[functions.job-matching]
+[functions.financial-model]
 verify_jwt = false
 
 [functions.advisor-chat]
 verify_jwt = false
 
 [functions.advisor-chat-stream]
-verify_jwt = false
-
-[functions.resume-image-parse]
-verify_jwt = false
-
-[functions.ai-role-analysis]
-verify_jwt = false
-
-[functions.career-goal-score]
 verify_jwt = false
