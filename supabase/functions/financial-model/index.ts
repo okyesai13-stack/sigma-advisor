@@ -76,6 +76,7 @@ async function callAI(system: string, user: string) {
       model: "google/gemini-3-flash-preview",
       messages: [{ role: "system", content: system }, { role: "user", content: user }],
       temperature: 0.7,
+      response_format: { type: "json_object" },
     }),
   });
   if (res.status === 429) throw Object.assign(new Error("Rate limit"), { status: 429 });
