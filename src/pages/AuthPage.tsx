@@ -21,22 +21,23 @@ const AuthPage = () => {
   const [signupName, setSignupName] = useState('');
 
   useEffect(() => {
-    if (user) checkExistingBusiness();
+    if (user) checkExistingBusiness(user.id);
   }, [user]);
 
-  const checkExistingBusiness = async () => {
-    if (!user) return;
+  const checkExistingBusiness = async (uid: string) => {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('business_store')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', uid)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (error) console.warn('business_store lookup', error);
       if (data?.id) navigate('/dashboard', { replace: true });
       else navigate('/setup', { replace: true });
-    } catch {
+    } catch (e) {
+      console.warn('business_store lookup threw', e);
       navigate('/setup', { replace: true });
     }
   };
@@ -62,13 +63,15 @@ const AuthPage = () => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+      const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (error) throw error;
       toast({ title: 'Welcome back' });
+      if (data.user) await checkExistingBusiness(data.user.id);
     } catch (e: any) {
       toast({ title: 'Sign-in failed', description: e.message, variant: 'destructive' });
     } finally { setIsLoading(false); }
   };
+
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
