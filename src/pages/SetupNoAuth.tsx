@@ -34,9 +34,18 @@ const SetupNoAuth = () => {
   const canSubmit = businessName.trim() && pitch.trim() && industry.trim() && targetMarket.trim();
 
   const handleSubmit = async () => {
-    if (!canSubmit || !user) return;
+    if (!canSubmit) {
+      toast({ title: "Missing fields", description: "Business name, pitch, industry, and target market are required.", variant: "destructive" });
+      return;
+    }
+    if (!user) {
+      toast({ title: "Not signed in", description: "Please sign in again.", variant: "destructive" });
+      navigate("/auth");
+      return;
+    }
     setIsSubmitting(true);
     try {
+      console.log("[setup] inserting business for user", user.id);
       const { data, error } = await supabase
         .from("business_store")
         .insert({
@@ -52,12 +61,14 @@ const SetupNoAuth = () => {
         .select("id, business_name, pitch, stage, industry, target_market, geography")
         .single();
 
+      console.log("[setup] insert result", { data, error });
       if (error) throw error;
       setBusiness(data as any);
       toast({ title: "Brief filed", description: "Convening the strategy office..." });
-      setTimeout(() => navigate("/sigma"), 400);
+      navigate("/sigma");
     } catch (e: any) {
-      toast({ title: "Couldn't save brief", description: e.message, variant: "destructive" });
+      console.error("[setup] insert failed", e);
+      toast({ title: "Couldn't save brief", description: e.message || "Unknown error", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
