@@ -34,22 +34,31 @@ const SetupNoAuth = () => {
   const canSubmit = businessName.trim() && pitch.trim() && industry.trim() && targetMarket.trim();
 
   const handleSubmit = async () => {
+    if (isSubmitting) return;
     if (!canSubmit) {
       toast({ title: "Missing fields", description: "Business name, pitch, industry, and target market are required.", variant: "destructive" });
       return;
     }
-    if (!user) {
-      toast({ title: "Not signed in", description: "Please sign in again.", variant: "destructive" });
+    const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+    const activeUser = sessionData?.session?.user ?? user;
+    if (sessionErr || !activeUser) {
+      console.error("[setup] no active session", sessionErr);
+      toast({ title: "Session expired", description: "Please sign in again.", variant: "destructive" });
       navigate("/auth");
       return;
     }
+
     setIsSubmitting(true);
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Request timed out. Check your connection and try again.")), 15000)
+    );
+
     try {
-      console.log("[setup] inserting business for user", user.id);
-      const { data, error } = await supabase
+      console.log("[setup] inserting business for user", activeUser.id);
+      const insertPromise = supabase
         .from("business_store")
         .insert({
-          user_id: user.id,
+          user_id: activeUser.id,
           business_name: businessName.trim(),
           pitch: pitch.trim(),
           stage,
@@ -61,14 +70,17 @@ const SetupNoAuth = () => {
         .select("id, business_name, pitch, stage, industry, target_market, geography")
         .single();
 
+      const { data, error } = (await Promise.race([insertPromise, timeoutPromise])) as any;
+
       console.log("[setup] insert result", { data, error });
       if (error) throw error;
+      if (!data?.id) throw new Error("Brief was not saved. Please try again.");
       setBusiness(data as any);
       toast({ title: "Brief filed", description: "Convening the strategy office..." });
       navigate("/sigma");
     } catch (e: any) {
       console.error("[setup] insert failed", e);
-      toast({ title: "Couldn't save brief", description: e.message || "Unknown error", variant: "destructive" });
+      toast({ title: "Couldn't save brief", description: e?.message || "Unknown error. Please try again.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }

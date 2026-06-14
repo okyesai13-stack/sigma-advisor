@@ -18,14 +18,22 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     // Set up auth state listener BEFORE checking session
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      if (event === 'TOKEN_REFRESHED' && !session) {
+        // Refresh failed — clear stale tokens so user can sign back in
+        supabase.auth.signOut().catch(() => {});
+      }
     });
 
-    // Check existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // Check existing session; if it fails, clear and continue unauthenticated
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.warn('[auth] getSession error', error);
+        supabase.auth.signOut().catch(() => {});
+      }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
