@@ -39,20 +39,11 @@ const SigmaNoAuth = () => {
   const runAgent = async (a: typeof AGENTS[number]) => {
     setStatus((p) => ({ ...p, [a.id]: "running" }));
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(
-        `https://chxelpkvtnlduzlkauep.supabase.co/functions/v1/${a.endpoint}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
-          },
-          body: JSON.stringify({ business_id: business!.id }),
-        }
-      );
-      const result = await res.json();
-      if (!res.ok || !result.success) throw new Error(result.error || `${a.name} failed`);
+      const { data, error } = await supabase.functions.invoke(a.endpoint, {
+        body: { business_id: business!.id },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || `${a.name} failed`);
       setStatus((p) => ({ ...p, [a.id]: "completed" }));
     } catch (e: any) {
       console.error(`${a.id} error:`, e);
