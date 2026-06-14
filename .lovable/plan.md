@@ -1,94 +1,34 @@
+# Plan
 
-# Pivot to Planz — AI Multi-Agent Business Platform
+## Goal
+Make the `/setup` flow reliably save the business brief, stop the endless loading state, and ensure the agent run starts only after the brief is actually stored.
 
-Full rebuild from Sigma career advisor → **Planz**: AI agents for market research, competitor analysis, business planning, and financial modeling. Visual direction: **Paper & Ink** (editorial, McKinsey-style — off-white background, rich black ink, refined serif/sans pairing).
+## What I’ll change
+1. Harden the `/setup` submit flow
+   - Add explicit timeout and error handling around the business brief save.
+   - Prevent the button from staying in loading forever if the network/auth session is unhealthy.
+   - Surface the real failure state to the user instead of only spinning.
 
-## New Concept
+2. Fix Supabase auth-session handling on the client
+   - Update the auth bootstrap so stale token refresh failures do not leave the app in a broken session state.
+   - Make protected pages recover cleanly by forcing a fresh auth flow when the saved session is invalid.
 
-```text
-User idea/business → 4 AI Agents (parallel) → Unified Strategy Dashboard
-                ├─ Market Research Agent
-                ├─ Competitor Analysis Agent
-                ├─ Business Plan Agent
-                └─ Financial Model Agent
-```
+3. Make agent kickoff use the supported Supabase function client path
+   - Replace the raw hardcoded `fetch` calls to edge function URLs with `supabase.functions.invoke(...)` so auth headers, CORS, and errors are handled consistently.
+   - Add per-agent failure messaging so it’s obvious which agent failed and why.
 
-## Pages
+4. Validate the backend path end to end
+   - Re-check the `business_store` insert path against the current RLS rules.
+   - Confirm the agent functions are being called only after a real `business_id` exists.
 
-| Route | Purpose |
-|---|---|
-| `/` | Landing — editorial hero, "Turn your idea into a viable business", agent showcase, how-it-works |
-| `/auth` | Login/signup (kept, rebranded Planz) |
-| `/reset-password` | Kept |
-| `/setup` | Capture business idea: name, one-line pitch, stage (idea/early/established), industry, target market, optional uploaded doc |
-| `/sigma` → `/analysis` | Pipeline runner — runs 4 agents, shows live progress |
-| `/dashboard` | Unified strategy dashboard: Executive Summary, Market, Competitors, Business Plan, Financials |
+## Expected result
+- Clicking **Convene the agents** either:
+  - saves the brief and moves to the strategy session, or
+  - shows a clear actionable error immediately.
+- No indefinite spinner on `/setup`.
+- Agent requests begin only after the brief is stored successfully.
 
-## Backend — New Tables
-
-Drop old: `career_analysis_result`, `skill_validation_result`, `learning_plan_result`, `project_ideas_result`, `job_matching_result`, `career_goal_score_result`, `ai_role_analysis_result`, `journey_state`, `sigma_journey_state`, `resume_store`.
-
-Create new:
-- `business_store` — id, user_id, business_name, pitch, stage, industry, target_market, raw_context
-- `market_research_result` — business_id, market_size, trends, target_audience, opportunities, tam_sam_som
-- `competitor_analysis_result` — business_id, competitors[], swot, positioning, differentiation
-- `business_plan_result` — business_id, executive_summary, value_prop, business_model, go_to_market, milestones, risks
-- `financial_model_result` — business_id, revenue_streams, cost_structure, projections_3yr, unit_economics, funding_needs
-- `advisor_messages` — business_id, role, content (chat history)
-
-All scoped to `auth.uid()` via `user_id` on `business_store`, joined on `business_id`.
-
-## Backend — Edge Functions
-
-Drop old: `upload-resume`, `resume-image-parse`, `ai-role-analysis`, `career-goal-score`, `skill-validation`, `learning-plan`, `project-generation`, `job-matching`.
-
-Create new:
-- `market-research` — Gemini 3, structured output for market size/trends/audience
-- `competitor-analysis` — Identifies 5-8 competitors, SWOT, positioning map
-- `business-plan` — Generates exec summary, BMC, GTM, milestones
-- `financial-model` — Revenue model, cost structure, 3-yr projections, unit economics
-- `advisor-chat` / `advisor-chat-stream` — kept, repurposed as business strategy advisor
-
-## Frontend Components
-
-New under `src/components/dashboard/`:
-- `ExecutiveSummaryCard`
-- `MarketResearchSection` (TAM/SAM/SOM, trends, audience)
-- `CompetitorMatrix` (table + SWOT)
-- `BusinessPlanSection` (BMC-style grid)
-- `FinancialProjections` (charts via recharts, already in deps)
-
-Rebrand `AdvisorChatPanel` → Business Strategy Advisor persona.
-
-## Design Tokens (Paper & Ink)
-
-```css
---background: 40 33% 96%;        /* #f5f3ee */
---card: 40 25% 92%;              /* #e8e4dd */
---foreground: 0 0% 8%;           /* #0d0d0d */
---muted-foreground: 0 0% 18%;    /* #2d2d2d */
---primary: 0 0% 8%;              /* ink black */
---accent: 0 0% 18%;
-```
-
-Typography: **Instrument Serif** (display headings) + **Inter** (body). Editorial spacing, hairline dividers, no gradients, no rounded-2xl — restrained `rounded-md`.
-
-## Implementation Order
-
-1. Migration: drop old tables, create new business tables + RLS + GRANTs
-2. New edge functions (4 agents + rebranded advisor)
-3. Update `index.css` + `tailwind.config.ts` with Paper & Ink tokens + serif font
-4. New `LandingNoAuth.tsx` — Planz editorial design
-5. New `SetupNoAuth.tsx` — business idea capture
-6. Rename `SigmaNoAuth` → `AnalysisRunner` — runs 4 agents in parallel
-7. New `DashboardNoAuth.tsx` — strategy dashboard
-8. Update `ResumeContext` → `BusinessContext`
-9. Rebrand `AppLayout`, `index.html`, auth pages
-10. Delete obsolete components (AIRolesSection, SkillGapAnalysis, CareerGoalScoreCard, CareerRoadmapTimeline, OverallAssessmentCard)
-
-## What Stays
-- Auth flow, ProtectedRoute, two-panel layout shell
-- Advisor chat infrastructure (rebranded persona)
-- shadcn/ui, recharts, supabase client
-
-This is a large rebuild. After approval I'll execute in batches and confirm at major checkpoints.
+## Technical notes
+- Current evidence shows the browser is hitting `Failed to fetch` during Supabase auth token refresh, while no edge-function calls are being made and `business_store` remains empty.
+- The likely fix is a combination of client auth recovery plus safer submit/invoke logic, not another database grant change.
+- I’ll keep scope limited to the `/setup` save path and the agent-start flow it triggers.
