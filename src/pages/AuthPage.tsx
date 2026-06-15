@@ -66,10 +66,17 @@ const AuthPage = () => {
       const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
       if (error) throw error;
       toast({ title: 'Welcome back' });
-      if (data.user) await checkExistingBusiness(data.user.id);
+      setIsLoading(false);
+      // Fire-and-forget routing so a slow DB lookup never traps the spinner
+      if (data.user) {
+        checkExistingBusiness(data.user.id).catch(() => navigate('/setup', { replace: true }));
+      } else {
+        navigate('/setup', { replace: true });
+      }
     } catch (e: any) {
       toast({ title: 'Sign-in failed', description: e.message, variant: 'destructive' });
-    } finally { setIsLoading(false); }
+      setIsLoading(false);
+    }
   };
 
 
