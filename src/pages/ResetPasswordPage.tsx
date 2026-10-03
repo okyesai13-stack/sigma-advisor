@@ -66,6 +66,12 @@ const ResetPasswordPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col items-center justify-center px-6">
+      <Seo
+        title="Reset Password — Planz"
+        description="Set a new password for your Planz account."
+        path="/reset-password"
+        noindex
+      />
       <Card className="w-full max-w-md border-border/50 shadow-xl">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">

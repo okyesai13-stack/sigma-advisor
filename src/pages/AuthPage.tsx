@@ -103,6 +103,12 @@ const AuthPage = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <Seo
+        title="Sign In — Planz"
+        description="Sign in or create your Planz account to convene AI strategy agents for your business idea."
+        path="/auth"
+        noindex
+      />
       <header className="border-b hairline">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
           <button onClick={() => navigate('/')} className="flex items-center gap-2 hover:opacity-80">

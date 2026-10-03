@@ -89,6 +89,12 @@ const DashboardNoAuth = () => {
 
   return (
     <div className="min-h-full bg-background">
+      <Seo
+        title="Strategy Dashboard — Planz"
+        description="Your complete AI-generated strategy dossier: market research, competitor analysis, business plan, and financial model."
+        path="/dashboard"
+        noindex
+      />
       {/* Header strip */}
       <header className="border-b hairline">
         <div className="px-6 md:px-10 py-6">
