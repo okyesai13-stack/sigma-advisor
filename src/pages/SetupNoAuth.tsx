@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import Seo from "@/components/Seo";
 
 const STAGES = [
   { id: "idea", label: "Idea" },
@@ -88,6 +89,12 @@ const SetupNoAuth = () => {
 
   return (
     <div className="min-h-full bg-background">
+      <Seo
+        title="Business Brief — Planz"
+        description="Describe your business idea so the Planz strategy agents can analyze your market, competitors, plan, and finances."
+        path="/setup"
+        noindex
+      />
       <header className="border-b hairline">
         <div className="px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">

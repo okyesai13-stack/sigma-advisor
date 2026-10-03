@@ -5,6 +5,7 @@ import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, AlertTriangle, ArrowRight } from "lucide-react";
+import Seo from "@/components/Seo";
 
 type Status = "pending" | "running" | "completed" | "error";
 type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model";
@@ -85,6 +86,12 @@ const SigmaNoAuth = () => {
 
   return (
     <div className="min-h-full bg-background">
+      <Seo
+        title="Strategy Console — Planz"
+        description="Watch the four Planz AI agents — market research, competitor analysis, business plan, and financial model — work in parallel."
+        path="/sigma"
+        noindex
+      />
       <header className="border-b hairline">
         <div className="px-6 h-14 flex items-center justify-between">
           <span className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Step 2 of 2 — Strategy Session</span>

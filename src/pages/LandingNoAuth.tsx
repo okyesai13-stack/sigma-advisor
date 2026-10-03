@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, ArrowUpRight } from "lucide-react";
+import Seo from "@/components/Seo";
 
 const agents = [
   { num: "01", name: "Market Research", desc: "TAM/SAM/SOM sizing, trend analysis, audience segmentation, and emerging-opportunity scans drawn from your idea and industry." },
@@ -20,6 +21,11 @@ const LandingNoAuth = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <Seo
+        title="Planz — AI Business Strategy Agents"
+        description="Four AI agents — market research, competitor analysis, business plan, and financial model — turn your idea into an investor-ready strategy."
+        path="/"
+      />
       {/* Header */}
       <header className="border-b hairline">
         <div className="container mx-auto px-6 h-16 flex items-center justify-between">
