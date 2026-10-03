@@ -5,6 +5,7 @@ import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, AlertTriangle, ArrowRight } from "lucide-react";
+import Seo from "@/components/Seo";
 
 type Status = "pending" | "running" | "completed" | "error";
 type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model";

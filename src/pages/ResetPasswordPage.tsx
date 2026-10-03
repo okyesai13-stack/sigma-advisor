@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Loader2, Lock, CheckCircle } from 'lucide-react';
+import Seo from '@/components/Seo';
 
 const ResetPasswordPage = () => {
   const navigate = useNavigate();

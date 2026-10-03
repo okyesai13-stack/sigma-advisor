@@ -5,6 +5,7 @@ import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
+import Seo from "@/components/Seo";
 
 type Json = any;
 
