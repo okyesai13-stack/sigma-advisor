@@ -16,9 +16,10 @@ interface FinRes { revenue_streams: any[]; cost_structure: any[]; projections_3y
 const DashboardNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { business, clearSession, isReady } = useResume();
+  const { business, clearSession, isReady, reload } = useResume();
 
   const [loading, setLoading] = useState(true);
+  const [triedReload, setTriedReload] = useState(false);
   const [market, setMarket] = useState<MarketRes | null>(null);
   const [comp, setComp] = useState<CompRes | null>(null);
   const [plan, setPlan] = useState<PlanRes | null>(null);
@@ -27,11 +28,17 @@ const DashboardNoAuth = () => {
   useEffect(() => {
     if (!isReady) return;
     if (!business) {
-      navigate("/setup");
+      if (!triedReload) {
+        // Business may not be in memory yet — fetch the latest one before giving up.
+        setTriedReload(true);
+        reload().catch(() => {});
+        return;
+      }
+      setLoading(false);
       return;
     }
     loadAll();
-  }, [business?.id, isReady]);
+  }, [business?.id, isReady, triedReload]);
 
   const loadAll = async () => {
     if (!business) return;
@@ -54,7 +61,7 @@ const DashboardNoAuth = () => {
     }
   };
 
-  if (loading) {
+  if (loading || (!business && !triedReload)) {
     return (
       <div className="h-full flex items-center justify-center">
         <Loader2 className="w-6 h-6 animate-spin" />
@@ -62,7 +69,20 @@ const DashboardNoAuth = () => {
     );
   }
 
-  if (!business) return null;
+  if (!business) {
+    return (
+      <div className="min-h-full flex items-center justify-center px-6">
+        <div className="text-center max-w-md">
+          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">Strategy Dossier</p>
+          <h1 className="font-serif text-3xl mb-3">No brief on file yet.</h1>
+          <p className="text-muted-foreground mb-6">File a business brief and convene the agents to build your dossier.</p>
+          <Button onClick={() => navigate("/setup")} className="rounded-none text-xs uppercase tracking-[0.15em]">
+            File a brief <ArrowRight className="w-4 h-4" />
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const hasAny = market || comp || plan || fin;
 
