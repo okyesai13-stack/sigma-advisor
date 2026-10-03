@@ -26,19 +26,24 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const [isReady, setIsReady] = useState(false);
 
   const loadLatest = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) {
-      setBusinessState(null);
-      return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setBusinessState(null);
+        return;
+      }
+      const { data, error } = await supabase
+        .from('business_store')
+        .select('id, business_name, pitch, stage, industry, target_market, geography')
+        .eq('user_id', session.user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) console.warn('[business] load error', error);
+      if (data) setBusinessState(data as Business);
+    } catch (e) {
+      console.warn('[business] load failed', e);
     }
-    const { data } = await supabase
-      .from('business_store')
-      .select('id, business_name, pitch, stage, industry, target_market, geography')
-      .eq('user_id', session.user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    if (data) setBusinessState(data as Business);
   };
 
   useEffect(() => {
@@ -47,9 +52,13 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
       setIsReady(true);
     })();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_e, session) => {
-      if (session?.user) await loadLatest();
-      else setBusinessState(null);
+    // IMPORTANT: never await Supabase calls inside onAuthStateChange — it holds the
+    // auth lock and freezes every other request. Defer the work instead.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (!session?.user) { setBusinessState(null); return; }
+      if (event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        setTimeout(() => { loadLatest(); }, 0);
+      }
     });
     return () => subscription.unsubscribe();
   }, []);

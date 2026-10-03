@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
@@ -19,7 +19,7 @@ const AGENTS: { id: AgentId; num: string; name: string; endpoint: string; desc: 
 const SigmaNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { business } = useResume();
+  const { business, isReady } = useResume();
   const [status, setStatus] = useState<Record<AgentId, Status>>({
     market_research: "pending",
     competitor_analysis: "pending",
@@ -27,34 +27,48 @@ const SigmaNoAuth = () => {
     financial_model: "pending",
   });
   const [allDone, setAllDone] = useState(false);
+  const startedFor = useRef<string | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
     if (!business) {
       navigate("/setup");
       return;
     }
+    if (startedFor.current === business.id) return;
+    startedFor.current = business.id;
     runAll();
-  }, [business?.id]);
+  }, [business?.id, isReady]);
 
-  const runAgent = async (a: typeof AGENTS[number]) => {
+  const runAgent = async (a: typeof AGENTS[number]): Promise<boolean> => {
     setStatus((p) => ({ ...p, [a.id]: "running" }));
     try {
       const { data, error } = await supabase.functions.invoke(a.endpoint, {
         body: { business_id: business!.id },
       });
-      if (error) throw error;
+      if (error) {
+        let msg = error.message;
+        try { const b = await (error as any).context?.json?.(); if (b?.error) msg = b.error; } catch { /* ignore */ }
+        throw new Error(msg);
+      }
       if (!data?.success) throw new Error(data?.error || `${a.name} failed`);
       setStatus((p) => ({ ...p, [a.id]: "completed" }));
+      return true;
     } catch (e: any) {
       console.error(`${a.id} error:`, e);
       setStatus((p) => ({ ...p, [a.id]: "error" }));
+      toast({ title: `${a.name} failed`, description: e?.message || "Please retry this agent.", variant: "destructive" });
+      return false;
     }
   };
 
   const runAll = async () => {
-    await Promise.all(AGENTS.map(runAgent));
+    const results = await Promise.all(AGENTS.map(runAgent));
     setAllDone(true);
-    toast({ title: "Strategy session complete", description: "Your dossier is ready." });
+    const ok = results.filter(Boolean).length;
+    toast(ok === AGENTS.length
+      ? { title: "Strategy session complete", description: "Your dossier is ready." }
+      : { title: `${ok} of ${AGENTS.length} agents filed`, description: "Retry the failed agents or open the dossier." });
   };
 
   const retry = (id: AgentId) => {

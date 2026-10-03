@@ -23,8 +23,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session?.user ?? null);
       setLoading(false);
       if (event === 'TOKEN_REFRESHED' && !session) {
-        // Refresh failed — clear stale tokens so user can sign back in
-        supabase.auth.signOut().catch(() => {});
+        // Refresh failed — clear stale tokens (deferred to avoid auth-lock deadlock)
+        setTimeout(() => { supabase.auth.signOut({ scope: 'local' }).catch(() => {}); }, 0);
       }
     });
 
@@ -32,12 +32,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.warn('[auth] getSession error', error);
-        supabase.auth.signOut().catch(() => {});
+        supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       }
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
     return () => subscription.unsubscribe();
   }, []);

@@ -16,7 +16,7 @@ interface FinRes { revenue_streams: any[]; cost_structure: any[]; projections_3y
 const DashboardNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { business, clearSession } = useResume();
+  const { business, clearSession, isReady } = useResume();
 
   const [loading, setLoading] = useState(true);
   const [market, setMarket] = useState<MarketRes | null>(null);
@@ -25,12 +25,13 @@ const DashboardNoAuth = () => {
   const [fin, setFin] = useState<FinRes | null>(null);
 
   useEffect(() => {
+    if (!isReady) return;
     if (!business) {
       navigate("/setup");
       return;
     }
     loadAll();
-  }, [business?.id]);
+  }, [business?.id, isReady]);
 
   const loadAll = async () => {
     if (!business) return;
