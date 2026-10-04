@@ -14,6 +14,13 @@ interface CompRes { competitors: any[]; swot: Json; positioning: Json; different
 interface PlanRes { executive_summary: string | null; value_proposition: string | null; business_model: Json; go_to_market: Json; milestones: any[]; risks: any[]; team_needs: any[]; }
 interface FinRes { revenue_streams: any[]; cost_structure: any[]; projections_3yr: any[]; unit_economics: Json; funding_needs: Json; key_assumptions: any[]; summary: string | null; }
 
+const DOSSIER_SUMMARY = [
+  { icon: TrendingUp, title: "Market", label: "Research filed", key: "market" },
+  { icon: Target, title: "Position", label: "Competitive map", key: "comp" },
+  { icon: BarChart3, title: "Plan", label: "Roadmap ready", key: "plan" },
+  { icon: WalletCards, title: "Finance", label: "Model prepared", key: "fin" },
+] as const;
+
 const DashboardNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -131,7 +138,7 @@ const DashboardNoAuth = () => {
       )}
 
       {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-4">
-        {[[TrendingUp,'Market','Research filed',!!market],[Target,'Position','Competitive map',!!comp],[BarChart3,'Plan','Roadmap ready',!!plan],[WalletCards,'Finance','Model prepared',!!fin]].map(([Icon,title,label,ready]) => <div key={String(title)} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{String(title)}</p><p className="text-xs text-muted-foreground">{ready ? String(label) : 'Pending'}</p></div></div>)}
+        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : !!fin; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
       </div>}
       <div className="space-y-16 px-5 py-10 md:px-10">
         {/* Executive Summary */}
