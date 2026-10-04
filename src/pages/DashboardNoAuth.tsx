@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, RefreshCw } from "lucide-react";
+import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards } from "lucide-react";
 import Seo from "@/components/Seo";
 
 type Json = any;
@@ -13,6 +13,13 @@ interface MarketRes { market_size: Json; tam_sam_som: Json; trends: Json[]; targ
 interface CompRes { competitors: any[]; swot: Json; positioning: Json; differentiation: any[]; summary: string | null; }
 interface PlanRes { executive_summary: string | null; value_proposition: string | null; business_model: Json; go_to_market: Json; milestones: any[]; risks: any[]; team_needs: any[]; }
 interface FinRes { revenue_streams: any[]; cost_structure: any[]; projections_3yr: any[]; unit_economics: Json; funding_needs: Json; key_assumptions: any[]; summary: string | null; }
+
+const DOSSIER_SUMMARY = [
+  { icon: TrendingUp, title: "Market", label: "Research filed", key: "market" },
+  { icon: Target, title: "Position", label: "Competitive map", key: "comp" },
+  { icon: BarChart3, title: "Plan", label: "Roadmap ready", key: "plan" },
+  { icon: WalletCards, title: "Finance", label: "Model prepared", key: "fin" },
+] as const;
 
 const DashboardNoAuth = () => {
   const navigate = useNavigate();
@@ -65,7 +72,7 @@ const DashboardNoAuth = () => {
   if (loading || (!business && !triedReload)) {
     return (
       <div className="h-full flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin" />
+        <div className="text-center"><Loader2 className="mx-auto h-6 w-6 animate-spin text-primary" /><p className="mt-3 text-sm text-muted-foreground">Loading your strategy dossier</p></div>
       </div>
     );
   }
@@ -74,10 +81,10 @@ const DashboardNoAuth = () => {
     return (
       <div className="min-h-full flex items-center justify-center px-6">
         <div className="text-center max-w-md">
-          <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">Strategy Dossier</p>
-          <h1 className="font-serif text-3xl mb-3">No brief on file yet.</h1>
+          <p className="eyebrow mb-3 text-primary">Strategy dossier</p>
+          <h1 className="mb-3 font-display text-3xl font-semibold">No brief on file yet.</h1>
           <p className="text-muted-foreground mb-6">File a business brief and convene the agents to build your dossier.</p>
-          <Button onClick={() => navigate("/setup")} className="rounded-none text-xs uppercase tracking-[0.15em]">
+          <Button onClick={() => navigate("/setup")}>
             File a brief <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
@@ -96,25 +103,25 @@ const DashboardNoAuth = () => {
         noindex
       />
       {/* Header strip */}
-      <header className="border-b hairline">
-        <div className="px-6 md:px-10 py-6">
+      <header className="border-b border-border bg-card/30">
+        <div className="px-5 py-8 md:px-10">
           <div className="flex items-start justify-between gap-6">
             <div>
-              <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">Strategy Dossier — № 003</p>
-              <h1 className="font-serif text-4xl md:text-5xl leading-tight">{business.business_name}</h1>
+              <p className="eyebrow mb-2 text-primary">Strategy dossier</p>
+              <h1 className="font-display text-4xl font-semibold leading-tight md:text-5xl">{business.business_name}</h1>
               <p className="text-muted-foreground mt-2 max-w-2xl">{business.pitch}</p>
-              <div className="flex flex-wrap gap-x-6 gap-y-1 mt-4 text-xs uppercase tracking-[0.15em] text-muted-foreground">
-                <span>Stage — {business.stage}</span>
-                {business.industry && <span>Industry — {business.industry}</span>}
-                {business.target_market && <span>Market — {business.target_market}</span>}
+              <div className="mt-5 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <span className="rounded-full border border-border bg-card px-3 py-1.5">Stage · {business.stage}</span>
+                {business.industry && <span className="rounded-full border border-border bg-card px-3 py-1.5">Industry · {business.industry}</span>}
+                {business.target_market && <span className="rounded-full border border-border bg-card px-3 py-1.5">Market · {business.target_market}</span>}
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => navigate("/sigma")} className="rounded-none text-xs uppercase tracking-[0.15em]">
+              <Button variant="outline" size="sm" onClick={() => navigate("/sigma")}>
                 <RefreshCw className="w-3.5 h-3.5" /> Re-run
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => { clearSession(); navigate("/setup"); }} className="rounded-none text-xs uppercase tracking-[0.15em]">
-                New brief
+              <Button variant="ghost" size="sm" onClick={() => { clearSession(); navigate("/setup"); }}>
+                <Plus /> New brief
               </Button>
             </div>
           </div>
@@ -124,17 +131,20 @@ const DashboardNoAuth = () => {
       {!hasAny && (
         <div className="px-6 md:px-10 py-20 text-center">
           <p className="text-muted-foreground mb-6">No analysis yet for this business.</p>
-          <Button onClick={() => navigate("/sigma")} className="rounded-none text-xs uppercase tracking-[0.15em]">
+          <Button onClick={() => navigate("/sigma")}>
             Run the strategy session <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       )}
 
-      <div className="px-6 md:px-10 py-10 space-y-16">
+      {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-4">
+        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : !!fin; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
+      </div>}
+      <div className="space-y-16 px-5 py-10 md:px-10">
         {/* Executive Summary */}
         {plan?.executive_summary && (
           <Section number="I." title="Executive Summary">
-            <p className="font-serif text-2xl md:text-3xl leading-snug text-balance max-w-4xl">
+            <p className="max-w-4xl text-balance font-display text-2xl font-medium leading-snug md:text-3xl">
               {plan.executive_summary}
             </p>
             {plan.value_proposition && (
@@ -152,11 +162,11 @@ const DashboardNoAuth = () => {
             {market.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{market.summary}</p>}
 
             {market.tam_sam_som && (
-              <div className="grid md:grid-cols-3 gap-px bg-border mb-8">
+              <div className="mb-8 grid gap-3 md:grid-cols-3">
                 {["tam", "sam", "som"].map((k) => (
-                  <div key={k} className="bg-background p-6">
+                  <div key={k} className="rounded-md border border-border bg-card p-6">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">{k.toUpperCase()}</p>
-                    <p className="font-serif text-3xl">{market.tam_sam_som?.[k]?.value || "—"}</p>
+                    <p className="font-display text-3xl font-semibold text-primary">{market.tam_sam_som?.[k]?.value || "—"}</p>
                     {market.tam_sam_som?.[k]?.note && <p className="text-xs text-muted-foreground mt-2">{market.tam_sam_som[k].note}</p>}
                   </div>
                 ))}
@@ -205,9 +215,9 @@ const DashboardNoAuth = () => {
             )}
 
             {comp.swot && (
-              <div className="grid md:grid-cols-2 gap-px bg-border mb-8">
+              <div className="mb-8 grid gap-3 md:grid-cols-2">
                 {(["strengths", "weaknesses", "opportunities", "threats"] as const).map((k) => (
-                  <div key={k} className="bg-background p-6">
+                  <div key={k} className="rounded-md border border-border bg-card p-6">
                     <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">{k}</p>
                     <Bullets items={comp.swot?.[k] || []} />
                   </div>
@@ -336,25 +346,25 @@ const DashboardNoAuth = () => {
 
 /* --- Building blocks --- */
 const Section = ({ number, title, children }: { number: string; title: string; children: React.ReactNode }) => (
-  <section>
-    <div className="flex items-baseline gap-6 mb-8 border-b hairline pb-4">
-      <span className="font-serif text-4xl text-muted-foreground">{number}</span>
-      <h2 className="font-serif text-3xl md:text-4xl">{title}</h2>
+  <section className="animate-slide-up scroll-mt-20">
+    <div className="mb-8 flex items-center gap-5 border-b border-border pb-4">
+      <span className="grid h-9 min-w-9 place-items-center rounded bg-primary/10 font-display text-xs font-semibold text-primary">{number}</span>
+      <h2 className="font-display text-3xl font-semibold md:text-4xl">{title}</h2>
     </div>
     {children}
   </section>
 );
 const Label = ({ children }: { children: React.ReactNode }) => (
-  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">{children}</p>
+  <p className="eyebrow">{children}</p>
 );
 const Block = ({ title, children }: { title: string; children: React.ReactNode }) => (
-  <div className="py-4">
+  <div className="rounded-md border border-border bg-card/60 p-5">
     <Label>{title}</Label>
     <div className="mt-3">{children}</div>
   </div>
 );
 const Grid2 = ({ children }: { children: React.ReactNode }) => (
-  <div className="grid md:grid-cols-2 gap-x-12 gap-y-2 mt-2">{children}</div>
+  <div className="mt-3 grid gap-3 md:grid-cols-2">{children}</div>
 );
 const Bullets = ({ items }: { items: any[] }) => {
   if (!items || items.length === 0) return <p className="text-sm text-muted-foreground italic">None.</p>;
@@ -362,7 +372,7 @@ const Bullets = ({ items }: { items: any[] }) => {
     <ul className="space-y-2">
       {items.map((it, i) => (
         <li key={i} className="flex gap-3 text-sm leading-relaxed">
-          <span className="text-muted-foreground">—</span>
+          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
           <span>{String(it)}</span>
         </li>
       ))}
