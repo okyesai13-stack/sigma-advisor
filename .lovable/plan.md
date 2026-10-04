@@ -1,34 +1,51 @@
-# Plan
+# Planz UI/UX Redesign Plan
 
 ## Goal
-Make the `/setup` flow reliably save the business brief, stop the endless loading state, and ensure the agent run starts only after the brief is actually stored.
+Rebuild the complete Planz interface around the selected **Editorial Tech Noir** direction: a dark product-led strategy command center inspired by myjobb.ai’s polish and motion, without copying its brand, content, or proprietary assets.
 
-## What I’ll change
-1. Harden the `/setup` submit flow
-   - Add explicit timeout and error handling around the business brief save.
-   - Prevent the button from staying in loading forever if the network/auth session is unhealthy.
-   - Surface the real failure state to the user instead of only spinning.
+## Locked visual direction
+- **Palette:** Signal Orange — graphite `#101110`, raised surface `#232522`, action orange `#FF6B35`, warm foreground `#F7F5EF`.
+- **Typography:** Space Grotesk for headings and key metrics; DM Sans for body and controls.
+- **Structure:** Product dashboard language with compact navigation, modular work surfaces, clear progress, and strong action hierarchy.
+- **Motion:** Fast staged reveals, subtle depth, tactile hover/press feedback, animated agent activity, and smooth drawer/panel transitions. All motion will respect reduced-motion settings.
+- **Shape:** Tight radii, thin low-contrast borders, restrained shadows, and selective translucent layers. No decorative gradients, copied logos, or borrowed brand content.
 
-2. Fix Supabase auth-session handling on the client
-   - Update the auth bootstrap so stale token refresh failures do not leave the app in a broken session state.
-   - Make protected pages recover cleanly by forcing a fresh auth flow when the saved session is invalid.
+## Implementation
 
-3. Make agent kickoff use the supported Supabase function client path
-   - Replace the raw hardcoded `fetch` calls to edge function URLs with `supabase.functions.invoke(...)` so auth headers, CORS, and errors are handled consistently.
-   - Add per-agent failure messaging so it’s obvious which agent failed and why.
+### 1. Shared visual system
+- Replace the current paper-and-ink tokens with the locked dark palette, accessible semantic states, shadows, surfaces, and typography.
+- Load Space Grotesk and DM Sans correctly from the document head rather than CSS imports.
+- Standardize buttons, inputs, tabs, labels, status markers, cards, focus states, and motion utilities.
+- Create a small set of reusable presentation pieces for page labels, section headings, status indicators, and metric panels.
 
-4. Validate the backend path end to end
-   - Re-check the `business_store` insert path against the current RLS rules.
-   - Confirm the agent functions are being called only after a real `business_id` exists.
+### 2. Public experience
+- Recompose the landing page as an immersive dark product experience with Planz as the first visual signal.
+- Show the actual four-agent workflow in the first viewport through an animated strategy-engine preview.
+- Restyle the agent roster, method, audience, proof points, calls to action, navigation, and footer in the selected system.
+- Redesign sign-in, account creation, forgot-password, reset-password, and not-found states to match the same product language.
 
-## Expected result
-- Clicking **Convene the agents** either:
-  - saves the brief and moves to the strategy session, or
-  - shows a clear actionable error immediately.
-- No indefinite spinner on `/setup`.
-- Agent requests begin only after the brief is stored successfully.
+### 3. Authenticated product shell
+- Turn the existing two-panel layout into a cohesive strategy workspace with stronger navigation, business context, user controls, and clear panel hierarchy.
+- Preserve the resizable advisor/content split on desktop and the advisor drawer on mobile.
+- Improve the mobile top bar and floating advisor action without changing authentication or routing behavior.
 
-## Technical notes
-- Current evidence shows the browser is hitting `Failed to fetch` during Supabase auth token refresh, while no edge-function calls are being made and `business_store` remains empty.
-- The likely fix is a combination of client auth recovery plus safer submit/invoke logic, not another database grant change.
-- I’ll keep scope limited to the `/setup` save path and the agent-start flow it triggers.
+### 4. Business brief and agent console
+- Present the setup form as a focused guided brief with improved grouping, stage selection, validation visibility, and submit feedback.
+- Transform the strategy console into an active orchestration view with four distinct agent rows, animated progress, completed/error states, retry controls, and a clear handoff to the dossier.
+- Keep all existing database writes, timeouts, edge-function calls, and retry behavior unchanged.
+
+### 5. Strategy dashboard and advisor
+- Reorganize the dossier into a scannable dashboard with a compact overview, section navigation, key market metrics, competitor analysis, plan milestones, SWOT, and financial tables.
+- Preserve all optional-data handling and empty/loading states.
+- Restyle the advisor as an integrated AI workspace with refined suggestions, streaming response feedback, readable conversation rhythm, and a stronger composer.
+- Keep chat history, streaming, auto-scroll, and message persistence unchanged.
+
+### 6. Responsive and accessibility pass
+- Validate landing, auth, setup, console, dashboard, and advisor layouts at desktop and mobile sizes.
+- Check long text, tables, controls, drawer behavior, loading/error states, focus visibility, contrast, keyboard access, and reduced motion.
+- Verify route-specific metadata remains intact and confirm the preview builds without errors.
+
+## Technical boundaries
+- Frontend presentation only: React page/layout components, shared UI primitives, global tokens, typography, and animations.
+- No changes to Supabase tables, policies, authentication logic, edge functions, agent prompts, routing, or business-analysis behavior.
+- Existing Planz branding and feature copy remain; the reference site guides visual quality and interaction pacing only.
