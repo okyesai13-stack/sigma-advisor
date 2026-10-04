@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, TrendingUp, Users, BarChart3, Target } from "lucide-react";
+import { Send, Loader2, TrendingUp, Users, BarChart3, Target, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useResume } from "@/contexts/ResumeContext";
@@ -81,7 +81,8 @@ const AdvisorChatPanel = () => {
       );
       if (!res.ok) throw new Error("Failed to get response");
 
-      const reader = res.body!.getReader();
+      if (!res.body) throw new Error("Advisor returned an empty response");
+      const reader = res.body.getReader();
       const decoder = new TextDecoder();
       let assistant = "";
       let buffer = "";
@@ -135,30 +136,29 @@ const AdvisorChatPanel = () => {
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      <div className="border-b hairline px-4 py-3 shrink-0">
-        <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground">Resident Advisor</p>
-        <h2 className="font-serif text-lg leading-tight mt-0.5">Strategy Counsel</h2>
+    <div className="flex h-full flex-col bg-sidebar">
+      <div className="shrink-0 border-b border-border px-4 py-3">
+        <div className="flex items-center justify-between"><div><p className="eyebrow">Resident advisor</p><h2 className="mt-0.5 font-display text-lg font-semibold">Strategy counsel</h2></div><span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span></div>
       </div>
 
       {messages.length === 0 ? (
         <div className="flex-1 flex flex-col min-h-0">
           <div className="flex-1 flex flex-col justify-center px-5">
-            <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-3">Open with</p>
-            <h3 className="font-serif text-2xl leading-tight mb-6">
+            <p className="eyebrow mb-3">Open with</p>
+            <h3 className="mb-6 font-display text-2xl font-semibold leading-tight">
               {businessId ? "What should we sharpen next?" : "File a brief to begin."}
             </h3>
             {businessId && (
-              <div className="space-y-px bg-border">
+              <div className="space-y-2">
                 {suggestions.map((s) => (
                   <button
                     key={s.title}
                     onClick={() => { setInput(s.q); taRef.current?.focus(); }}
-                    className="w-full bg-background hover:bg-secondary px-4 py-3 text-left transition-colors flex items-start gap-3"
+                    className="flex w-full items-start gap-3 rounded-md border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/40 hover:bg-accent"
                   >
                     <s.icon className="w-4 h-4 mt-0.5 text-muted-foreground" />
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.15em] text-muted-foreground">{s.title}</p>
+                      <p className="eyebrow">{s.title}</p>
                       <p className="text-sm mt-0.5">{s.q}</p>
                     </div>
                   </button>
@@ -176,13 +176,13 @@ const AdvisorChatPanel = () => {
                 <div key={i} className={cn("animate-fade-in", m.role === "user" && "flex justify-end")}>
                   {m.role === "assistant" ? (
                     <div>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1">Advisor</p>
-                      <p className="text-sm leading-6 whitespace-pre-wrap">{formatMessage(m.content)}</p>
+                      <p className="eyebrow mb-2 text-primary">Advisor</p>
+                      <p className="whitespace-pre-wrap rounded-md border border-border bg-card p-3 text-sm leading-6">{formatMessage(m.content)}</p>
                     </div>
                   ) : (
                     <div className="max-w-[85%]">
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground mb-1 text-right">You</p>
-                      <div className="bg-foreground text-background px-4 py-2.5">
+                      <p className="eyebrow mb-1 text-right">You</p>
+                      <div className="rounded-md bg-primary px-4 py-2.5 text-primary-foreground">
                         <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.content}</p>
                       </div>
                     </div>
@@ -207,15 +207,15 @@ const AdvisorChatPanel = () => {
 };
 
 const Composer = ({ ta, value, disabled, loading, onChange, onKey, onSend }: any) => (
-  <div className="p-3 border-t hairline shrink-0">
-    <div className="relative bg-card border hairline">
+  <div className="shrink-0 border-t border-border p-3">
+    <div className="relative rounded-md border border-border bg-card focus-within:border-primary/50">
       <Textarea
         ref={ta}
         value={value}
         onChange={onChange}
         onKeyDown={onKey}
         placeholder={disabled ? "File a brief to begin..." : "Ask the advisor..."}
-        className="w-full min-h-[44px] max-h-[160px] resize-none border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 py-3 pl-3 pr-12 text-sm bg-transparent"
+        className="min-h-[46px] max-h-[160px] w-full resize-none border-0 bg-transparent py-3 pl-3 pr-12 text-sm focus-visible:ring-0 focus-visible:ring-offset-0"
         rows={1}
         disabled={loading || disabled}
       />
@@ -223,7 +223,7 @@ const Composer = ({ ta, value, disabled, loading, onChange, onKey, onSend }: any
         onClick={onSend}
         disabled={!value.trim() || loading || disabled}
         size="icon"
-        className="absolute right-1.5 bottom-1.5 w-8 h-8 rounded-none disabled:opacity-30"
+        className="absolute bottom-1.5 right-1.5 h-8 w-8 disabled:opacity-30"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
       </Button>
