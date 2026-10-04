@@ -4,7 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Sparkles, Loader2, Lock, CheckCircle } from 'lucide-react';
 import Seo from '@/components/Seo';
@@ -65,27 +64,28 @@ const ResetPasswordPage = () => {
   if (checking) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 flex flex-col items-center justify-center px-6">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-5">
       <Seo
         title="Reset Password — Planz"
         description="Set a new password for your Planz account."
         path="/reset-password"
         noindex
       />
-      <Card className="w-full max-w-md border-border/50 shadow-xl">
-        <CardHeader className="text-center pb-2">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-3">
-            <Sparkles className="w-6 h-6 text-primary" />
+      <div className="panel-surface w-full max-w-md animate-slide-up rounded-lg p-6 md:p-8">
+        <div className="pb-6 text-center">
+          <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-md bg-primary/10">
+            <Sparkles className="h-6 w-6 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Reset Password</CardTitle>
-          <CardDescription>
+          <p className="eyebrow text-primary">Account recovery</p>
+          <h1 className="mt-2 font-display text-3xl font-semibold">Reset password</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
             {isSuccess ? 'Your password has been updated' : 'Enter your new password below'}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </div>
+        <div>
           {isSuccess ? (
             <div className="flex flex-col items-center gap-3 py-4">
-              <CheckCircle className="w-12 h-12 text-emerald-500" />
+              <CheckCircle className="h-12 w-12 text-success" />
               <p className="text-sm text-muted-foreground">Redirecting to sign in…</p>
             </div>
           ) : !isValidSession ? (
@@ -109,7 +109,7 @@ const ResetPasswordPage = () => {
                     placeholder="Min 6 characters"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
+                    className="h-12 bg-background pl-10"
                     required
                     minLength={6}
                   />
@@ -125,20 +125,20 @@ const ResetPasswordPage = () => {
                     placeholder="Re-enter password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="pl-10"
+                    className="h-12 bg-background pl-10"
                     required
                     minLength={6}
                   />
                 </div>
               </div>
-              <Button type="submit" className="w-full h-11" disabled={isLoading}>
+              <Button type="submit" size="lg" className="w-full" disabled={isLoading}>
                 {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
                 Update Password
               </Button>
             </form>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
