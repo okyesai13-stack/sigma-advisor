@@ -4,17 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw } from "lucide-react";
+import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw, Megaphone } from "lucide-react";
 import Seo from "@/components/Seo";
 
 type Status = "pending" | "running" | "completed" | "error";
-type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model";
+type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model" | "marketing_strategy";
 
 const AGENTS = [
   { id: "market_research" as AgentId, num: "01", icon: Radar, name: "Market Research", endpoint: "market-research", desc: "Sizing the opportunity and reading the market" },
   { id: "competitor_analysis" as AgentId, num: "02", icon: BarChart3, name: "Competitor Analysis", endpoint: "competitor-analysis", desc: "Mapping the field and finding white space" },
   { id: "business_plan" as AgentId, num: "03", icon: Bot, name: "Business Plan", endpoint: "business-plan", desc: "Drafting strategy, GTM, and milestones" },
   { id: "financial_model" as AgentId, num: "04", icon: LineChart, name: "Financial Model", endpoint: "financial-model", desc: "Building projections and unit economics" },
+  { id: "marketing_strategy" as AgentId, num: "05", icon: Megaphone, name: "Marketing Strategy", endpoint: "marketing-strategy", desc: "Planning positioning, channels, and campaigns" },
 ];
 
 const SigmaNoAuth = () => {
@@ -26,6 +27,7 @@ const SigmaNoAuth = () => {
     competitor_analysis: "pending",
     business_plan: "pending",
     financial_model: "pending",
+    marketing_strategy: "pending",
   });
   const [allDone, setAllDone] = useState(false);
   const startedFor = useRef<string | null>(null);
@@ -89,7 +91,7 @@ const SigmaNoAuth = () => {
     <div className="min-h-full bg-background">
       <Seo
         title="Strategy Console — Planz"
-        description="Watch the four Planz AI agents — market research, competitor analysis, business plan, and financial model — work in parallel."
+        description="Watch the five Planz AI agents — market research, competitor analysis, business plan, financial model, and marketing strategy — work in parallel."
         path="/sigma"
         noindex
       />
@@ -110,7 +112,7 @@ const SigmaNoAuth = () => {
           <h1 className="font-display text-4xl font-semibold leading-tight md:text-6xl">The office is convened.</h1>
           {business && (
             <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
-              Four agents are working on <strong className="font-medium text-foreground">{business.business_name}</strong>. Each runs in parallel to brief their findings.
+              Five agents are working on <strong className="font-medium text-foreground">{business.business_name}</strong>. Each runs in parallel to brief their findings.
             </p>
           )}
         </div>

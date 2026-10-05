@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards } from "lucide-react";
+import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards, Megaphone } from "lucide-react";
 import Seo from "@/components/Seo";
 
 type Json = any;
@@ -19,6 +19,7 @@ const DOSSIER_SUMMARY = [
   { icon: Target, title: "Position", label: "Competitive map", key: "comp" },
   { icon: BarChart3, title: "Plan", label: "Roadmap ready", key: "plan" },
   { icon: WalletCards, title: "Finance", label: "Model prepared", key: "fin" },
+  { icon: Megaphone, title: "Marketing", label: "Strategy ready", key: "mkt" },
 ] as const;
 
 const DashboardNoAuth = () => {
@@ -32,6 +33,7 @@ const DashboardNoAuth = () => {
   const [comp, setComp] = useState<CompRes | null>(null);
   const [plan, setPlan] = useState<PlanRes | null>(null);
   const [fin, setFin] = useState<FinRes | null>(null);
+  const [mkt, setMkt] = useState<any | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -52,12 +54,14 @@ const DashboardNoAuth = () => {
     if (!business) return;
     setLoading(true);
     try {
-      const [m, c, p, f] = await Promise.all([
+      const [m, c, p, f, mk] = await Promise.all([
         supabase.from("market_research_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("competitor_analysis_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("business_plan_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("financial_model_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase as any).from("marketing_strategy_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
+      setMkt(mk.data as any);
       setMarket(m.data as any);
       setComp(c.data as any);
       setPlan(p.data as any);
@@ -92,13 +96,13 @@ const DashboardNoAuth = () => {
     );
   }
 
-  const hasAny = market || comp || plan || fin;
+  const hasAny = market || comp || plan || fin || mkt;
 
   return (
     <div className="min-h-full bg-background">
       <Seo
         title="Strategy Dashboard — Planz"
-        description="Your complete AI-generated strategy dossier: market research, competitor analysis, business plan, and financial model."
+        description="Your complete AI-generated strategy dossier: market research, competitor analysis, business plan, financial model, and marketing strategy."
         path="/dashboard"
         noindex
       />
@@ -137,8 +141,8 @@ const DashboardNoAuth = () => {
         </div>
       )}
 
-      {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-4">
-        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : !!fin; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
+      {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-5">
+        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : !!mkt; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
       </div>}
       <div className="space-y-16 px-5 py-10 md:px-10">
         {/* Executive Summary */}
@@ -336,6 +340,73 @@ const DashboardNoAuth = () => {
               <Block title="Key assumptions">
                 <Bullets items={fin.key_assumptions.map((a: any) => typeof a === "string" ? a : JSON.stringify(a))} />
               </Block>
+            )}
+          </Section>
+        )}
+        {/* Marketing Strategy */}
+        {mkt && (
+          <Section number="VI." title="Marketing Plan & Strategy">
+            {mkt.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{mkt.summary}</p>}
+            {mkt.positioning && Object.keys(mkt.positioning).length > 0 && (
+              <Block title="Positioning"><KeyValue obj={mkt.positioning} /></Block>
+            )}
+            {mkt.personas?.length > 0 && (
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {mkt.personas.map((p: any, i: number) => (
+                  <div key={i} className="rounded-md border border-border bg-card p-5">
+                    <p className="eyebrow text-primary">Persona {String(i + 1).padStart(2, "0")}</p>
+                    <h4 className="mt-2 font-display text-lg font-semibold">{p.name}</h4>
+                    {p.description && <p className="mt-2 text-sm text-muted-foreground">{p.description}</p>}
+                    {p.pain_points && <p className="mt-3 text-xs"><span className="text-muted-foreground uppercase tracking-[0.15em]">Pain — </span>{p.pain_points}</p>}
+                    {p.where_to_reach && <p className="mt-1 text-xs"><span className="text-muted-foreground uppercase tracking-[0.15em]">Reach — </span>{p.where_to_reach}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {mkt.channels?.length > 0 && (
+              <div className="mt-3"><Block title="Channel mix">
+                <div className="divide-y divide-border">
+                  {mkt.channels.map((c: any, i: number) => (
+                    <div key={i} className="grid gap-2 py-3 text-sm md:grid-cols-[1fr_auto_2fr_auto] md:items-center md:gap-4">
+                      <span className="font-medium">{c.channel}</span>
+                      <span className="w-fit rounded-full border border-border px-2 py-0.5 text-xs text-primary">{c.priority}</span>
+                      <span className="text-muted-foreground">{c.tactic}</span>
+                      <span className="font-display font-semibold">{c.budget_share}</span>
+                    </div>
+                  ))}
+                </div>
+              </Block></div>
+            )}
+            <Grid2>
+              {mkt.content_pillars?.length > 0 && (
+                <Block title="Content pillars">
+                  <Bullets items={mkt.content_pillars.map((c: any) => typeof c === "string" ? c : `${c.pillar}${c.examples ? ` — ${c.examples}` : ""}`)} />
+                </Block>
+              )}
+              {mkt.campaigns?.length > 0 && (
+                <Block title="Campaigns">
+                  <Bullets items={mkt.campaigns.map((c: any) => typeof c === "string" ? c : `${c.name}: ${c.objective || ""}${c.timeline ? ` (${c.timeline})` : ""}`)} />
+                </Block>
+              )}
+              {mkt.kpis?.length > 0 && (
+                <Block title="KPIs">
+                  <Bullets items={mkt.kpis.map((k: any) => typeof k === "string" ? k : `${k.metric} — ${k.target}`)} />
+                </Block>
+              )}
+              {mkt.budget && Object.keys(mkt.budget).length > 0 && (
+                <Block title="Marketing budget"><KeyValue obj={mkt.budget} /></Block>
+              )}
+            </Grid2>
+            {mkt.roadmap_90_days?.length > 0 && (
+              <div className="mt-3 grid gap-3 md:grid-cols-3">
+                {mkt.roadmap_90_days.map((r: any, i: number) => (
+                  <div key={i} className="rounded-md border border-border bg-card/60 p-5">
+                    <p className="eyebrow text-primary">{r.phase}</p>
+                    <p className="mt-2 font-medium">{r.focus}</p>
+                    <p className="mt-2 text-sm text-muted-foreground">{r.actions}</p>
+                  </div>
+                ))}
+              </div>
             )}
           </Section>
         )}
