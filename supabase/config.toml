@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.advisor-chat-stream]
 verify_jwt = false
+
+[functions.marketing-strategy]
+verify_jwt = false
