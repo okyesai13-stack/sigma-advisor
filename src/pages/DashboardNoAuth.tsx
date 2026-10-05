@@ -25,7 +25,19 @@ const DOSSIER_SUMMARY = [
 const DashboardNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { business, clearSession, isReady, reload } = useResume();
+  const { business, clearSession, isReady, reload, setBusiness } = useResume();
+  const [allBiz, setAllBiz] = useState<any[]>([]);
+  useEffect(() => {
+    if (!isReady) return;
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) return;
+      const { data } = await supabase.from("business_store")
+        .select("id, business_name, pitch, stage, industry, target_market, geography, created_at")
+        .eq("user_id", session.user.id).order("created_at", { ascending: false });
+      setAllBiz(data || []);
+    })();
+  }, [isReady, business?.id]);
 
   const [loading, setLoading] = useState(true);
   const [triedReload, setTriedReload] = useState(false);
@@ -131,6 +143,21 @@ const DashboardNoAuth = () => {
           </div>
         </div>
       </header>
+
+      {allBiz.length > 1 && (
+        <div className="border-b border-border px-5 py-4 md:px-10">
+          <p className="eyebrow mb-3">All analyses ({allBiz.length})</p>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {allBiz.map((b) => (
+              <button key={b.id} onClick={() => { const { created_at, ...rest } = b; setBusiness(rest); window.scrollTo({ top: 0 }); }}
+                className={`shrink-0 rounded-md border px-4 py-2.5 text-left transition-colors ${b.id === business.id ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/50"}`}>
+                <p className="text-sm font-semibold">{b.business_name}</p>
+                <p className="text-xs text-muted-foreground">{new Date(b.created_at).toLocaleDateString()} · {b.stage}</p>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {!hasAny && (
         <div className="px-6 md:px-10 py-20 text-center">
