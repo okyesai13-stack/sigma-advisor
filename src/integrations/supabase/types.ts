@@ -270,6 +270,59 @@ export type Database = {
           },
         ]
       }
+      marketing_strategy_result: {
+        Row: {
+          budget: Json | null
+          business_id: string
+          campaigns: Json | null
+          channels: Json | null
+          content_pillars: Json | null
+          created_at: string
+          id: string
+          kpis: Json | null
+          personas: Json | null
+          positioning: Json | null
+          roadmap_90_days: Json | null
+          summary: string | null
+        }
+        Insert: {
+          budget?: Json | null
+          business_id: string
+          campaigns?: Json | null
+          channels?: Json | null
+          content_pillars?: Json | null
+          created_at?: string
+          id?: string
+          kpis?: Json | null
+          personas?: Json | null
+          positioning?: Json | null
+          roadmap_90_days?: Json | null
+          summary?: string | null
+        }
+        Update: {
+          budget?: Json | null
+          business_id?: string
+          campaigns?: Json | null
+          channels?: Json | null
+          content_pillars?: Json | null
+          created_at?: string
+          id?: string
+          kpis?: Json | null
+          personas?: Json | null
+          positioning?: Json | null
+          roadmap_90_days?: Json | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketing_strategy_result_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
