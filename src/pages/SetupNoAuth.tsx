@@ -185,7 +185,7 @@ const SetupNoAuth = () => {
             <p className="text-xs text-muted-foreground">Required: name, pitch, industry, and target market</p>
             <Button onClick={handleSubmit} disabled={!canSubmit || isSubmitting} size="lg" className="w-full sm:w-auto">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-              Convene the agents
+              {editId ? "Update & re-run agents" : "Convene the agents"}
             </Button>
           </div>
         </div>
