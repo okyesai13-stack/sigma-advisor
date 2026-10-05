@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useResume } from "@/contexts/ResumeContext";
@@ -31,6 +31,23 @@ const SetupNoAuth = () => {
   const [geography, setGeography] = useState("");
   const [rawContext, setRawContext] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [searchParams] = useSearchParams();
+  const editId = searchParams.get("edit");
+
+  useEffect(() => {
+    if (!editId) return;
+    (async () => {
+      const { data } = await supabase.from("business_store").select("*").eq("id", editId).maybeSingle();
+      if (!data) return;
+      setBusinessName(data.business_name || "");
+      setPitch(data.pitch || "");
+      setStage(data.stage || "idea");
+      setIndustry(data.industry || "");
+      setTargetMarket(data.target_market || "");
+      setGeography(data.geography || "");
+      setRawContext(data.raw_context || "");
+    })();
+  }, [editId]);
 
   const canSubmit = businessName.trim() && pitch.trim() && industry.trim() && targetMarket.trim();
 
@@ -56,10 +73,7 @@ const SetupNoAuth = () => {
 
     try {
       console.log("[setup] inserting business for user", activeUser.id);
-      const insertPromise = supabase
-        .from("business_store")
-        .insert({
-          user_id: activeUser.id,
+      const fields = {
           business_name: businessName.trim(),
           pitch: pitch.trim(),
           stage,
@@ -67,9 +81,11 @@ const SetupNoAuth = () => {
           target_market: targetMarket.trim(),
           geography: geography.trim() || null,
           raw_context: rawContext.trim() || null,
-        })
-        .select("id, business_name, pitch, stage, industry, target_market, geography")
-        .single();
+      };
+      const cols = "id, business_name, pitch, stage, industry, target_market, geography";
+      const insertPromise = editId
+        ? supabase.from("business_store").update(fields).eq("id", editId).select(cols).single()
+        : supabase.from("business_store").insert({ user_id: activeUser.id, ...fields }).select(cols).single();
 
       const { data, error } = (await Promise.race([insertPromise, timeoutPromise])) as any;
 
@@ -111,8 +127,8 @@ const SetupNoAuth = () => {
 
       <main className="mx-auto max-w-4xl px-5 py-12 md:px-12 md:py-16">
         <div className="mb-10 animate-slide-up">
-          <div className="mb-5 flex items-center gap-2"><span className="signal-dot" /><p className="eyebrow text-primary">New strategy session</p></div>
-          <h1 className="font-display text-4xl font-semibold leading-tight md:text-6xl">Brief the strategy office.</h1>
+          <div className="mb-5 flex items-center gap-2"><span className="signal-dot" /><p className="eyebrow text-primary">{editId ? "Update & re-run" : "New strategy session"}</p></div>
+          <h1 className="font-display text-4xl font-semibold leading-tight md:text-6xl">{editId ? "Update your brief." : "Brief the strategy office."}</h1>
           <p className="text-muted-foreground text-lg max-w-xl leading-relaxed">
             Tell us what you're building. The four agents will use this brief to convene a strategy session.
           </p>

@@ -133,8 +133,8 @@ const DashboardNoAuth = () => {
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
-              <Button variant="outline" size="sm" onClick={() => navigate("/sigma")}>
-                <RefreshCw className="w-3.5 h-3.5" /> Re-run
+              <Button variant="outline" size="sm" onClick={() => navigate(`/setup?edit=${business.id}`)}>
+                <RefreshCw className="w-3.5 h-3.5" /> Update & re-run
               </Button>
               <Button variant="ghost" size="sm" onClick={() => { clearSession(); navigate("/setup"); }}>
                 <Plus /> New brief
