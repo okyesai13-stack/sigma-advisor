@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Loader2, TrendingUp, Users, BarChart3, Target, Sparkles } from "lucide-react";
+import { Send, Loader2, Undo2, PencilLine, TrendingUp, Users, BarChart3, Target, Sparkles } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useResume } from "@/contexts/ResumeContext";
 import { cn } from "@/lib/utils";
 
-interface Message { role: "user" | "assistant"; content: string; }
+interface ResultUpdate { agent: string; label: string; field: string; previous: any; undone?: boolean; }
+interface Message { role: "user" | "assistant"; content: string; update?: ResultUpdate; }
 
 const formatMessage = (content: string): string =>
   content
@@ -31,7 +32,7 @@ const suggestions = [
 
 const AdvisorChatPanel = () => {
   const { toast } = useToast();
-  const { business } = useResume();
+  const { business, bumpResults } = useResume();
   const businessId = business?.id ?? null;
 
   const [messages, setMessages] = useState<Message[]>([]);
@@ -102,6 +103,17 @@ const AdvisorChatPanel = () => {
           if (json === "[DONE]") break;
           try {
             const parsed = JSON.parse(json);
+            if (parsed.type === "result_updated") {
+              const upd: ResultUpdate = { agent: parsed.agent, label: parsed.label, field: parsed.field, previous: parsed.previous };
+              setMessages((prev) => {
+                const u = [...prev];
+                const last = u.length - 1;
+                if (u[last]?.role === "assistant") u[last] = { ...u[last], update: upd };
+                return u;
+              });
+              bumpResults();
+              continue;
+            }
             const c = parsed.choices?.[0]?.delta?.content;
             if (c) {
               assistant += c;
@@ -120,6 +132,25 @@ const AdvisorChatPanel = () => {
       toast({ title: "Error", description: "Failed to reach the advisor.", variant: "destructive" });
       setMessages((p) => p.filter((_, i) => !(i === p.length - 1 && p[i].content === "")));
     } finally { setLoading(false); }
+  };
+
+  const undo = async (idx: number) => {
+    const m = messages[idx];
+    if (!m.update || m.update.undone || !businessId) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/advisor-chat-stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session?.access_token}` },
+        body: JSON.stringify({ business_id: businessId, undo: { agent: m.update.agent, field: m.update.field, previous: m.update.previous } }),
+      });
+      if (!res.ok) throw new Error("undo failed");
+      setMessages((p) => p.map((x, i) => (i === idx && x.update ? { ...x, update: { ...x.update, undone: true } } : x)));
+      bumpResults();
+      toast({ title: "Change undone" });
+    } catch {
+      toast({ title: "Couldn't undo", variant: "destructive" });
+    }
   };
 
   const onKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -178,6 +209,19 @@ const AdvisorChatPanel = () => {
                     <div>
                       <p className="eyebrow mb-2 text-primary">Advisor</p>
                       <p className="whitespace-pre-wrap rounded-md border border-border bg-card p-3 text-sm leading-6">{formatMessage(m.content)}</p>
+                      {m.update && (
+                        <div className="mt-2 flex items-center justify-between gap-3 rounded-md border border-primary/30 bg-primary/10 px-3 py-2">
+                          <div className="flex items-center gap-2 text-xs">
+                            <PencilLine className="h-3.5 w-3.5 text-primary" />
+                            <span>{m.update.undone ? "Reverted" : "Updated"}: {m.update.label} → {m.update.field.replace(/_/g, " ")}</span>
+                          </div>
+                          {!m.update.undone && (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs" onClick={() => undo(i)}>
+                              <Undo2 className="mr-1 h-3.5 w-3.5" />Undo
+                            </Button>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="max-w-[85%]">
