@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards, Megaphone } from "lucide-react";
+import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards, Megaphone, Cpu } from "lucide-react";
 import Seo from "@/components/Seo";
 
 type Json = any;
@@ -20,6 +20,7 @@ const DOSSIER_SUMMARY = [
   { icon: BarChart3, title: "Plan", label: "Roadmap ready", key: "plan" },
   { icon: WalletCards, title: "Finance", label: "Model prepared", key: "fin" },
   { icon: Megaphone, title: "Marketing", label: "Strategy ready", key: "mkt" },
+  { icon: Cpu, title: "AI Ops", label: "Blueprint ready", key: "aio" },
 ] as const;
 
 const DashboardNoAuth = () => {
@@ -46,6 +47,7 @@ const DashboardNoAuth = () => {
   const [plan, setPlan] = useState<PlanRes | null>(null);
   const [fin, setFin] = useState<FinRes | null>(null);
   const [mkt, setMkt] = useState<any | null>(null);
+  const [aio, setAio] = useState<any | null>(null);
 
   useEffect(() => {
     if (!isReady) return;
@@ -66,13 +68,15 @@ const DashboardNoAuth = () => {
     if (!business) return;
     setLoading(true);
     try {
-      const [m, c, p, f, mk] = await Promise.all([
+      const [m, c, p, f, mk, ai] = await Promise.all([
         supabase.from("market_research_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("competitor_analysis_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("business_plan_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         supabase.from("financial_model_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
         (supabase as any).from("marketing_strategy_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        (supabase as any).from("ai_operations_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       ]);
+      setAio(ai.data as any);
       setMkt(mk.data as any);
       setMarket(m.data as any);
       setComp(c.data as any);
@@ -108,13 +112,13 @@ const DashboardNoAuth = () => {
     );
   }
 
-  const hasAny = market || comp || plan || fin || mkt;
+  const hasAny = market || comp || plan || fin || mkt || aio;
 
   return (
     <div className="min-h-full bg-background">
       <Seo
         title="Strategy Dashboard — Planz"
-        description="Your complete AI-generated strategy dossier: market research, competitor analysis, business plan, financial model, and marketing strategy."
+        description="Your complete AI-generated strategy dossier: market research, competitor analysis, business plan, financial model, marketing strategy, and AI operations blueprint."
         path="/dashboard"
         noindex
       />
@@ -168,8 +172,8 @@ const DashboardNoAuth = () => {
         </div>
       )}
 
-      {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-5">
-        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : !!mkt; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
+      {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-6">
+        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : key === "aio" ? !!aio : !!mkt; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
       </div>}
       <div className="space-y-16 px-5 py-10 md:px-10">
         {/* Executive Summary */}
@@ -435,6 +439,76 @@ const DashboardNoAuth = () => {
                 ))}
               </div>
             )}
+          </Section>
+        )}
+        {/* AI Operations */}
+        {aio && (
+          <Section number="VII." title="AI Operations & Automation Blueprint">
+            {aio.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{aio.summary}</p>}
+            <div className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ["AI readiness", aio.readiness?.score != null ? `${aio.readiness.score}/100` : "—", aio.readiness?.level],
+                ["Hours saved / week", aio.roi?.weekly_hours_saved, "Projected"],
+                ["Overhead reduction", aio.roi?.overhead_reduction, aio.roi?.payback_period ? `Payback ${aio.roi.payback_period}` : ""],
+                ["Monthly tool cost", aio.roi?.monthly_tool_cost, "Estimated"],
+              ].map(([k, v, n]) => (
+                <div key={k as string} className="rounded-md border border-border bg-card p-6">
+                  <p className="text-[10px] uppercase tracking-[0.25em] text-muted-foreground mb-2">{k}</p>
+                  <p className="font-display text-3xl font-semibold text-primary">{v || "—"}</p>
+                  {n && <p className="text-xs text-muted-foreground mt-2">{n}</p>}
+                </div>
+              ))}
+            </div>
+            {aio.readiness?.biggest_pain_point && (
+              <Block title="Biggest pain point"><p className="text-lg font-medium">{aio.readiness.biggest_pain_point}</p>{aio.readiness.explanation && <p className="mt-2 text-sm text-muted-foreground">{aio.readiness.explanation}</p>}</Block>
+            )}
+            {aio.quick_wins?.length > 0 && (
+              <div className="mt-3">
+                <Label>Quick wins · first 2 weeks</Label>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {aio.quick_wins.map((w: any, i: number) => (
+                    <div key={i} className="rounded-md border border-border bg-card p-5">
+                      <div className="flex items-start justify-between gap-3">
+                        <h4 className="font-display text-lg font-semibold">{w.title}</h4>
+                        <span className="shrink-0 rounded-full border border-border px-2 py-0.5 text-xs text-primary">{w.difficulty}</span>
+                      </div>
+                      {w.pain_point && <p className="mt-2 text-xs"><span className="text-muted-foreground uppercase tracking-[0.15em]">Pain — </span>{w.pain_point}</p>}
+                      {w.solution && <p className="mt-2 text-sm text-muted-foreground">{w.solution}</p>}
+                      <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                        {w.tools && <span className="rounded bg-primary/10 px-2 py-1 text-primary">{w.tools}</span>}
+                        {w.hours_saved_per_week && <span className="rounded border border-border px-2 py-1">{w.hours_saved_per_week} hrs/week</span>}
+                        {w.timeline && <span className="rounded border border-border px-2 py-1">{w.timeline}</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {aio.systemic_automations?.length > 0 && (
+              <div className="mt-3"><Block title="Systemic automations · months 1-3">
+                <div className="divide-y divide-border">
+                  {aio.systemic_automations.map((a: any, i: number) => (
+                    <div key={i} className="py-4">
+                      <div className="flex flex-wrap items-center gap-3"><span className="font-display text-primary">{String(i + 1).padStart(2, "0")}</span><p className="font-medium">{a.title}</p>{a.timeline && <span className="text-xs text-muted-foreground">{a.timeline}</span>}</div>
+                      {a.workflow && <p className="mt-1 text-xs uppercase tracking-[0.15em] text-muted-foreground">{a.workflow}</p>}
+                      {a.how_it_works && <p className="mt-2 text-sm text-muted-foreground">{a.how_it_works}</p>}
+                      {a.impact && <p className="mt-1 text-sm"><span className="text-muted-foreground">Impact — </span>{a.impact}</p>}
+                      {a.tools && <p className="mt-1 text-xs text-primary">{a.tools}</p>}
+                    </div>
+                  ))}
+                </div>
+              </Block></div>
+            )}
+            <Grid2>
+              {aio.tool_stack?.length > 0 && (
+                <Block title="Recommended AI tool stack">
+                  <Bullets items={aio.tool_stack.map((t: any) => typeof t === "string" ? t : `${t.tool} (${t.category}) — ${t.purpose}${t.est_cost ? ` · ${t.est_cost}` : ""}`)} />
+                </Block>
+              )}
+              {aio.defensibility && Object.keys(aio.defensibility).length > 0 && (
+                <Block title="AI threat & moat"><KeyValue obj={aio.defensibility} /></Block>
+              )}
+            </Grid2>
           </Section>
         )}
       </div>

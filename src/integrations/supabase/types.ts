@@ -46,6 +46,53 @@ export type Database = {
           },
         ]
       }
+      ai_operations_result: {
+        Row: {
+          business_id: string
+          created_at: string
+          defensibility: Json | null
+          id: string
+          quick_wins: Json | null
+          readiness: Json | null
+          roi: Json | null
+          summary: string | null
+          systemic_automations: Json | null
+          tool_stack: Json | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          defensibility?: Json | null
+          id?: string
+          quick_wins?: Json | null
+          readiness?: Json | null
+          roi?: Json | null
+          summary?: string | null
+          systemic_automations?: Json | null
+          tool_stack?: Json | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          defensibility?: Json | null
+          id?: string
+          quick_wins?: Json | null
+          readiness?: Json | null
+          roi?: Json | null
+          summary?: string | null
+          systemic_automations?: Json | null
+          tool_stack?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_operations_result_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_plan_result: {
         Row: {
           business_id: string

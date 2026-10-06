@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw, Megaphone } from "lucide-react";
+import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw, Megaphone, Cpu } from "lucide-react";
 import Seo from "@/components/Seo";
 
 type Status = "pending" | "running" | "completed" | "error";
-type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model" | "marketing_strategy";
+type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model" | "marketing_strategy" | "ai_operations";
 
 const AGENTS = [
   { id: "market_research" as AgentId, num: "01", icon: Radar, name: "Market Research", endpoint: "market-research", desc: "Sizing the opportunity and reading the market" },
@@ -16,6 +16,7 @@ const AGENTS = [
   { id: "business_plan" as AgentId, num: "03", icon: Bot, name: "Business Plan", endpoint: "business-plan", desc: "Drafting strategy, GTM, and milestones" },
   { id: "financial_model" as AgentId, num: "04", icon: LineChart, name: "Financial Model", endpoint: "financial-model", desc: "Building projections and unit economics" },
   { id: "marketing_strategy" as AgentId, num: "05", icon: Megaphone, name: "Marketing Strategy", endpoint: "marketing-strategy", desc: "Planning positioning, channels, and campaigns" },
+  { id: "ai_operations" as AgentId, num: "06", icon: Cpu, name: "AI Operations & Automation", endpoint: "ai-operations", desc: "Finding pain points AI can automate, with tools and ROI" },
 ];
 
 const SigmaNoAuth = () => {
@@ -28,6 +29,7 @@ const SigmaNoAuth = () => {
     business_plan: "pending",
     financial_model: "pending",
     marketing_strategy: "pending",
+    ai_operations: "pending",
   });
   const [allDone, setAllDone] = useState(false);
   const startedFor = useRef<string | null>(null);
@@ -91,7 +93,7 @@ const SigmaNoAuth = () => {
     <div className="min-h-full bg-background">
       <Seo
         title="Strategy Console — Planz"
-        description="Watch the five Planz AI agents — market research, competitor analysis, business plan, financial model, and marketing strategy — work in parallel."
+        description="Watch the six Planz AI agents — market research, competitor analysis, business plan, financial model, marketing strategy, and AI operations — work in parallel."
         path="/sigma"
         noindex
       />
