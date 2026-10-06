@@ -128,6 +128,7 @@ serve(async (req) => {
     }
     if (Object.keys(current).length) {
       const intent = await detectEdit(key, message, current);
+      if (intent?.field) intent.field = String(intent.field).split(".").pop();
       const cfg = intent?.is_edit ? EDITABLE[intent.agent] : null;
       if (cfg && cfg.fields.includes(intent.field) && rows[intent.agent]) {
         const row = rows[intent.agent];
