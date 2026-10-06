@@ -26,7 +26,7 @@ const DOSSIER_SUMMARY = [
 const DashboardNoAuth = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { business, clearSession, isReady, reload, setBusiness } = useResume();
+  const { business, clearSession, isReady, reload, setBusiness, resultsVersion } = useResume();
   const [allBiz, setAllBiz] = useState<any[]>([]);
   useEffect(() => {
     if (!isReady) return;
@@ -64,9 +64,14 @@ const DashboardNoAuth = () => {
     loadAll();
   }, [business?.id, isReady, triedReload]);
 
-  const loadAll = async () => {
+  useEffect(() => {
+    if (resultsVersion > 0 && business?.id) loadAll(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resultsVersion]);
+
+  const loadAll = async (silent = false) => {
     if (!business) return;
-    setLoading(true);
+    if (!silent) setLoading(true);
     try {
       const [m, c, p, f, mk, ai] = await Promise.all([
         supabase.from("market_research_result").select("*").eq("business_id", business.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),

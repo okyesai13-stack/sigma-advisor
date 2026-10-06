@@ -17,6 +17,8 @@ interface BusinessContextType {
   isReady: boolean;
   clearSession: () => void;
   reload: () => Promise<void>;
+  resultsVersion: number;
+  bumpResults: () => void;
 }
 
 const BusinessContext = createContext<BusinessContextType | undefined>(undefined);
@@ -24,6 +26,7 @@ const BusinessContext = createContext<BusinessContextType | undefined>(undefined
 export const ResumeProvider = ({ children }: { children: ReactNode }) => {
   const [business, setBusinessState] = useState<Business | null>(null);
   const [isReady, setIsReady] = useState(false);
+  const [resultsVersion, setResultsVersion] = useState(0);
 
   const loadLatest = async () => {
     try {
@@ -70,6 +73,8 @@ export const ResumeProvider = ({ children }: { children: ReactNode }) => {
       isReady,
       clearSession: () => setBusinessState(null),
       reload: loadLatest,
+      resultsVersion,
+      bumpResults: () => setResultsVersion((v) => v + 1),
     }}>
       {children}
     </BusinessContext.Provider>
