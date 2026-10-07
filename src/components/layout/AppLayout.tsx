@@ -37,6 +37,16 @@ const AppLayout = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} title="New brief"><Plus /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} title="Dashboard"><LayoutDashboard /></Button>
         <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out"><LogOut /></Button>
+        <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => (isMobile ? setDrawerOpen(true) : setChatOpen((v) => !v))}
+          title={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
+          aria-label={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
+        >
+          {isMobile || !chatOpen ? <MessageCircle /> : <PanelRightClose />}
+        </Button>
       </div>
     </header>
   );
