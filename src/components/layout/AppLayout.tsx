@@ -60,8 +60,18 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background"><Header /><div className="min-h-0 flex-1"><ResizablePanelGroup direction="horizontal"><ResizablePanel defaultSize={31} minSize={24} maxSize={42}><div className="h-full border-r border-border"><AdvisorChatPanel /></div></ResizablePanel><ResizableHandle className="w-1 bg-border/40 transition-colors hover:bg-primary/60" /><ResizablePanel defaultSize={69} minSize={45}><div className="h-full overflow-auto"><Outlet /></div></ResizablePanel></ResizablePanelGroup></div>
-      <div className="pointer-events-none fixed bottom-4 left-[31%] z-10 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur lg:flex"><Zap className="h-3 w-3 text-primary" /> AI advisor</div>
+    <div className="flex h-screen flex-col bg-background"><Header /><div className="min-h-0 flex-1">
+      {chatOpen ? (
+        <ResizablePanelGroup direction="horizontal">
+          <ResizablePanel defaultSize={31} minSize={24} maxSize={42}><div className="h-full border-r border-border"><AdvisorChatPanel /></div></ResizablePanel>
+          <ResizableHandle className="w-1 bg-border/40 transition-colors hover:bg-primary/60" />
+          <ResizablePanel defaultSize={69} minSize={45}><div className="h-full overflow-auto"><Outlet /></div></ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <div className="h-full overflow-auto"><Outlet /></div>
+      )}
+    </div>
+      {chatOpen && <div className="pointer-events-none fixed bottom-4 left-[31%] z-10 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur lg:flex"><Zap className="h-3 w-3 text-primary" /> AI advisor</div>}
     </div>
   );
 };
