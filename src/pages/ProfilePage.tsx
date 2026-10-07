@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,7 +14,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-type Biz = { id: string; business_name: string; stage: string; industry: string | null; created_at: string };
+type Biz = any;
 
 const RESULT_TABLES = [
   "market_research_result", "competitor_analysis_result", "business_plan_result",
@@ -23,6 +24,7 @@ const RESULT_TABLES = [
 const ProfilePage = () => {
   const { user, signOut } = useAuth();
   const { toast } = useToast();
+  const { business, setBusiness, reload } = useResume();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
@@ -39,7 +41,7 @@ const ProfilePage = () => {
     (async () => {
       const [{ data: p }, { data: b }] = await Promise.all([
         supabase.from("profiles").select("full_name, avatar_url").eq("id", user.id).maybeSingle(),
-        supabase.from("business_store").select("id, business_name, stage, industry, created_at").order("created_at", { ascending: false }),
+        supabase.from("business_store").select("*").order("created_at", { ascending: false }),
       ]);
       setFullName(p?.full_name || user.user_metadata?.full_name || "");
       setAvatarUrl(p?.avatar_url || "");
@@ -76,6 +78,7 @@ const ProfilePage = () => {
     const { error } = await supabase.from("business_store").delete().eq("id", id);
     if (error) return toast({ title: "Could not delete", description: error.message, variant: "destructive" });
     setBusinesses((prev) => prev.filter((b) => b.id !== id));
+    if (business?.id === id) reload?.();
     toast({ title: "Analysis deleted" });
   };
 
@@ -137,7 +140,7 @@ const ProfilePage = () => {
               <p className="truncate font-medium">{b.business_name}</p>
               <p className="text-xs text-muted-foreground">{b.stage}{b.industry ? ` · ${b.industry}` : ""} · {new Date(b.created_at).toLocaleDateString()}</p>
             </div>
-            <Button size="icon" variant="ghost" title="Open" onClick={() => { localStorage.setItem("planz_business_id", b.id); navigate(`/dashboard?id=${b.id}`); }}><ExternalLink /></Button>
+            <Button size="icon" variant="ghost" title="Open" onClick={() => { const { created_at, updated_at, user_id, ...rest } = b; setBusiness(rest); navigate("/dashboard"); }}><ExternalLink /></Button>
             <AlertDialog>
               <AlertDialogTrigger asChild><Button size="icon" variant="ghost" title="Delete"><Trash2 className="text-destructive" /></Button></AlertDialogTrigger>
               <AlertDialogContent>

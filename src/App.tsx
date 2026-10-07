@@ -17,6 +17,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
+import ProfilePage from "./pages/ProfilePage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/setup" element={<SetupNoAuth />} />
                 <Route path="/sigma" element={<SigmaNoAuth />} />
                 <Route path="/dashboard" element={<DashboardNoAuth />} />
+                <Route path="/profile" element={<ProfilePage />} />
               </Route>
 
               <Route path="*" element={<NotFound />} />
