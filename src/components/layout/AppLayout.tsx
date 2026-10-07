@@ -23,7 +23,17 @@ const AppLayout = () => {
 
   const Header = () => (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur-xl md:px-5">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => (isMobile ? setDrawerOpen(true) : setChatOpen((v) => !v))}
+          title={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
+          aria-label={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
+        >
+          {isMobile || !chatOpen ? <MessageCircle /> : <PanelRightClose />}
+        </Button>
+        <span className="h-5 w-px bg-border" />
         <button onClick={() => navigate('/dashboard')} className="flex items-center gap-2" aria-label="Open dashboard">
           <span className="grid h-7 w-7 place-items-center rounded bg-primary font-display text-xs font-bold text-primary-foreground">P</span>
           <span className="font-display text-lg font-semibold">Planz</span>
@@ -37,16 +47,6 @@ const AppLayout = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} title="New brief"><Plus /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} title="Dashboard"><LayoutDashboard /></Button>
         <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out"><LogOut /></Button>
-        <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => (isMobile ? setDrawerOpen(true) : setChatOpen((v) => !v))}
-          title={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
-          aria-label={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
-        >
-          {isMobile || !chatOpen ? <MessageCircle /> : <PanelRightClose />}
-        </Button>
       </div>
     </header>
   );
