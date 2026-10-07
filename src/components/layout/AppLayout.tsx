@@ -11,6 +11,7 @@ import AdvisorChatPanel from "@/components/advisor/AdvisorChatPanel";
 const AppLayout = () => {
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
