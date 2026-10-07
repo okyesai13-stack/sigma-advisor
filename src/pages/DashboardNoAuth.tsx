@@ -94,6 +94,10 @@ const DashboardNoAuth = () => {
     }
   };
 
+  const scrollToSection = (key: string) => {
+    document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (loading || (!business && !triedReload)) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -178,7 +182,7 @@ const DashboardNoAuth = () => {
       )}
 
       {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-6">
-        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : key === "aio" ? !!aio : !!mkt; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
+        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : key === "aio" ? !!aio : !!mkt; return <button key={title} onClick={() => scrollToSection(key)} className="group flex items-center gap-3 rounded-md border border-border bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-card/80"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold transition-colors group-hover:text-primary">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></button>; })}
       </div>}
       <div className="space-y-16 px-5 py-10 md:px-10">
         {/* Executive Summary */}
