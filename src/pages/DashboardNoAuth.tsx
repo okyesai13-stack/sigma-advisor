@@ -94,6 +94,10 @@ const DashboardNoAuth = () => {
     }
   };
 
+  const scrollToSection = (key: string) => {
+    document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   if (loading || (!business && !triedReload)) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -178,12 +182,12 @@ const DashboardNoAuth = () => {
       )}
 
       {hasAny && <div className="grid gap-3 border-b border-border px-5 py-5 sm:grid-cols-2 md:px-10 xl:grid-cols-6">
-        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : key === "aio" ? !!aio : !!mkt; return <div key={title} className="flex items-center gap-3 rounded-md border border-border bg-card p-3"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></div>; })}
+        {DOSSIER_SUMMARY.map(({ icon: Icon, title, label, key }) => { const ready = key === "market" ? !!market : key === "comp" ? !!comp : key === "plan" ? !!plan : key === "fin" ? !!fin : key === "aio" ? !!aio : !!mkt; return <button key={title} onClick={() => scrollToSection(key)} className="group flex items-center gap-3 rounded-md border border-border bg-card p-3 text-left transition-colors hover:border-primary/50 hover:bg-card/80"><span className="grid h-9 w-9 place-items-center rounded bg-primary/10 text-primary"><Icon className="h-4 w-4" /></span><div><p className="text-xs font-semibold transition-colors group-hover:text-primary">{title}</p><p className="text-xs text-muted-foreground">{ready ? label : 'Pending'}</p></div></button>; })}
       </div>}
       <div className="space-y-16 px-5 py-10 md:px-10">
         {/* Executive Summary */}
         {plan?.executive_summary && (
-          <Section number="I." title="Executive Summary">
+          <Section number="I." title="Executive Summary" id="section-summary">
             <p className="max-w-4xl text-balance font-display text-2xl font-medium leading-snug md:text-3xl">
               {plan.executive_summary}
             </p>
@@ -198,7 +202,7 @@ const DashboardNoAuth = () => {
 
         {/* Market Research */}
         {market && (
-          <Section number="II." title="Market Research">
+          <Section number="II." title="Market Research" id="section-market">
             {market.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{market.summary}</p>}
 
             {market.tam_sam_som && (
@@ -232,7 +236,7 @@ const DashboardNoAuth = () => {
 
         {/* Competitor Analysis */}
         {comp && (
-          <Section number="III." title="Competitor Analysis">
+          <Section number="III." title="Competitor Analysis" id="section-comp">
             {comp.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{comp.summary}</p>}
 
             {comp.competitors?.length > 0 && (
@@ -275,7 +279,7 @@ const DashboardNoAuth = () => {
 
         {/* Business Plan */}
         {plan && (plan.business_model || plan.go_to_market || plan.milestones?.length) && (
-          <Section number="IV." title="Business Plan">
+          <Section number="IV." title="Business Plan" id="section-plan">
             {plan.business_model && (
               <Block title="Business model">
                 <KeyValue obj={plan.business_model} />
@@ -319,7 +323,7 @@ const DashboardNoAuth = () => {
 
         {/* Financial Model */}
         {fin && (
-          <Section number="V." title="Financial Model">
+          <Section number="V." title="Financial Model" id="section-fin">
             {fin.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{fin.summary}</p>}
 
             {fin.projections_3yr?.length > 0 && (
@@ -381,7 +385,7 @@ const DashboardNoAuth = () => {
         )}
         {/* Marketing Strategy */}
         {mkt && (
-          <Section number="VI." title="Marketing Plan & Strategy">
+          <Section number="VI." title="Marketing Plan & Strategy" id="section-mkt">
             {mkt.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{mkt.summary}</p>}
             {mkt.positioning && Object.keys(mkt.positioning).length > 0 && (
               <Block title="Positioning"><KeyValue obj={mkt.positioning} /></Block>
@@ -448,7 +452,7 @@ const DashboardNoAuth = () => {
         )}
         {/* AI Operations */}
         {aio && (
-          <Section number="VII." title="AI Operations & Automation Blueprint">
+          <Section number="VII." title="AI Operations & Automation Blueprint" id="section-aio">
             {aio.summary && <p className="text-muted-foreground text-lg leading-relaxed mb-8 max-w-3xl">{aio.summary}</p>}
             <div className="mb-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               {[
@@ -522,8 +526,8 @@ const DashboardNoAuth = () => {
 };
 
 /* --- Building blocks --- */
-const Section = ({ number, title, children }: { number: string; title: string; children: React.ReactNode }) => (
-  <section className="animate-slide-up scroll-mt-20">
+const Section = ({ number, title, id, children }: { number: string; title: string; id?: string; children: React.ReactNode }) => (
+  <section id={id} className="animate-slide-up scroll-mt-20">
     <div className="mb-8 flex items-center gap-5 border-b border-border pb-4">
       <span className="grid h-9 min-w-9 place-items-center rounded bg-primary/10 font-display text-xs font-semibold text-primary">{number}</span>
       <h2 className="font-display text-3xl font-semibold md:text-4xl">{title}</h2>
