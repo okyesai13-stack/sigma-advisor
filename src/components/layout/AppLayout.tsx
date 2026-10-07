@@ -2,7 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, MessageCircle, UserCircle, Plus, Zap } from "lucide-react";
+import { LayoutDashboard, LogOut, MessageCircle, PanelRightClose, UserCircle, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,6 +11,7 @@ import AdvisorChatPanel from "@/components/advisor/AdvisorChatPanel";
 const AppLayout = () => {
   const isMobile = useIsMobile();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(true);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -36,6 +37,16 @@ const AppLayout = () => {
         <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} title="New brief"><Plus /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} title="Dashboard"><LayoutDashboard /></Button>
         <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out"><LogOut /></Button>
+        <span className="mx-1 hidden h-5 w-px bg-border sm:block" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => (isMobile ? setDrawerOpen(true) : setChatOpen((v) => !v))}
+          title={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
+          aria-label={isMobile ? "Open AI advisor" : chatOpen ? "Close AI advisor" : "Open AI advisor"}
+        >
+          {isMobile || !chatOpen ? <MessageCircle /> : <PanelRightClose />}
+        </Button>
       </div>
     </header>
   );
@@ -49,8 +60,18 @@ const AppLayout = () => {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-background"><Header /><div className="min-h-0 flex-1"><ResizablePanelGroup direction="horizontal"><ResizablePanel defaultSize={31} minSize={24} maxSize={42}><div className="h-full border-r border-border"><AdvisorChatPanel /></div></ResizablePanel><ResizableHandle className="w-1 bg-border/40 transition-colors hover:bg-primary/60" /><ResizablePanel defaultSize={69} minSize={45}><div className="h-full overflow-auto"><Outlet /></div></ResizablePanel></ResizablePanelGroup></div>
-      <div className="pointer-events-none fixed bottom-4 left-[31%] z-10 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur lg:flex"><Zap className="h-3 w-3 text-primary" /> AI advisor</div>
+    <div className="flex h-screen flex-col bg-background"><Header /><div className="min-h-0 flex-1">
+      {chatOpen ? (
+        <ResizablePanelGroup direction="horizontal">
+          <ResizablePanel defaultSize={31} minSize={24} maxSize={42}><div className="h-full border-r border-border"><AdvisorChatPanel /></div></ResizablePanel>
+          <ResizableHandle className="w-1 bg-border/40 transition-colors hover:bg-primary/60" />
+          <ResizablePanel defaultSize={69} minSize={45}><div className="h-full overflow-auto"><Outlet /></div></ResizablePanel>
+        </ResizablePanelGroup>
+      ) : (
+        <div className="h-full overflow-auto"><Outlet /></div>
+      )}
+    </div>
+      {chatOpen && <div className="pointer-events-none fixed bottom-4 left-[31%] z-10 hidden -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/80 px-2 py-1 text-[10px] text-muted-foreground backdrop-blur lg:flex"><Zap className="h-3 w-3 text-primary" /> AI advisor</div>}
     </div>
   );
 };
