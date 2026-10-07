@@ -2,7 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, MessageCircle, UserCircle, Plus, Zap } from "lucide-react";
+import { LayoutDashboard, LogOut, MessageCircle, PanelRightClose, UserCircle, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { useAuth } from "@/contexts/AuthContext";
