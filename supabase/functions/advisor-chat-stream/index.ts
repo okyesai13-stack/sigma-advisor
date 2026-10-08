@@ -152,19 +152,25 @@ serve(async (req) => {
       }
     }
 
-    const system = `You are the Resident Strategy Advisor at Planz — sharp, candid, and grounded in the dossier below. Conversational, no markdown headers or bold. Use • for bullets. Reference the dossier by name. End with a pointed follow-up question.
+    const pick = (row: any, fields: string[]) => row ? JSON.stringify(Object.fromEntries(fields.map((f) => [f, row[f]]))) : "not generated yet";
+    const brief = (row: any, fields: string[], n = 2500) => pick(row, fields).slice(0, n);
 
-DOSSIER:
-Business: ${biz.data.business_name} (${biz.data.stage})
+    const system = `You are the Resident Strategy Advisor at Planz — sharp, candid, and grounded in the dossier below. Conversational, no markdown headers or bold. Use • for bullets.
+Answer the user's actual question using the specific facts, figures, names and assumptions in the dossier (quote numbers like TAM, competitor names, revenue, CAC/LTV, margins). Compare, explain trade-offs, do quick math and stress-test assumptions when asked. If the dossier doesn't contain the answer, say so plainly and give your best reasoned estimate labelled as an estimate. Never invent dossier data. Keep it under ~250 words. End with a pointed follow-up question.
+
+BUSINESS: ${biz.data.business_name} (${biz.data.stage})
 Pitch: ${biz.data.pitch}
 Industry: ${biz.data.industry} | Market: ${biz.data.target_market} | Geo: ${biz.data.geography || "Global"}
 
-Market: ${mr.data?.summary || "—"}
-Competitors: ${(ca.data?.competitors || []).slice(0, 5).map((c: any) => c.name).join(", ") || "—"}
-Differentiation: ${(ca.data?.differentiation || []).slice(0, 3).map((d: any) => d.angle || d).join("; ") || "—"}
-Exec summary: ${bp.data?.executive_summary || "—"}
-GTM beachhead: ${bp.data?.go_to_market?.beachhead || "—"}
-Y3 revenue: ${fm.data?.projections_3yr?.[2]?.revenue || "—"} | Funding: ${fm.data?.funding_needs?.amount || "—"}`;
+MARKET (full): ${pick(mr.data, EDITABLE.market_research.fields)}
+
+POSITION / COMPETITORS (full): ${pick(ca.data, EDITABLE.competitor_analysis.fields)}
+
+FINANCE (full): ${pick(fm.data, EDITABLE.financial_model.fields)}
+
+PLAN (brief): ${brief(bp.data, EDITABLE.business_plan.fields)}
+MARKETING (brief): ${brief(ms.data, EDITABLE.marketing_strategy.fields)}
+AI OPS (brief): ${brief(aio.data, EDITABLE.ai_operations.fields)}`;
 
     const history = (hist.data || []).map((m: any) => ({ role: m.role, content: m.content }));
 
