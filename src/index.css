@@ -96,3 +96,31 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+
+/* ---------- Pitch deck (1920x1080 slides) ---------- */
+:root {
+  --slide-bg: var(--background);
+  --slide-fg: var(--foreground);
+  --slide-accent: var(--primary);
+  --slide-muted: var(--muted-foreground);
+  --slide-card: var(--card);
+  --slide-border: var(--border);
+}
+.slide-wrapper { position: absolute; width: 1920px; height: 1080px; left: 50%; top: 50%; margin-left: -960px; margin-top: -540px; transform: scale(var(--scale)); transform-origin: center center; }
+.slide-content { width: 1920px; height: 1080px; overflow: hidden; position: relative;
+  --slide-title-lg: 128px; --slide-title: 88px; --slide-subtitle: 52px; --slide-body-lg: 40px; --slide-body: 32px; --slide-caption: 26px; --slide-kicker: 22px; --slide-chrome: 20px; }
+.deck-slide { background: radial-gradient(ellipse at 85% 0%, hsl(var(--slide-accent) / 0.16), transparent 55%), hsl(var(--slide-bg)); color: hsl(var(--slide-fg)); }
+.deck-accent { color: hsl(var(--slide-accent)); }
+.deck-muted { color: hsl(var(--slide-muted)); }
+.deck-card { background: hsl(var(--slide-card)); border: 1px solid hsl(var(--slide-border)); }
+.slide-title-lg { font-size: var(--slide-title-lg); line-height: 1; letter-spacing: -0.05em; }
+.slide-title { font-size: var(--slide-title); line-height: 1.05; letter-spacing: -0.04em; }
+.slide-subtitle { font-size: var(--slide-subtitle); line-height: 1.15; letter-spacing: -0.025em; }
+.slide-body-lg { font-size: var(--slide-body-lg); line-height: 1.25; }
+.slide-body { font-size: var(--slide-body); line-height: 1.3; }
+.slide-caption { font-size: var(--slide-caption); line-height: 1.3; }
+.slide-kicker { font-size: var(--slide-kicker); line-height: 1.1; letter-spacing: 0.12em; text-transform: uppercase; }
+.slide-footer, .slide-page { font-size: var(--slide-chrome); line-height: 1.15; white-space: nowrap; }
+.deck-print { background: hsl(var(--slide-bg)); }
+@page { size: 1920px 1080px; margin: 0; }
+@media print { .deck-print-page { break-after: page; page-break-after: always; } }
