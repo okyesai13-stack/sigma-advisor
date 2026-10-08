@@ -18,6 +18,7 @@ import SetupNoAuth from "./pages/SetupNoAuth";
 import SigmaNoAuth from "./pages/SigmaNoAuth";
 import DashboardNoAuth from "./pages/DashboardNoAuth";
 import ProfilePage from "./pages/ProfilePage";
+import PitchDeckPage from "./pages/PitchDeckPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,8 @@ const App = () => (
                 <Route path="/dashboard" element={<DashboardNoAuth />} />
                 <Route path="/profile" element={<ProfilePage />} />
               </Route>
+
+              <Route path="/deck" element={<ProtectedRoute><PitchDeckPage /></ProtectedRoute>} />
 
               <Route path="*" element={<NotFound />} />
             </Routes>
