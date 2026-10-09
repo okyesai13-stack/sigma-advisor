@@ -270,6 +270,38 @@ export type Database = {
           },
         ]
       }
+      lean_canvas: {
+        Row: {
+          boxes: Json
+          business_id: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          boxes?: Json
+          business_id: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          boxes?: Json
+          business_id?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lean_canvas_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       market_research_result: {
         Row: {
           business_id: string
