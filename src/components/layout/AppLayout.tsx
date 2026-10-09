@@ -2,7 +2,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
-import { LayoutDashboard, LogOut, MessageCircle, PanelRightClose, UserCircle, Plus, Zap } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, LogOut, MessageCircle, PanelRightClose, UserCircle, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
 import { useAuth } from "@/contexts/AuthContext";
@@ -19,7 +19,7 @@ const AppLayout = () => {
   const handleSignOut = async () => { await signOut(); navigate("/"); };
   const userEmail = user?.email || "";
   const userName = user?.user_metadata?.full_name || userEmail.split("@")[0];
-  const pageLabel = location.pathname === "/dashboard" ? "Strategy dossier" : location.pathname === "/profile" ? "Profile" : location.pathname === "/sigma" ? "Agent session" : "Business brief";
+  const pageLabel = location.pathname === "/dashboard" ? "Strategy dossier" : location.pathname === "/profile" ? "Profile" : location.pathname === "/sigma" ? "Agent session" : location.pathname.startsWith("/workspace") ? "Workspace" : "Business brief";
 
   const Header = () => (
     <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-background/90 px-4 backdrop-blur-xl md:px-5">
@@ -45,6 +45,7 @@ const AppLayout = () => {
         {!isMobile && <button onClick={() => navigate('/profile')} className="mr-2 text-xs text-muted-foreground hover:text-foreground">{userName}</button>}
         <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} title="Profile"><UserCircle /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} title="New brief"><Plus /></Button>
+        <Button variant="ghost" size="icon" onClick={() => navigate('/workspace')} title="Workspace"><LayoutGrid /></Button>
         <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} title="Dashboard"><LayoutDashboard /></Button>
         <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out"><LogOut /></Button>
       </div>
