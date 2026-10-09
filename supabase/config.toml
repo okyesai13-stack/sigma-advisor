@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.marketing-strategy]
 verify_jwt = false
+
+[functions.canvas-assist]
+verify_jwt = false

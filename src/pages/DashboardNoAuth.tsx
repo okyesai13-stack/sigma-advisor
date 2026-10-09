@@ -98,6 +98,17 @@ const DashboardNoAuth = () => {
     document.getElementById(`section-${key}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  useEffect(() => {
+    const hash = window.location.hash.slice(1);
+    if (!hash.startsWith("section-")) return;
+    let tries = 0;
+    const t = setInterval(() => {
+      const el = document.getElementById(hash);
+      if (el || ++tries > 20) { clearInterval(t); el?.scrollIntoView({ behavior: "smooth", block: "start" }); }
+    }, 250);
+    return () => clearInterval(t);
+  }, []);
+
   if (loading || (!business && !triedReload)) {
     return (
       <div className="h-full flex items-center justify-center">
