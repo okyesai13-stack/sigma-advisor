@@ -20,6 +20,8 @@ import DashboardNoAuth from "./pages/DashboardNoAuth";
 import ProfilePage from "./pages/ProfilePage";
 import PitchDeckPage from "./pages/PitchDeckPage";
 import NotFound from "./pages/NotFound";
+import WorkspacePage from "./pages/WorkspacePage";
+import CanvasPage from "./pages/CanvasPage";
 
 const queryClient = new QueryClient();
 
@@ -47,6 +49,8 @@ const App = () => (
                 <Route path="/sigma" element={<SigmaNoAuth />} />
                 <Route path="/dashboard" element={<DashboardNoAuth />} />
                 <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/workspace" element={<WorkspacePage />} />
+                <Route path="/workspace/:id" element={<CanvasPage />} />
               </Route>
 
               <Route path="/deck" element={<ProtectedRoute><PitchDeckPage /></ProtectedRoute>} />
