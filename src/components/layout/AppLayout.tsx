@@ -2,9 +2,10 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useState } from "react";
-import { LayoutDashboard, LayoutGrid, LogOut, MessageCircle, PanelRightClose, UserCircle, Plus, Zap } from "lucide-react";
+import { LayoutDashboard, LayoutGrid, LogOut, Menu, MessageCircle, PanelRightClose, UserCircle, Plus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Drawer, DrawerContent, DrawerTrigger } from "@/components/ui/drawer";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/contexts/AuthContext";
 import AdvisorChatPanel from "@/components/advisor/AdvisorChatPanel";
 
@@ -42,12 +43,24 @@ const AppLayout = () => {
         <span className="hidden text-xs text-muted-foreground sm:block">{pageLabel}</span>
       </div>
       <div className="flex items-center gap-1">
-        {!isMobile && <button onClick={() => navigate('/profile')} className="mr-2 text-xs text-muted-foreground hover:text-foreground">{userName}</button>}
-        <Button variant="ghost" size="icon" onClick={() => navigate('/profile')} title="Profile"><UserCircle /></Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate('/setup')} title="New brief"><Plus /></Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate('/workspace')} title="Workspace"><LayoutGrid /></Button>
-        <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')} title="Dashboard"><LayoutDashboard /></Button>
-        <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign out"><LogOut /></Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" title="Menu" aria-label="Open navigation menu"><Menu /></Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-56">
+            <DropdownMenuLabel className="flex items-center gap-2">
+              <UserCircle className="h-4 w-4 text-muted-foreground" />
+              <span className="truncate">{userName}</span>
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => navigate('/dashboard')}><LayoutDashboard className="mr-2 h-4 w-4" />Dashboard</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/workspace')}><LayoutGrid className="mr-2 h-4 w-4" />Workspace</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/setup')}><Plus className="mr-2 h-4 w-4" />New brief</DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/profile')}><UserCircle className="mr-2 h-4 w-4" />Profile</DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleSignOut}><LogOut className="mr-2 h-4 w-4" />Sign out</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </header>
   );
