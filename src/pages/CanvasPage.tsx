@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,34 @@ const BOARD_W = (CW + GAP) * 5 - GAP;
 const IDEAS = { x: BOARD_W + 60, y: 0, w: 520, h: RH * 2 + GAP + BH + GAP };
 const NW = 200;
 
+const FTOP = IDEAS.h + 120, FW = 640, FH = 520, FG = 24;
+const AGENTS = [
+  { key: "mr", title: "Market Research", table: "market_research_result", fn: "market-research", section: "market", box: "customer_segments", icon: TrendingUp },
+  { key: "ca", title: "Competitor Position", table: "competitor_analysis_result", fn: "competitor-analysis", section: "comp", box: "unfair_advantage", icon: Swords },
+  { key: "bp", title: "Business Plan", table: "business_plan_result", fn: "business-plan", section: "plan", box: "solution", icon: FileText },
+  { key: "fm", title: "Financial Model", table: "financial_model_result", fn: "financial-model", section: "fin", box: "revenue_streams", icon: DollarSign },
+  { key: "ms", title: "Marketing Strategy", table: "marketing_strategy_result", fn: "marketing-strategy", section: "mkt", box: "channels", icon: Megaphone },
+  { key: "aio", title: "AI Operations", table: "ai_operations_result", fn: "ai-operations", section: "aio", box: "key_metrics", icon: Cpu },
+] as const;
+type AgentKey = typeof AGENTS[number]["key"];
+const FRAMES = Object.fromEntries(AGENTS.map((a, i) => [a.key, { x: (i % 3) * (FW + FG), y: FTOP + Math.floor(i / 3) * (FH + FG), w: FW, h: FH }])) as Record<AgentKey, { x: number; y: number; w: number; h: number }>;
+const BOTTOM = FTOP + 2 * (FH + FG);
+const frameOf = (n: { x: number; y: number }): AgentKey | null => {
+  const cx = n.x + NW / 2, cy = n.y + 30;
+  for (const a of AGENTS) { const f = FRAMES[a.key]; if (cx >= f.x && cx <= f.x + f.w && cy >= f.y && cy <= f.y + f.h) return a.key; }
+  return null;
+};
+const frameSlot = (k: AgentKey, i: number) => { const f = FRAMES[k]; return { x: f.x + 12 + (i % 3) * (NW + 12), y: f.y + HEAD + Math.floor(i / 3) * 120 }; };
+const flat = (v: any): string => {
+  if (v == null) return "";
+  if (typeof v !== "object") return String(v);
+  if (Array.isArray(v)) return v.slice(0, 3).map(flat).filter(Boolean).join("; ");
+  return Object.entries(v).slice(0, 4).map(([k, x]) => `${k.replace(/_/g, " ")}: ${flat(x)}`).join(" · ");
+};
+const insights = (row: any): string[] => row ? Object.entries(row)
+  .filter(([k, v]) => !["id", "business_id", "created_at", "updated_at", "user_id"].includes(k) && v != null && v !== "")
+  .map(([k, v]) => `${k.replace(/_/g, " ").toUpperCase()}: ${flat(v)}`.slice(0, 240)).slice(0, 12) : [];
+
 const uid = () => Math.random().toString(36).slice(2, 10);
 const zoneOf = (n: Note): BoxKey | null => {
   const cx = n.x + NW / 2, cy = n.y + 30;
@@ -86,20 +114,22 @@ const CanvasPage = () => {
   const wrap = useRef<HTMLDivElement>(null);
   const drag = useRef<{ kind: "pan" | "note"; id?: string; sx: number; sy: number; ox: number; oy: number } | null>(null);
   const ready = useRef(false);
+  const [results, setResults] = useState<Partial<Record<AgentKey, any>>>({});
 
   useEffect(() => {
     (async () => {
       setLoading(true); ready.current = false;
-      const [{ data: b }, mr, ca, bp, fm, ms, { data: c }] = await Promise.all([
+      const [{ data: b }, mr, ca, bp, fm, ms, aio, { data: c }] = await Promise.all([
         supabase.from("business_store").select("id, business_name, pitch, stage, industry, target_market, geography").eq("id", id).maybeSingle(),
         latest("market_research_result", id), latest("competitor_analysis_result", id), latest("business_plan_result", id),
-        latest("financial_model_result", id), latest("marketing_strategy_result", id),
+        latest("financial_model_result", id), latest("marketing_strategy_result", id), latest("ai_operations_result", id),
         supabase.from("lean_canvas").select("boxes").eq("business_id", id).maybeSingle(),
       ]);
       if (!b) { setLoading(false); return; }
       setBiz(b);
       const filled = autofill({ mr: mr.data, ca: ca.data, bp: bp.data, fm: fm.data, ms: ms.data });
       setSource(filled);
+      setResults({ mr: mr.data, ca: ca.data, bp: bp.data, fm: fm.data, ms: ms.data, aio: aio.data });
       const saved: any = c?.boxes || {};
       if (Array.isArray(saved.__board?.notes)) setNotes(saved.__board.notes);
       else setNotes(layout(Object.keys(saved).length ? saved : filled));
@@ -145,7 +175,7 @@ const CanvasPage = () => {
   };
   const fit = useCallback(() => {
     const el = wrap.current; if (!el) return;
-    const r = el.getBoundingClientRect(); const W = IDEAS.x + IDEAS.w, H = IDEAS.h;
+    const r = el.getBoundingClientRect(); const W = IDEAS.x + IDEAS.w, H = BOTTOM;
     const z = Math.min(1.2, Math.max(0.2, Math.min((r.width - 60) / W, (r.height - 60) / H)));
     setView({ z, x: (r.width - W * z) / 2, y: (r.height - H * z) / 2 });
   }, []);
@@ -207,6 +237,33 @@ const CanvasPage = () => {
     const start = inZone.length;
     setNotes((ns) => [...ns, ...items.map((t, i) => ({ id: uid(), text: t, color: c, ai: true, ...(base ? { x: base.x, y: base.y + i * 110 } : slot(box, start + i)) }))]);
     toast({ title: `AI added ${items.length} notes`, description: "Green = ideas, red = challenges. Drag, edit or delete them." });
+  };
+
+  const pullAgent = (k: AgentKey) => {
+    const items = insights(results[k]);
+    if (!items.length) { toast({ title: "No results yet", description: "Run this agent first." }); return; }
+    setNotes((ns) => [...ns.filter((n) => frameOf(n) !== k), ...items.map((t, i) => ({ id: uid(), text: t, color: "slate" as Color, ...frameSlot(k, i) }))]);
+  };
+  const rerunAgent = async (a: typeof AGENTS[number]) => {
+    setBusy(a.key);
+    const { data, error } = await supabase.functions.invoke(a.fn, { body: { business_id: id } });
+    if (error || !data?.success) { setBusy(null); toast({ title: `${a.title} failed`, description: data?.error || error?.message, variant: "destructive" }); return; }
+    const { data: row } = await latest(a.table, id);
+    setResults((r) => ({ ...r, [a.key]: row }));
+    setBusy(null);
+    const items = insights(row);
+    setNotes((ns) => [...ns.filter((n) => frameOf(n) !== a.key), ...items.map((t, i) => ({ id: uid(), text: t, color: "slate" as Color, ...frameSlot(a.key, i) }))]);
+    toast({ title: `${a.title} refreshed`, description: "Fresh insights are on the board." });
+  };
+  const aiFrame = async (a: typeof AGENTS[number], action: string) => {
+    setBusy(a.key);
+    const inFrame = notes.filter((n) => frameOf(n) === a.key).map((n) => n.text);
+    const { data, error } = await supabase.functions.invoke("canvas-assist", { body: { business_id: id, box: a.box, action, notes: inFrame.length ? inFrame : insights(results[a.key]) } });
+    setBusy(null);
+    if (error || data?.error) { toast({ title: "AI couldn't help right now", description: data?.error || error?.message, variant: "destructive" }); return; }
+    const items: string[] = data.suggestions || [];
+    const start = inFrame.length;
+    setNotes((ns) => [...ns, ...items.map((t, i) => ({ id: uid(), text: t, color: (action === "challenge" ? "red" : "mint") as Color, ai: true, ...frameSlot(a.key, start + i) }))]);
   };
 
   const resetZone = (k: BoxKey) => setNotes((ns) => [...ns.filter((n) => zoneOf(n) !== k), ...(source[k] || []).map((t, i) => ({ id: uid(), text: t, color: "orange" as Color, ...slot(k, i) }))]);
@@ -276,6 +333,28 @@ const CanvasPage = () => {
             <p className="px-3 text-[11px] text-muted-foreground">Free space — drag notes into a box when ready</p>
           </div>
 
+          <p className="absolute font-display text-lg font-semibold" style={{ left: 0, top: FTOP - 44 }}>Agent workspaces <span className="text-xs font-normal text-muted-foreground">— pull each agent's results onto the board, re-run it, or brainstorm with AI</span></p>
+          {AGENTS.map((a) => {
+            const f = FRAMES[a.key]; const has = !!results[a.key]; const Icon = a.icon;
+            return (
+              <div key={a.key} className={`absolute rounded-lg border bg-card/30 ${busy === a.key ? "border-primary" : "border-border"}`} style={{ left: f.x, top: f.y, width: f.w, height: f.h }}>
+                <div data-ui className="flex items-start justify-between gap-2 px-3 pt-2.5">
+                  <div className="flex items-center gap-2"><span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary"><Icon className="h-3.5 w-3.5" /></span>
+                    <div><p className="font-display text-sm font-semibold">{a.title}</p><p className="text-[11px] text-muted-foreground">{has ? "Results ready" : "Not run yet"}</p></div></div>
+                  <div className="flex items-center">
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Pull results onto board" disabled={!has} onClick={() => pullAgent(a.key)}><Download className="h-3.5 w-3.5" /></Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild><Button size="icon" variant="ghost" className="h-7 w-7 text-primary" title="Ask AI agent">{busy === a.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}</Button></DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">{ACTIONS.map((x) => <DropdownMenuItem key={x.id} onClick={() => aiFrame(a, x.id)}>{x.label}</DropdownMenuItem>)}</DropdownMenuContent>
+                    </DropdownMenu>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title={has ? "Re-run this agent" : "Run this agent"} disabled={busy === a.key} onClick={() => rerunAgent(a)}><RefreshCw className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7" title="Open in dashboard" onClick={() => jump(a.section)}><ExternalLink className="h-3.5 w-3.5" /></Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
           {notes.map((n) => (
             <div
               key={n.id} data-note
@@ -312,11 +391,11 @@ const CanvasPage = () => {
         {/* selection bar */}
         {selected && (
           <div data-ui className="glass-surface absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-1 rounded-lg border border-border p-1.5 animate-fade-in">
-            <span className="px-2 text-xs text-muted-foreground">{zoneOf(selected) ? CANVAS_BOXES.find((b) => b.key === zoneOf(selected))?.title : "Brainstorm"}</span>
+            <span className="px-2 text-xs text-muted-foreground">{zoneOf(selected) ? CANVAS_BOXES.find((b) => b.key === zoneOf(selected))?.title : frameOf(selected) ? AGENTS.find((a) => a.key === frameOf(selected))?.title : "Brainstorm"}</span>
             <DropdownMenu>
               <DropdownMenuTrigger asChild><Button size="sm" variant="ghost" className="h-8 text-primary"><Wand2 className="h-3.5 w-3.5" />AI on this note</Button></DropdownMenuTrigger>
               <DropdownMenuContent>
-                {ACTIONS.map((a) => <DropdownMenuItem key={a.id} onClick={() => runAI(zoneOf(selected) || "solution", a.id, selected)}>{a.label}</DropdownMenuItem>)}
+                {ACTIONS.map((a) => <DropdownMenuItem key={a.id} onClick={() => runAI(zoneOf(selected) || (AGENTS.find((x) => x.key === frameOf(selected))?.box as BoxKey) || "solution", a.id, selected)}>{a.label}</DropdownMenuItem>)}
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-destructive" title="Delete (Del)" onClick={() => remove(selected.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
