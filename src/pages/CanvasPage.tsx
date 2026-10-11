@@ -155,17 +155,23 @@ const CanvasPage = () => {
     return { x: (cx - r.left - v.x) / v.z, y: (cy - r.top - v.y) / v.z };
   };
 
+  // Events from portaled menus bubble through React; ignore anything not physically inside the board.
+  const outside = (e: React.SyntheticEvent) => !(e.currentTarget as HTMLElement).contains(e.target as Node);
   const onBgDown = (e: React.PointerEvent) => {
+    if (outside(e) || e.button !== 0) return;
     if ((e.target as HTMLElement).closest("[data-note],[data-ui]")) return;
+    (document.activeElement as HTMLElement | null)?.blur?.();
     setSel(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
   };
   const onNoteDown = (e: React.PointerEvent, n: Note) => {
+    e.stopPropagation();
+    if (outside(e) || e.button !== 0) return;
     setSel(n.id);
     if ((e.target as HTMLElement).tagName === "TEXTAREA" && tool === "select") return;
     if ((e.target as HTMLElement).closest("button")) return;
-    e.stopPropagation();
+    e.preventDefault();
     wrap.current!.setPointerCapture(e.pointerId);
     drag.current = tool === "hand"
       ? { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y }
@@ -208,7 +214,9 @@ const CanvasPage = () => {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement).tagName === "TEXTAREA") return;
+      const t = e.target as HTMLElement;
+      if (["TEXTAREA", "INPUT", "SELECT"].includes(t.tagName) || t.isContentEditable || t.closest("[role=menu],[role=dialog]")) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "v") setTool("select");
       if (e.key === "h") setTool("hand");
       if (e.key === "n") addNote();
@@ -240,7 +248,7 @@ const CanvasPage = () => {
       <div
         ref={wrap}
         onPointerDown={onBgDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-        onDoubleClick={(e) => { if ((e.target as HTMLElement).closest("[data-note],[data-ui]")) return; const p = toWorld(e.clientX, e.clientY); addNote(p.x - NW / 2, p.y - 20); }}
+        onDoubleClick={(e) => { if (outside(e)) return; if ((e.target as HTMLElement).closest("[data-note],[data-ui]")) return; const p = toWorld(e.clientX, e.clientY); addNote(p.x - NW / 2, p.y - 20); }}
         className={`relative flex-1 touch-none select-none overflow-hidden bg-background ${tool === "hand" ? "cursor-grab active:cursor-grabbing" : ""}`}
         style={{ backgroundImage: "radial-gradient(hsl(var(--border)) 1px, transparent 1px)", backgroundSize: `${24 * view.z}px ${24 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
       >
@@ -275,7 +283,10 @@ const CanvasPage = () => {
               className={`absolute rounded-md border p-2 shadow-lg transition-shadow ${COLORS[n.color]} ${sel === n.id ? "ring-2 ring-primary" : ""} ${tool === "select" ? "cursor-move" : ""}`}
               style={{ left: n.x, top: n.y, width: NW }}
             >
-              {n.ai && <p className="mb-1 flex items-center gap-1 text-[9px] uppercase tracking-wider text-muted-foreground"><Sparkles className="h-2.5 w-2.5" />AI</p>}
+              <div className="-mx-2 -mt-2 mb-1 flex h-5 cursor-move items-center justify-between rounded-t-md px-2 text-[9px] uppercase tracking-wider text-muted-foreground" title="Drag to move">
+                <span className="flex items-center gap-1">{n.ai && <><Sparkles className="h-2.5 w-2.5" />AI</>}</span>
+                <span className="tracking-[0.2em]">⋮⋮</span>
+              </div>
               <textarea
                 value={n.text} placeholder="Type an idea…"
                 onChange={(e) => patch(n.id, { text: e.target.value })}
