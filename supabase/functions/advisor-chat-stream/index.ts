@@ -155,6 +155,22 @@ serve(async (req) => {
     const pick = (row: any, fields: string[]) => row ? JSON.stringify(Object.fromEntries(fields.map((f) => [f, row[f]]))) : "not generated yet";
     const brief = (row: any, fields: string[], n = 2500) => pick(row, fields).slice(0, n);
     const { data: canvasRow } = await supabase.from("lean_canvas").select("boxes").eq("business_id", business_id).maybeSingle();
+    const canvasText = (b: any): string => {
+      if (!b || typeof b !== "object") return "Empty — the founder hasn't started the whiteboard yet.";
+      const lines: string[] = [];
+      const inBoxes = new Set<string>();
+      for (const [k, v] of Object.entries(b)) {
+        if (k.startsWith("__") || !Array.isArray(v) || !v.length) continue;
+        v.forEach((t: any) => inBoxes.add(String(t)));
+        lines.push(`${k.replace(/_/g, " ").toUpperCase()}:\n${v.map((t: any) => `  • ${String(t).slice(0, 300)}`).join("\n")}`);
+      }
+      const free = (b.__board?.notes || []).filter((n: any) => n?.text?.trim() && !inBoxes.has(n.text));
+      if (free.length) {
+        const tag = (c: string) => c === "mint" ? " [AI idea]" : c === "red" ? " [challenge]" : c === "amber" ? " [flag]" : "";
+        lines.push(`LOOSE IDEAS / FREE-SPACE NOTES:\n${free.slice(0, 40).map((n: any) => `  • ${String(n.text).slice(0, 300)}${tag(n.color)}`).join("\n")}`);
+      }
+      return lines.length ? lines.join("\n").slice(0, 8000) : "Empty — the founder hasn't started the whiteboard yet.";
+    };
 
     const system = `You are the Resident Strategy Advisor at Planz — sharp, candid, and grounded in the dossier below. Conversational, no markdown headers or bold. Use • for bullets.
 Answer the user's actual question using the specific facts, figures, names and assumptions in the dossier (quote numbers like TAM, competitor names, revenue, CAC/LTV, margins). Compare, explain trade-offs, do quick math and stress-test assumptions when asked. If the dossier doesn't contain the answer, say so plainly and give your best reasoned estimate labelled as an estimate. Never invent dossier data. Keep it under ~250 words. End with a pointed follow-up question.
@@ -172,7 +188,9 @@ FINANCE (full): ${pick(fm.data, EDITABLE.financial_model.fields)}
 PLAN (brief): ${brief(bp.data, EDITABLE.business_plan.fields)}
 MARKETING (brief): ${brief(ms.data, EDITABLE.marketing_strategy.fields)}
 AI OPS (brief): ${brief(aio.data, EDITABLE.ai_operations.fields)}
-LEAN CANVAS (user's working canvas): ${JSON.stringify(canvasRow?.boxes || {}).slice(0, 4000)}`;
+
+FOUNDER'S OWN WHITEBOARD (their working ideas — treat as the founder's thinking, reference it by box name, compare it against the dossier and point out gaps or contradictions):
+${canvasText(canvasRow?.boxes)}`;
 
     const history = (hist.data || []).map((m: any) => ({ role: m.role, content: m.content }));
 
