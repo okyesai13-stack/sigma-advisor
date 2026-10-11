@@ -155,17 +155,23 @@ const CanvasPage = () => {
     return { x: (cx - r.left - v.x) / v.z, y: (cy - r.top - v.y) / v.z };
   };
 
+  // Events from portaled menus bubble through React; ignore anything not physically inside the board.
+  const outside = (e: React.SyntheticEvent) => !(e.currentTarget as HTMLElement).contains(e.target as Node);
   const onBgDown = (e: React.PointerEvent) => {
+    if (outside(e) || e.button !== 0) return;
     if ((e.target as HTMLElement).closest("[data-note],[data-ui]")) return;
+    (document.activeElement as HTMLElement | null)?.blur?.();
     setSel(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
   };
   const onNoteDown = (e: React.PointerEvent, n: Note) => {
+    e.stopPropagation();
+    if (outside(e) || e.button !== 0) return;
     setSel(n.id);
     if ((e.target as HTMLElement).tagName === "TEXTAREA" && tool === "select") return;
     if ((e.target as HTMLElement).closest("button")) return;
-    e.stopPropagation();
+    e.preventDefault();
     wrap.current!.setPointerCapture(e.pointerId);
     drag.current = tool === "hand"
       ? { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y }
