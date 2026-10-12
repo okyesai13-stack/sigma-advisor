@@ -26,4 +26,12 @@ describe("whiteboard section mapping", () => {
     expect(connectionGeometry(from, to).path).toBe("M 300 170 C 450 170, 450 170, 600 170");
     expect(connectionGeometry({ ...from, x: 100 }, to).path).toBe("M 400 170 C 500 170, 500 170, 600 170");
   });
+  test("flow arrows connect the selected sides of any two sections", () => {
+    const from = { x: 0, y: 0, w: 300, h: 340 };
+    const to = { x: 600, y: 500, w: 640, h: 520 };
+    const path = connectionGeometry(from, to, "bottom", "left").path;
+    expect(path.startsWith("M 150 340 C 150 ")).toBe(true);
+    expect(path.endsWith(", 600 760")).toBe(true);
+    expect(connectionGeometry(from, { ...to, x: 800 }, "bottom", "left").path.endsWith(", 800 760")).toBe(true);
+  });
 });
