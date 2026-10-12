@@ -1,8 +1,9 @@
 # Redesign roadmap
 
-- [ ] Make whiteboard sections movable with their notes
-- [ ] Add saved, editable connections between sections
-- [ ] Verify movement and mapping behavior
+- [x] Make whiteboard sections movable with their notes
+- [x] Add saved, editable connections between sections
+- [x] Verify movement and mapping logic with four passing tests
+- [ ] Verify movement and saved mappings through signed-in UI (blocked: external authentication is unavailable for automated checks)
 
 - [x] Lock visual direction and audit current UI
 - [x] Apply shared Signal Orange design system
