@@ -207,7 +207,7 @@ const CanvasPage = () => {
   const onNoteDown = (e: React.PointerEvent, n: Note) => {
     e.stopPropagation();
     if (outside(e) || e.button !== 0) return;
-    setSel(n.id);
+    setSel(n.id); setSelectedConnection(null); setConnectFrom(null);
     if ((e.target as HTMLElement).tagName === "TEXTAREA" && tool === "select") return;
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
@@ -222,6 +222,10 @@ const CanvasPage = () => {
     if (connectFrom) { connectSection(key); return; }
     e.preventDefault(); setSel(null); setSelectedConnection(null);
     wrap.current?.setPointerCapture(e.pointerId);
+    if (tool === "hand") {
+      drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
+      return;
+    }
     const rect = sections[key];
     drag.current = { kind: "section", id: key, sx: e.clientX, sy: e.clientY, ox: rect.x, oy: rect.y, initial: notes, ids: notes.filter((n) => containsNote(rect, n)).map((n) => n.id) };
   };
