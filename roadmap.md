@@ -1,5 +1,8 @@
 # Redesign roadmap
 
+- [x] Add flow-diagram handles and drag-to-connect arrows to every whiteboard section
+- [x] Verify side-anchored connection geometry and existing mapping tests (five passing tests; build OK)
+
 - [x] Make whiteboard sections movable with their notes
 - [x] Add saved, editable connections between sections
 - [x] Verify movement and mapping logic with four passing tests
