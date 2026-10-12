@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import Seo from "@/components/Seo";
-import { containsNote, moveSectionNotes, canConnect, connectionGeometry, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
+import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
 import { CANVAS_BOXES, autofill, type Boxes, type BoxKey } from "@/lib/leanCanvas";
 
 const latest = (t: string, id: string) =>
@@ -88,6 +88,9 @@ const CanvasPage = () => {
   const sectionsRef = useRef(sections); sectionsRef.current = sections;
   const [connections, setConnections] = useState<SectionConnection[]>([]);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
+  const [connectSide, setConnectSide] = useState<ConnectionSide | undefined>();
+  const [connectionPoint, setConnectionPoint] = useState<{ x: number; y: number } | null>(null);
+  const connectionDrag = useRef<{ key: string; side: ConnectionSide; x: number; y: number } | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
   const zoneOf = (n: Note): BoxKey | null => CANVAS_BOXES.find((b) => containsNote(sections[b.key], n))?.key || null;
   const frameOf = (n: Note): AgentKey | null => AGENTS.find((a) => containsNote(sections[a.key], n))?.key || null;
@@ -229,15 +232,17 @@ const CanvasPage = () => {
     const rect = sections[key];
     drag.current = { kind: "section", id: key, sx: e.clientX, sy: e.clientY, ox: rect.x, oy: rect.y, initial: notes, ids: notes.filter((n) => containsNote(rect, n)).map((n) => n.id) };
   };
-  const connectSection = (key: string) => {
+  const connectSection = (key: string, side?: ConnectionSide) => {
     setSel(null); setSelectedConnection(null);
-    if (!connectFrom) { setConnectFrom(key); return; }
-    if (connectFrom === key) { setConnectFrom(null); return; }
+    if (!connectFrom) { setConnectFrom(key); setConnectSide(side); setConnectionPoint(null); return; }
+    if (connectFrom === key) { setConnectFrom(null); setConnectionPoint(null); return; }
     const from = connectFrom;
-    setConnections((cs) => canConnect(cs, from, key) ? [...cs, { id: uid(), from, to: key, label: "" }] : cs);
-    setConnectFrom(null);
+    const connectionId = uid();
+    setConnections((cs) => canConnect(cs, from, key) ? [...cs, { id: connectionId, from, to: key, label: "", fromSide: connectSide, toSide: side }] : cs);
+    setConnectFrom(null); setConnectionPoint(null); setSelectedConnection(connectionId);
   };
   const onMove = (e: React.PointerEvent) => {
+    if (connectFrom) setConnectionPoint(toWorld(e.clientX, e.clientY));
     const d = drag.current; if (!d) return;
     const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
     if (d.kind === "pan") setView((v) => ({ ...v, x: d.ox + dx, y: d.oy + dy }));
@@ -248,7 +253,18 @@ const CanvasPage = () => {
     }
     else setNotes((ns) => ns.map((n) => (n.id === d.id ? { ...n, x: d.ox + dx / viewRef.current.z, y: d.oy + dy / viewRef.current.z } : n)));
   };
-  const onUp = () => { drag.current = null; };
+  const onUp = (e: React.PointerEvent) => {
+    drag.current = null;
+    const start = connectionDrag.current;
+    connectionDrag.current = null;
+    if (!start || e.type === "pointercancel") return;
+    if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
+    const target = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-connection-port]");
+    const key = target?.dataset.sectionKey;
+    const side = target?.dataset.side as ConnectionSide | undefined;
+    if (key && key !== start.key) connectSection(key, side);
+    else { setConnectFrom(null); setConnectionPoint(null); }
+  };
 
   const addNote = (x?: number, y?: number, text = "", c: Color = color) => {
     let p = { x: x ?? 0, y: y ?? 0 };
@@ -397,13 +413,19 @@ const CanvasPage = () => {
             <defs><marker id="section-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" className="fill-primary" /></marker></defs>
             {connections.map((c) => {
               const from = sections[c.from], to = sections[c.to]; if (!from || !to) return null;
-              const g = connectionGeometry(from, to);
+              const g = connectionGeometry(from, to, c.fromSide, c.toSide);
               return <g key={c.id} data-ui>
                 <path d={g.path} fill="none" className="stroke-primary" strokeWidth={selectedConnection === c.id ? 4 : 2} markerEnd="url(#section-arrow)" />
                 <path d={g.path} fill="none" stroke="transparent" strokeWidth="20" className="pointer-events-auto cursor-pointer" aria-label="Select connection" onPointerDown={(e) => { e.stopPropagation(); setSelectedConnection(c.id); setSel(null); }} />
                 {c.label && <text x={g.mid.x} y={g.mid.y - 10} textAnchor="middle" className="fill-foreground text-xs">{c.label}</text>}
               </g>;
             })}
+            {connectFrom && connectionPoint && (() => {
+              const rect = sections[connectFrom];
+              if (!rect) return null;
+              const start = sectionAnchor(rect, connectSide || "right");
+              return <path d={`M ${start.x} ${start.y} L ${connectionPoint.x} ${connectionPoint.y}`} fill="none" className="stroke-primary" strokeWidth="2" strokeDasharray="8 5" markerEnd="url(#section-arrow)" />;
+            })()}
           </svg>
 
           {notes.map((n) => (
@@ -426,6 +448,23 @@ const CanvasPage = () => {
               {busy === n.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
             </div>
           ))}
+          {Object.entries(sections).flatMap(([key, rect]) => (["top", "right", "bottom", "left"] as ConnectionSide[]).map((side) => {
+            const point = sectionAnchor(rect, side);
+            const title = CANVAS_BOXES.find((b) => b.key === key)?.title || AGENTS.find((a) => a.key === key)?.title || "Brainstorm area";
+            return <Button key={`${key}-${side}`} data-ui data-connection-port data-section-key={key} data-side={side} size="icon" variant="outline"
+              aria-label={`Connect ${title} ${side}`} title={`Connect ${title} · ${side}`}
+              className={`absolute z-20 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background p-0 text-primary hover:bg-primary hover:text-primary-foreground ${connectFrom === key ? "bg-primary text-primary-foreground" : ""}`}
+              style={{ left: point.x, top: point.y }}
+              onPointerDown={(e) => {
+                e.stopPropagation(); e.preventDefault();
+                if (e.button !== 0) return;
+                if (connectFrom) { connectSection(key, side); return; }
+                setSel(null); setSelectedConnection(null); setConnectFrom(key); setConnectSide(side); setConnectionPoint(point);
+                connectionDrag.current = { key, side, x: e.clientX, y: e.clientY };
+                wrap.current?.setPointerCapture(e.pointerId);
+              }}
+              onClick={(e) => { if (e.detail === 0) connectSection(key, side); }}><Plus className="h-3 w-3" /></Button>;
+          }))}
         </div>
 
         {/* toolbar */}
