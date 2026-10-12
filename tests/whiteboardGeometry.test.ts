@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canConnect, connectionGeometry, containsNote, moveSectionNotes } from "./whiteboardGeometry";
+import { canConnect, connectionGeometry, containsNote, moveSectionNotes } from "../src/lib/whiteboardGeometry";
 
 describe("whiteboard section mapping", () => {
   test("moving a section carries its notes, leaving other notes in place", () => {
