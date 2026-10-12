@@ -371,7 +371,6 @@ const CanvasPage = () => {
             <p className="px-3 text-[11px] text-muted-foreground">Free space — drag notes into a box when ready</p>
           </div>
 
-          <p className="absolute font-display text-lg font-semibold" style={{ left: 0, top: FTOP - 44 }}>Agent workspaces <span className="text-xs font-normal text-muted-foreground">— pull each agent's results onto the board, re-run it, or brainstorm with AI</span></p>
           {AGENTS.map((a) => {
             const f = sections[a.key]; const has = !!results[a.key]; const Icon = a.icon;
             return (
