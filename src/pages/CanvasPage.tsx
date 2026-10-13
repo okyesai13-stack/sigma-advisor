@@ -427,6 +427,15 @@ const CanvasPage = () => {
               return <path d={`M ${start.x} ${start.y} L ${connectionPoint.x} ${connectionPoint.y}`} fill="none" className="stroke-primary" strokeWidth="2" strokeDasharray="8 5" markerEnd="url(#section-arrow)" />;
             })()}
           </svg>
+          {connections.map((c) => {
+            const from = sections[c.from], to = sections[c.to]; if (!from || !to) return null;
+            const g = connectionGeometry(from, to, c.fromSide, c.toSide);
+            return <button key={`del-${c.id}`} data-ui type="button" aria-label="Remove connection" title="Remove connection"
+              onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); }}
+              onClick={(e) => { e.stopPropagation(); setConnections((cs) => cs.filter((x) => x.id !== c.id)); if (selectedConnection === c.id) setSelectedConnection(null); }}
+              className="absolute z-30 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-destructive bg-background text-destructive shadow hover:bg-destructive hover:text-destructive-foreground"
+              style={{ left: g.mid.x, top: g.mid.y + 10 }}><X className="h-3 w-3" /></button>;
+          })}
 
           {notes.map((n) => (
             <div
