@@ -92,6 +92,7 @@ const CanvasPage = () => {
   const [connectSide, setConnectSide] = useState<ConnectionSide | undefined>();
   const [connectionPoint, setConnectionPoint] = useState<{ x: number; y: number } | null>(null);
   const connectionDrag = useRef<{ key: string; side: ConnectionSide; x: number; y: number } | null>(null);
+  const [rerouting, setRerouting] = useState<{ id: string; moving: "from" | "to" } | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [panel, setPanel] = useState<null | "tasks" | "review">(null);
@@ -284,6 +285,20 @@ const CanvasPage = () => {
     drag.current = null;
     const start = connectionDrag.current;
     connectionDrag.current = null;
+    if (rerouting) {
+      const r = rerouting; setRerouting(null); setConnectFrom(null); setConnectionPoint(null);
+      if (!start || e.type === "pointercancel" || Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
+      const t = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-connection-port]");
+      const k = t?.dataset.sectionKey, sd = t?.dataset.side as ConnectionSide | undefined;
+      setConnections((cs) => {
+        const c = cs.find((x) => x.id === r.id); if (!c) return cs;
+        const rest = cs.filter((x) => x.id !== r.id);
+        if (!k) return rest; // dropped on empty space: disconnect
+        const next = r.moving === "to" ? { ...c, to: k, toSide: sd } : { ...c, from: k, fromSide: sd };
+        return canConnect(rest, next.from, next.to) ? [...rest, next] : cs;
+      });
+      return;
+    }
     if (!start || e.type === "pointercancel") return;
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
     const target = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-connection-port]");
@@ -463,7 +478,7 @@ const CanvasPage = () => {
 
           <svg className="pointer-events-none absolute overflow-visible" width="1" height="1" aria-label="Section connections">
             <defs><marker id="section-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" className="fill-primary" /></marker></defs>
-            {connections.map((c) => {
+            {connections.filter((c) => c.id !== rerouting?.id).map((c) => {
               const from = sections[c.from], to = sections[c.to]; if (!from || !to) return null;
               const g = connectionGeometry(from, to, c.fromSide, c.toSide);
               return <g key={c.id} data-ui>
@@ -487,6 +502,25 @@ const CanvasPage = () => {
               onClick={(e) => { e.stopPropagation(); setConnections((cs) => cs.filter((x) => x.id !== c.id)); if (selectedConnection === c.id) setSelectedConnection(null); }}
               className="absolute z-30 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-destructive bg-background text-destructive shadow hover:bg-destructive hover:text-destructive-foreground"
               style={{ left: g.mid.x, top: g.mid.y + 10 }}><X className="h-3 w-3" /></button>;
+          })}
+          {connections.flatMap((c) => {
+            const from = sections[c.from], to = sections[c.to]; if (!from || !to) return [];
+            const g = connectionGeometry(from, to, c.fromSide, c.toSide);
+            return (["from", "to"] as const).map((moving) => {
+              const p = moving === "to" ? g.end : g.start;
+              const fixedKey = moving === "to" ? c.from : c.to;
+              const fixedSide = (moving === "to" ? c.fromSide : c.toSide) || "right";
+              return <button key={`end-${c.id}-${moving}`} data-ui type="button" aria-label={`Move arrow ${moving === "to" ? "end" : "start"}`} title="Drag to another point to reconnect · drop on empty space to disconnect"
+                className="absolute z-30 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 cursor-grab rounded-full border-2 border-background bg-primary shadow hover:scale-150"
+                style={{ left: p.x, top: p.y }}
+                onPointerDown={(e) => {
+                  e.stopPropagation(); e.preventDefault(); if (e.button !== 0) return;
+                  setSel(null); setSelectedConnection(null); setRerouting({ id: c.id, moving });
+                  setConnectFrom(fixedKey); setConnectSide(fixedSide); setConnectionPoint(p);
+                  connectionDrag.current = { key: fixedKey, side: fixedSide, x: e.clientX, y: e.clientY };
+                  wrap.current?.setPointerCapture(e.pointerId);
+                }} />;
+            });
           })}
 
           {notes.map((n) => (
