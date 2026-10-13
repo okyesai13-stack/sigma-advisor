@@ -461,7 +461,7 @@ const CanvasPage = () => {
             const point = sectionAnchor(rect, side);
             const title = CANVAS_BOXES.find((b) => b.key === key)?.title || AGENTS.find((a) => a.key === key)?.title || "Brainstorm area";
             return <Button key={`${key}-${side}`} data-ui data-connection-port data-section-key={key} data-side={side} size="icon" variant="outline"
-              aria-label={`Connect ${title} ${side}`} title={`Connect ${title} · ${side}`}
+              aria-label={`Connect ${title} ${side}`} title={`Drag to connect ${title} · right-click to remove its arrows`}
               className={`absolute z-20 h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-background p-0 text-primary hover:bg-primary hover:text-primary-foreground ${connectFrom === key ? "bg-primary text-primary-foreground" : ""}`}
               style={{ left: point.x, top: point.y }}
               onPointerDown={(e) => {
@@ -472,7 +472,8 @@ const CanvasPage = () => {
                 connectionDrag.current = { key, side, x: e.clientX, y: e.clientY };
                 wrap.current?.setPointerCapture(e.pointerId);
               }}
-              onClick={(e) => { if (e.detail === 0) connectSection(key, side); }}><Plus className="h-3 w-3" /></Button>;
+              onClick={(e) => { if (e.detail === 0) connectSection(key, side); }}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); setConnectFrom(null); setConnectionPoint(null); setConnections((cs) => cs.filter((c) => !((c.from === key && (c.fromSide || side) === side) || (c.to === key && (c.toSide || side) === side)))); }}><Plus className="h-3 w-3" /></Button>;
           }))}
         </div>
 
