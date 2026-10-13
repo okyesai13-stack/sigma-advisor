@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X } from "lucide-react";
+import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X, Undo2, Redo2, ListChecks, LayoutTemplate, ClipboardCheck, CheckCircle2, Circle, CircleDot } from "lucide-react";
+import { record, undo as undoH, redo as redoH, nextStatus, TEMPLATES, type BoardTask, type History } from "@/lib/boardExtras";
 import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
@@ -92,6 +93,14 @@ const CanvasPage = () => {
   const [connectionPoint, setConnectionPoint] = useState<{ x: number; y: number } | null>(null);
   const connectionDrag = useRef<{ key: string; side: ConnectionSide; x: number; y: number } | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
+  const [tasks, setTasks] = useState<BoardTask[]>([]);
+  const [panel, setPanel] = useState<null | "tasks" | "review">(null);
+  const [review, setReview] = useState<string[]>([]);
+  type Snap = { notes: Note[]; sections: Record<string, SectionRect>; connections: SectionConnection[]; tasks: BoardTask[] };
+  const hist = useRef<History<Snap>>({ past: [], future: [] });
+  const lastSnap = useRef<Snap | null>(null);
+  const restoring = useRef(false);
+  const [, bump] = useState(0);
   const zoneOf = (n: Note): BoxKey | null => CANVAS_BOXES.find((b) => containsNote(sections[b.key], n))?.key || null;
   const frameOf = (n: Note): AgentKey | null => AGENTS.find((a) => containsNote(sections[a.key], n))?.key || null;
   const zoneSlot = (k: BoxKey, i: number) => slot(k, i, sections);
@@ -138,6 +147,8 @@ const CanvasPage = () => {
       sectionsRef.current = restored;
       setSections(restored);
       setConnections(Array.isArray(saved.__board?.connections) ? saved.__board.connections.filter((c: SectionConnection) => restored[c.from] && restored[c.to] && typeof c.id === "string").map((c: SectionConnection) => ({ ...c, label: typeof c.label === "string" ? c.label : "" })) : []);
+      setTasks(Array.isArray(saved.__board?.tasks) ? saved.__board.tasks : []);
+      hist.current = { past: [], future: [] }; lastSnap.current = null;
       setConnectFrom(null); setSelectedConnection(null);
       if (Array.isArray(saved.__board?.notes)) setNotes(saved.__board.notes);
       else setNotes(layout(Object.keys(saved).length ? saved : filled));
@@ -150,12 +161,28 @@ const CanvasPage = () => {
     if (!ready.current) return;
     setSaving(true);
     const t = setTimeout(async () => {
-      const { error } = await supabase.from("lean_canvas").upsert({ business_id: id, boxes: { ...toBoxes(notes), __board: { notes, sections, connections } } as any }, { onConflict: "business_id" });
+      const { error } = await supabase.from("lean_canvas").upsert({ business_id: id, boxes: { ...toBoxes(notes), __board: { notes, sections, connections, tasks } } as any }, { onConflict: "business_id" });
       setSaving(false);
       if (error) toast({ title: "Couldn't save board", variant: "destructive" });
     }, 800);
     return () => clearTimeout(t);
-  }, [notes, sections, connections]);
+  }, [notes, sections, connections, tasks]);
+
+  // undo history: snapshot settles 400ms after a change
+  useEffect(() => {
+    if (!ready.current) return;
+    const t = setTimeout(() => {
+      const snap = { notes, sections, connections, tasks };
+      if (restoring.current) { restoring.current = false; lastSnap.current = snap; return; }
+      if (lastSnap.current && !drag.current) { hist.current = record(hist.current, lastSnap.current); bump((x) => x + 1); }
+      if (!drag.current) lastSnap.current = snap;
+    }, 400);
+    return () => clearTimeout(t);
+  }, [notes, sections, connections, tasks]);
+  const applySnap = (st: Snap) => { restoring.current = true; setNotes(st.notes); setSections(st.sections); setConnections(st.connections); setTasks(st.tasks); setSel(null); setSelectedConnection(null); bump((x) => x + 1); };
+  const doUndo = () => { const cur = lastSnap.current; if (!cur) return; const r = undoH(hist.current, cur); if (!r) return; hist.current = r.h; lastSnap.current = r.state; applySnap(r.state); };
+  const doRedo = () => { const cur = lastSnap.current; if (!cur) return; const r = redoH(hist.current, cur); if (!r) return; hist.current = r.h; lastSnap.current = r.state; applySnap(r.state); };
+
 
   // wheel zoom (native, non-passive)
   useEffect(() => {
@@ -318,12 +345,29 @@ const CanvasPage = () => {
   };
 
   const resetZone = (k: BoxKey) => setNotes((ns) => [...ns.filter((n) => zoneOf(n) !== k), ...(source[k] || []).map((t, i) => ({ id: uid(), text: t, color: "orange" as Color, ...zoneSlot(k, i) }))]);
+  const addTask = (text: string) => { setTasks((ts) => [...ts, { id: uid(), text: text.slice(0, 200), owner: "", due: "", status: "todo" }]); setPanel("tasks"); toast({ title: "Added to action tracker" }); };
+  const patchTask = (tid: string, p: Partial<BoardTask>) => setTasks((ts) => ts.map((t) => (t.id === tid ? { ...t, ...p } : t)));
+  const addTemplate = (tid: string) => {
+    const tpl = TEMPLATES.find((t) => t.id === tid); const r = sections.ideas; if (!tpl || !r) return;
+    const base = notes.filter((n) => containsNote(r, n)).length;
+    setNotes((ns) => [...ns, ...tpl.notes.map((t, i) => ({ id: uid(), text: t, color: "slate" as Color, x: r.x + 12 + ((base + i) % 3) * (NW + 12), y: r.y + HEAD + Math.floor((base + i) / 3) * 120 }))]);
+    toast({ title: `${tpl.label} template added to the brainstorm area` });
+  };
+  const runReview = async () => {
+    setPanel("review"); setBusy("review"); setReview([]);
+    const { data, error } = await supabase.functions.invoke("canvas-assist", { body: { business_id: id, box: "board", action: "review", notes: notes.filter((n) => n.text.trim()).map((n) => n.text).slice(0, 20) } });
+    setBusy(null);
+    if (error || data?.error) { toast({ title: "Review failed", description: data?.error || error?.message, variant: "destructive" }); return; }
+    setReview(data?.suggestions || []);
+  };
   const jump = (section: string) => { if (biz) setBusiness(biz); navigate(`/dashboard#section-${section}`); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (["TEXTAREA", "INPUT", "SELECT"].includes(t.tagName) || t.isContentEditable || t.closest("[role=menu],[role=dialog]")) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === "Escape") { setConnectFrom(null); setSelectedConnection(null); }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedConnection) { e.preventDefault(); setConnections((cs) => cs.filter((c) => c.id !== selectedConnection)); setSelectedConnection(null); }
@@ -351,6 +395,14 @@ const CanvasPage = () => {
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">{saving ? "Saving…" : "Saved"}</span>
+          <Button size="icon" variant="ghost" className="h-8 w-8" title="Undo (Ctrl+Z)" disabled={!hist.current.past.length} onClick={doUndo}><Undo2 className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" title="Redo (Ctrl+Shift+Z)" disabled={!hist.current.future.length} onClick={doRedo}><Redo2 className="h-4 w-4" /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-3.5 w-3.5" />Templates</Button></DropdownMenuTrigger>
+            <DropdownMenuContent>{TEMPLATES.map((t) => <DropdownMenuItem key={t.id} onClick={() => addTemplate(t.id)}>{t.label}</DropdownMenuItem>)}</DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="sm" variant="outline" onClick={runReview} disabled={busy === "review"}>{busy === "review" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ClipboardCheck className="h-3.5 w-3.5" />}AI review</Button>
+          <Button size="sm" variant={panel === "tasks" ? "default" : "outline"} onClick={() => setPanel(panel === "tasks" ? null : "tasks")}><ListChecks className="h-3.5 w-3.5" />Actions{tasks.filter((t) => t.status !== "done").length ? ` (${tasks.filter((t) => t.status !== "done").length})` : ""}</Button>
           <Button size="sm" variant="outline" onClick={() => window.print()}><Printer className="h-3.5 w-3.5" />Export</Button>
         </div>
       </div>
@@ -505,8 +557,48 @@ const CanvasPage = () => {
                 {ACTIONS.map((a) => <DropdownMenuItem key={a.id} onClick={() => runAI(zoneOf(selected) || (AGENTS.find((x) => x.key === frameOf(selected))?.box as BoxKey) || "solution", a.id, selected)}>{a.label}</DropdownMenuItem>)}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button size="sm" variant="ghost" className="h-8" title="Turn into an action" disabled={!selected.text.trim()} onClick={() => addTask(selected.text)}><ListChecks className="h-3.5 w-3.5" />Make task</Button>
             <Button size="icon" variant="ghost" className="h-8 w-8 hover:text-destructive" title="Delete (Del)" onClick={() => remove(selected.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
           </div>
+        )}
+
+        {panel && (
+          <aside data-ui className="glass-surface absolute bottom-16 right-4 top-4 z-40 flex w-80 max-w-[calc(100%-2rem)] flex-col rounded-lg border border-border animate-fade-in">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+              <p className="font-display text-sm font-semibold">{panel === "tasks" ? "Action tracker" : "AI board review"}</p>
+              <Button size="icon" variant="ghost" className="h-7 w-7" title="Close" onClick={() => setPanel(null)}><X className="h-4 w-4" /></Button>
+            </div>
+            <div className="flex-1 space-y-2 overflow-y-auto p-3">
+              {panel === "tasks" ? (<>
+                {!tasks.length && <p className="text-xs text-muted-foreground">No actions yet. Select a note and click "Make task", or add one below.</p>}
+                {(["todo", "doing", "done"] as const).flatMap((st) => tasks.filter((t) => t.status === st)).map((t) => (
+                  <div key={t.id} className="rounded-md border border-border bg-card p-2">
+                    <div className="flex items-start gap-2">
+                      <button title="Change status" onClick={() => patchTask(t.id, { status: nextStatus(t.status) })} className="mt-0.5 text-primary">{t.status === "done" ? <CheckCircle2 className="h-4 w-4" /> : t.status === "doing" ? <CircleDot className="h-4 w-4" /> : <Circle className="h-4 w-4" />}</button>
+                      <textarea value={t.text} onChange={(e) => patchTask(t.id, { text: e.target.value })} rows={2} className={`flex-1 resize-none bg-transparent text-xs outline-none ${t.status === "done" ? "text-muted-foreground line-through" : ""}`} />
+                      <button title="Delete action" onClick={() => setTasks((ts) => ts.filter((x) => x.id !== t.id))} className="text-muted-foreground hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                    </div>
+                    <div className="mt-1 flex gap-2 pl-6">
+                      <input placeholder="Owner" value={t.owner} maxLength={40} onChange={(e) => patchTask(t.id, { owner: e.target.value })} className="w-24 rounded border border-border bg-transparent px-1.5 py-0.5 text-[11px] outline-none" />
+                      <input type="date" value={t.due} onChange={(e) => patchTask(t.id, { due: e.target.value })} className={`rounded border border-border bg-transparent px-1.5 py-0.5 text-[11px] outline-none ${t.due && t.status !== "done" && t.due < new Date().toISOString().slice(0, 10) ? "text-destructive" : ""}`} />
+                      <span className="ml-auto self-center text-[10px] uppercase tracking-wider text-muted-foreground">{t.status === "todo" ? "To do" : t.status === "doing" ? "Doing" : "Done"}</span>
+                    </div>
+                  </div>
+                ))}
+                <Button size="sm" variant="outline" className="w-full" onClick={() => setTasks((ts) => [...ts, { id: uid(), text: "", owner: "", due: "", status: "todo" }])}><Plus className="h-3.5 w-3.5" />New action</Button>
+              </>) : (<>
+                {busy === "review" && <p className="flex items-center gap-2 text-xs text-muted-foreground"><Loader2 className="h-3.5 w-3.5 animate-spin" />Reviewing your board and agent results…</p>}
+                {!busy && !review.length && <p className="text-xs text-muted-foreground">No review yet.</p>}
+                {review.map((r, i) => (
+                  <div key={i} className={`rounded-md border p-2 text-xs ${r.toLowerCase().startsWith("risk") ? "border-destructive/50" : "border-border"} bg-card`}>
+                    <p>{r}</p>
+                    <Button size="sm" variant="ghost" className="mt-1 h-7 px-2 text-primary" onClick={() => addTask(r.replace(/^(risk|next step|next):\s*/i, ""))}><ListChecks className="h-3.5 w-3.5" />Add to actions</Button>
+                  </div>
+                ))}
+                {!busy && <Button size="sm" variant="outline" className="w-full" onClick={runReview}><RefreshCw className="h-3.5 w-3.5" />Run again</Button>}
+              </>)}
+            </div>
+          </aside>
         )}
 
         {/* zoom */}

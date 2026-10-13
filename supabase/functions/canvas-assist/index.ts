@@ -11,6 +11,7 @@ const ACTIONS: Record<string, string> = {
   sharpen: "Make the notes punchier, more specific and quantified where possible.",
   challenge: "Return critical questions / weaknesses an investor would raise about these notes.",
   ideas: "Suggest exactly 3 new, specific notes that are not already present.",
+  review: "Act as a weekly board review for the founder. Return exactly 6 items: 3 starting with \"Risk: \" (biggest risks or contradictions on the board) and 3 starting with \"Next: \" (the most important concrete actions for this week, each doable in under 5 days).",
 };
 
 const j = (b: unknown, s = 200) => new Response(JSON.stringify(b), { status: s, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -27,7 +28,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { business_id, box, action } = body;
     const notes: string[] = Array.isArray(body.notes) ? body.notes.map((n: unknown) => String(n).slice(0, 500)).slice(0, 20) : [];
-    if (typeof business_id !== "string" || !BOXES.includes(box) || !ACTIONS[action]) return j({ error: "Invalid input" }, 400);
+    if (typeof business_id !== "string" || !ACTIONS[action] || !(BOXES.includes(box) || (box === "board" && action === "review"))) return j({ error: "Invalid input" }, 400);
 
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: biz } = await db.from("business_store").select("*").eq("id", business_id).eq("user_id", u.user.id).maybeSingle();
@@ -36,12 +37,12 @@ Deno.serve(async (req) => {
 
     const key = Deno.env.get("LOVABLE_API_KEY");
     if (!key) return j({ error: "AI not configured" }, 500);
-    const system = `You are a startup strategist helping fill a Lean Canvas. Output ONLY JSON: {"suggestions": ["string", ...]} with 2-5 short items (max ~25 words each). ${ACTIONS[action]}`;
+    const system = `You are a startup strategist helping fill a Lean Canvas. Output ONLY JSON: {"suggestions": ["string", ...]} with ${action === "review" ? "6" : "2-5"} short items (max ~25 words each). ${ACTIONS[action]}`;
     const user = `Business: ${biz.business_name} (${biz.stage}) — ${biz.pitch}
 Industry: ${biz.industry} | Market: ${biz.target_market} | Geo: ${biz.geography || "Global"}
 Full canvas: ${JSON.stringify(canvas?.boxes || {}).slice(0, 5000)}
-Box to work on: ${box.replace(/_/g, " ")}
-Current notes: ${JSON.stringify(notes)}`;
+${box === "board" ? "Review the whole board" : `Box to work on: ${box.replace(/_/g, " ")}`}
+Current notes: ${JSON.stringify(notes)}${action === "review" ? "\nAgent summaries: " + JSON.stringify(await Promise.all(["market_research_result","competitor_analysis_result","financial_model_result"].map(async (t) => (await db.from(t).select("summary").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle()).data?.summary || ""))).slice(0, 3000) : ""}`;
 
     const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -58,7 +59,7 @@ Current notes: ${JSON.stringify(notes)}`;
     const data = await res.json();
     const m = (data.choices?.[0]?.message?.content || "").match(/\{[\s\S]*\}/);
     const parsed = m ? JSON.parse(m[0]) : { suggestions: [] };
-    return j({ suggestions: (parsed.suggestions || []).map(String).slice(0, 5) });
+    return j({ suggestions: (parsed.suggestions || []).map(String).slice(0, action === "review" ? 6 : 5) });
   } catch (e) {
     console.error("[canvas-assist]", e);
     return j({ error: e instanceof Error ? e.message : "Unknown" }, 500);
