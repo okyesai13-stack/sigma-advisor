@@ -32,5 +32,5 @@ export function connectionGeometry(from: SectionRect, to: SectionRect, fromSide?
   const c1 = offset(start, fromSide || (horizontal ? (forward ? "right" : "left") : (forward ? "bottom" : "top")));
   const c2 = offset(end, toSide || (horizontal ? (forward ? "left" : "right") : (forward ? "top" : "bottom")));
   const path = fromSide || toSide ? `M ${start.x} ${start.y} C ${c1.x} ${c1.y}, ${c2.x} ${c2.y}, ${end.x} ${end.y}` : horizontal ? `M ${start.x} ${start.y} C ${mid.x} ${start.y}, ${mid.x} ${end.y}, ${end.x} ${end.y}` : `M ${start.x} ${start.y} C ${start.x} ${mid.y}, ${end.x} ${mid.y}, ${end.x} ${end.y}`;
-  return { path, mid };
+  return { path, mid, start, end };
 }
