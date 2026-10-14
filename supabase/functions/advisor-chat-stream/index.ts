@@ -155,6 +155,7 @@ serve(async (req) => {
     const pick = (row: any, fields: string[]) => row ? JSON.stringify(Object.fromEntries(fields.map((f) => [f, row[f]]))) : "not generated yet";
     const brief = (row: any, fields: string[], n = 2500) => pick(row, fields).slice(0, n);
     const { data: canvasRow } = await supabase.from("lean_canvas").select("boxes").eq("business_id", business_id).maybeSingle();
+    const { data: stRow } = await supabase.from("idea_stress_test").select("score, verdict, reason, risks, killers, blind_spots").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle();
     const canvasText = (b: any): string => {
       if (!b || typeof b !== "object") return "Empty — the founder hasn't started the whiteboard yet.";
       const lines: string[] = [];
@@ -190,7 +191,10 @@ MARKETING (brief): ${brief(ms.data, EDITABLE.marketing_strategy.fields)}
 AI OPS (brief): ${brief(aio.data, EDITABLE.ai_operations.fields)}
 
 FOUNDER'S OWN WHITEBOARD (their working ideas — treat as the founder's thinking, reference it by box name, compare it against the dossier and point out gaps or contradictions):
-${canvasText(canvasRow?.boxes)}`;
+${canvasText(canvasRow?.boxes)}
+
+LATEST IDEA STRESS TEST (investor-style risk review; use it when asked about risks or how to fix them):
+${stRow ? JSON.stringify(stRow).slice(0, 4000) : "not run yet"}`;
 
     const history = (hist.data || []).map((m: any) => ({ role: m.role, content: m.content }));
 

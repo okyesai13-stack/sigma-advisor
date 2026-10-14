@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, LayoutGrid, Loader2, ArrowRight } from "lucide-react";
+import { Plus, LayoutGrid, Loader2, ArrowRight, ShieldAlert } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Seo from "@/components/Seo";
@@ -60,7 +60,7 @@ const WorkspacePage = () => {
                   <span>{r.industry || "—"}</span><span>{r.done}/6 agents</span>
                 </div>
                 <div className="h-1 overflow-hidden rounded bg-border"><div className="h-full bg-primary" style={{ width: `${(r.done / 6) * 100}%` }} /></div>
-                <p className="mt-3 flex items-center gap-1 text-xs font-medium text-primary"><LayoutGrid className="h-3.5 w-3.5" />{r.hasCanvas ? "Open canvas" : "Start canvas"}<ArrowRight className="h-3 w-3" /></p>
+                <p className="mt-3 flex items-center gap-1 text-xs font-medium text-primary"><LayoutGrid className="h-3.5 w-3.5" />{r.hasCanvas ? "Open canvas" : "Start canvas"}<ArrowRight className="h-3 w-3" /><span role="link" tabIndex={0} onClick={(e) => { e.stopPropagation(); navigate(`/stress-test/${r.id}`); }} onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); navigate(`/stress-test/${r.id}`); } }} className="ml-auto flex items-center gap-1 text-muted-foreground hover:text-primary"><ShieldAlert className="h-3.5 w-3.5" />Stress test</span></p>
               </div>
             </button>
           ))}
