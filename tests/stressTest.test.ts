@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "bun:test";
 import { verdictFor, riskLevel, scoreChange } from "../src/lib/stressTest";
 
 describe("stress test rules", () => {
