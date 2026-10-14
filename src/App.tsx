@@ -22,6 +22,7 @@ import PitchDeckPage from "./pages/PitchDeckPage";
 import NotFound from "./pages/NotFound";
 import WorkspacePage from "./pages/WorkspacePage";
 import CanvasPage from "./pages/CanvasPage";
+import StressTestPage from "./pages/StressTestPage";
 
 const queryClient = new QueryClient();
 
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/workspace" element={<WorkspacePage />} />
                 <Route path="/workspace/:id" element={<CanvasPage />} />
+                <Route path="/stress-test/:id" element={<StressTestPage />} />
               </Route>
 
               <Route path="/deck" element={<ProtectedRoute><PitchDeckPage /></ProtectedRoute>} />

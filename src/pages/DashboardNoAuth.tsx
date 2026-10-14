@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards, Megaphone, Cpu, Presentation } from "lucide-react";
+import { Loader2, ArrowRight, RefreshCw, Plus, TrendingUp, Target, BarChart3, WalletCards, Megaphone, Cpu, Presentation, ShieldAlert } from "lucide-react";
 import Seo from "@/components/Seo";
 
 type Json = any;
@@ -157,6 +157,9 @@ const DashboardNoAuth = () => {
               </div>
             </div>
             <div className="flex gap-2 shrink-0">
+              <Button size="sm" variant="outline" onClick={() => navigate(`/stress-test/${business.id}`)}>
+                <ShieldAlert className="w-3.5 h-3.5" /> Stress test
+              </Button>
               <Button size="sm" onClick={() => navigate("/deck")}>
                 <Presentation className="w-3.5 h-3.5" /> Pitch deck
               </Button>
