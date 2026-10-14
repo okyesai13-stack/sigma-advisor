@@ -270,6 +270,50 @@ export type Database = {
           },
         ]
       }
+      idea_stress_test: {
+        Row: {
+          blind_spots: Json
+          business_id: string
+          created_at: string
+          id: string
+          killers: Json
+          reason: string | null
+          risks: Json
+          score: number
+          verdict: string | null
+        }
+        Insert: {
+          blind_spots?: Json
+          business_id: string
+          created_at?: string
+          id?: string
+          killers?: Json
+          reason?: string | null
+          risks?: Json
+          score?: number
+          verdict?: string | null
+        }
+        Update: {
+          blind_spots?: Json
+          business_id?: string
+          created_at?: string
+          id?: string
+          killers?: Json
+          reason?: string | null
+          risks?: Json
+          score?: number
+          verdict?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "idea_stress_test_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lean_canvas: {
         Row: {
           boxes: Json
