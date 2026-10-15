@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import Seo from "@/components/Seo";
+import BillingSection from "@/components/BillingSection";
 import { Loader2, Trash2, ExternalLink, KeyRound, User, Briefcase, LogOut } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
@@ -151,6 +152,8 @@ const ProfilePage = () => {
           </div>
         ))}
       </div>
+
+      <BillingSection />
 
       <div className="panel-surface flex items-center justify-between p-5">
         <div><h2 className="font-display text-lg font-semibold">Sign out</h2><p className="text-sm text-muted-foreground">End your session on this device.</p></div>

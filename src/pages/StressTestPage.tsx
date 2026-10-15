@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { notifyCreditsChanged, OUT_OF_CREDITS } from "@/lib/credits";
 import { useNavigate, useParams } from "react-router-dom";
 import { Loader2, ShieldAlert, RefreshCw, ArrowLeft, Skull, Eye, Send, TrendingUp, TrendingDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,8 +48,9 @@ const StressTestPage = () => {
       }
       setTests((p) => [data, ...p].slice(0, 2));
     } catch (e) {
+      if (e instanceof Error && e.message.includes("insufficient_credits")) { toast({ ...OUT_OF_CREDITS, variant: "destructive" }); return; }
       toast({ title: "Stress test failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
-    } finally { setRunning(false); }
+    } finally { setRunning(false); notifyCreditsChanged(); }
   };
 
   const sendToBoard = async (r: StressRisk) => {

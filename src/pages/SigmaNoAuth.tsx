@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw, Megaphone, Cpu } from "lucide-react";
 import Seo from "@/components/Seo";
+import { OUT_OF_CREDITS, spendCredits } from "@/lib/credits";
 
 type Status = "pending" | "running" | "completed" | "error";
 type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model" | "marketing_strategy" | "ai_operations";
@@ -68,7 +69,15 @@ const SigmaNoAuth = () => {
     }
   };
 
+  const charge = async (action: "convene" | "agent_rerun") => {
+    const r = await spendCredits(action);
+    if (r === "ok") return true;
+    toast(r === "insufficient" ? { ...OUT_OF_CREDITS, variant: "destructive" } : { title: "Couldn't check your credits", variant: "destructive" });
+    return false;
+  };
+
   const runAll = async () => {
+    if (!(await charge("convene"))) { setAllDone(true); return; }
     const results = await Promise.all(AGENTS.map(runAgent));
     setAllDone(true);
     const ok = results.filter(Boolean).length;
@@ -77,9 +86,9 @@ const SigmaNoAuth = () => {
       : { title: `${ok} of ${AGENTS.length} agents filed`, description: "Retry the failed agents or open the dossier." });
   };
 
-  const retry = (id: AgentId) => {
+  const retry = async (id: AgentId) => {
     const a = AGENTS.find((x) => x.id === id);
-    if (a) runAgent(a);
+    if (a && (await charge("agent_rerun"))) runAgent(a);
   };
 
   const StatusIcon = ({ s }: { s: Status }) => {

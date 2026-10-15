@@ -1,4 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { spendCredits } from "../_shared/credits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -33,6 +34,8 @@ Deno.serve(async (req) => {
     const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const { data: biz } = await db.from("business_store").select("*").eq("id", business_id).eq("user_id", u.user.id).maybeSingle();
     if (!biz) return j({ error: "Not found" }, 404);
+    const spent = await spendCredits(auth, "canvas_ai");
+    if (spent) return j({ error: spent }, spent === "insufficient_credits" ? 402 : 500);
     const { data: canvas } = await db.from("lean_canvas").select("boxes").eq("business_id", business_id).maybeSingle();
 
     const key = Deno.env.get("LOVABLE_API_KEY");

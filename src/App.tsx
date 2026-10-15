@@ -23,6 +23,7 @@ import NotFound from "./pages/NotFound";
 import WorkspacePage from "./pages/WorkspacePage";
 import CanvasPage from "./pages/CanvasPage";
 import StressTestPage from "./pages/StressTestPage";
+import PricingPage from "./pages/PricingPage";
 
 const queryClient = new QueryClient();
 
@@ -53,6 +54,7 @@ const App = () => (
                 <Route path="/workspace" element={<WorkspacePage />} />
                 <Route path="/workspace/:id" element={<CanvasPage />} />
                 <Route path="/stress-test/:id" element={<StressTestPage />} />
+                <Route path="/pricing" element={<PricingPage />} />
               </Route>
 
               <Route path="/deck" element={<ProtectedRoute><PitchDeckPage /></ProtectedRoute>} />

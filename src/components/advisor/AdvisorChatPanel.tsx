@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { notifyCreditsChanged, OUT_OF_CREDITS } from "@/lib/credits";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -80,6 +81,8 @@ const AdvisorChatPanel = () => {
           body: JSON.stringify({ message: text, business_id: businessId }),
         }
       );
+      notifyCreditsChanged();
+      if (res.status === 402) { toast({ ...OUT_OF_CREDITS, variant: "destructive" }); setMessages((p) => p.slice(0, -1)); setInput(text); return; }
       if (!res.ok) throw new Error("Failed to get response");
 
       if (!res.body) throw new Error("Advisor returned an empty response");

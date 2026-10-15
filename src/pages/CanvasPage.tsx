@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { creditAwareError, notifyCreditsChanged, OUT_OF_CREDITS, spendCredits } from "@/lib/credits";
 import { useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X, Undo2, Redo2, ListChecks, LayoutTemplate, ClipboardCheck, CheckCircle2, Circle, CircleDot } from "lucide-react";
 import { record, undo as undoH, redo as redoH, nextStatus, TEMPLATES, type BoardTask, type History } from "@/lib/boardExtras";
@@ -323,7 +324,8 @@ const CanvasPage = () => {
     const inZone = notes.filter((n) => zoneOf(n) === box);
     const { data, error } = await supabase.functions.invoke("canvas-assist", { body: { business_id: id, box, action, notes: focus ? [focus.text] : inZone.map((n) => n.text) } });
     setBusy(null);
-    if (error || data?.error) { toast({ title: "AI couldn't help right now", description: data?.error || error?.message, variant: "destructive" }); return; }
+    notifyCreditsChanged();
+    if (error || data?.error) { toast(error ? creditAwareError(error, "AI couldn't help right now") : { title: "AI couldn't help right now", description: data?.error, variant: "destructive" }); return; }
     const items: string[] = data.suggestions || [];
     const c: Color = action === "challenge" ? "red" : "mint";
     const base = focus ? { x: focus.x + NW + 24, y: focus.y } : null;
@@ -338,6 +340,8 @@ const CanvasPage = () => {
     setNotes((ns) => [...ns.filter((n) => frameOf(n) !== k), ...items.map((t, i) => ({ id: uid(), text: t, color: "slate" as Color, ...frameSlot(k, i) }))]);
   };
   const rerunAgent = async (a: typeof AGENTS[number]) => {
+    const paid = await spendCredits("agent_rerun");
+    if (paid !== "ok") { toast(paid === "insufficient" ? { ...OUT_OF_CREDITS, variant: "destructive" } : { title: "Couldn't check your credits", variant: "destructive" }); return; }
     setBusy(a.key);
     const { data, error } = await supabase.functions.invoke(a.fn, { body: { business_id: id } });
     if (error || !data?.success) { setBusy(null); toast({ title: `${a.title} failed`, description: data?.error || error?.message, variant: "destructive" }); return; }
@@ -353,7 +357,8 @@ const CanvasPage = () => {
     const inFrame = notes.filter((n) => frameOf(n) === a.key).map((n) => n.text);
     const { data, error } = await supabase.functions.invoke("canvas-assist", { body: { business_id: id, box: a.box, action, notes: inFrame.length ? inFrame : insights(results[a.key]) } });
     setBusy(null);
-    if (error || data?.error) { toast({ title: "AI couldn't help right now", description: data?.error || error?.message, variant: "destructive" }); return; }
+    notifyCreditsChanged();
+    if (error || data?.error) { toast(error ? creditAwareError(error, "AI couldn't help right now") : { title: "AI couldn't help right now", description: data?.error, variant: "destructive" }); return; }
     const items: string[] = data.suggestions || [];
     const start = inFrame.length;
     setNotes((ns) => [...ns, ...items.map((t, i) => ({ id: uid(), text: t, color: (action === "challenge" ? "red" : "mint") as Color, ai: true, ...frameSlot(a.key, start + i) }))]);
@@ -372,7 +377,8 @@ const CanvasPage = () => {
     setPanel("review"); setBusy("review"); setReview([]);
     const { data, error } = await supabase.functions.invoke("canvas-assist", { body: { business_id: id, box: "board", action: "review", notes: notes.filter((n) => n.text.trim()).map((n) => n.text).slice(0, 20) } });
     setBusy(null);
-    if (error || data?.error) { toast({ title: "Review failed", description: data?.error || error?.message, variant: "destructive" }); return; }
+    notifyCreditsChanged();
+    if (error || data?.error) { toast(error ? creditAwareError(error, "Review failed") : { title: "Review failed", description: data?.error, variant: "destructive" }); return; }
     setReview(data?.suggestions || []);
   };
   const jump = (section: string) => { if (biz) setBusiness(biz); navigate(`/dashboard#section-${section}`); };
