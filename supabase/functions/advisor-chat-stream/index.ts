@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { spendCredits } from "../_shared/credits.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -89,6 +90,10 @@ serve(async (req) => {
     if (!uid) return json({ error: "Unauthorized" }, 401);
     const { data: owned } = await supabase.from("business_store").select("id").eq("id", business_id).eq("user_id", uid).maybeSingle();
     if (!owned) return json({ error: "Business not found" }, 404);
+    if (!body.undo) {
+      const spent = await spendCredits(req.headers.get("Authorization"), "advisor_chat");
+      if (spent) return json({ error: spent }, spent === "insufficient_credits" ? 402 : 500);
+    }
 
     // Undo a previous edit
     if (body.undo) {
