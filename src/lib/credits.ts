@@ -79,3 +79,10 @@ export const OUT_OF_CREDITS = {
   title: "Not enough credits",
   description: "You get 5 free credits every day at midnight (UTC). Upgrade to Pro on the Pricing page for 100 more each month.",
 };
+
+// Turns an edge-function failure into a toast, showing the out-of-credits message on 402.
+export function creditAwareError(error: any, fallbackTitle: string) {
+  notifyCreditsChanged();
+  if (error?.context?.status === 402) return { ...OUT_OF_CREDITS, variant: "destructive" as const };
+  return { title: fallbackTitle, description: error?.message, variant: "destructive" as const };
+}
