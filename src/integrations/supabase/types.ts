@@ -223,6 +223,30 @@ export type Database = {
           },
         ]
       }
+      credit_ledger: {
+        Row: {
+          action: string
+          amount: number
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          amount: number
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_model_result: {
         Row: {
           business_id: string
@@ -473,12 +497,115 @@ export type Database = {
         }
         Relationships: []
       }
+      user_credits: {
+        Row: {
+          created_at: string
+          daily_balance: number
+          daily_reset_at: string
+          monthly_balance: number
+          monthly_reset_at: string
+          plan: string
+          topup_balance: number
+          updated_at: string
+          upgrade_requested_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          daily_balance?: number
+          daily_reset_at?: string
+          monthly_balance?: number
+          monthly_reset_at?: string
+          plan?: string
+          topup_balance?: number
+          updated_at?: string
+          upgrade_requested_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          daily_balance?: number
+          daily_reset_at?: string
+          monthly_balance?: number
+          monthly_reset_at?: string
+          plan?: string
+          topup_balance?: number
+          updated_at?: string
+          upgrade_requested_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      credit_cost: { Args: { p_action: string }; Returns: number }
+      get_my_credits: {
+        Args: never
+        Returns: {
+          created_at: string
+          daily_balance: number
+          daily_reset_at: string
+          monthly_balance: number
+          monthly_reset_at: string
+          plan: string
+          topup_balance: number
+          updated_at: string
+          upgrade_requested_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_credits"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      refresh_credits: {
+        Args: { p_user: string }
+        Returns: {
+          created_at: string
+          daily_balance: number
+          daily_reset_at: string
+          monthly_balance: number
+          monthly_reset_at: string
+          plan: string
+          topup_balance: number
+          updated_at: string
+          upgrade_requested_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_credits"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      request_upgrade: { Args: never; Returns: undefined }
+      spend_credits: {
+        Args: { p_action: string }
+        Returns: {
+          created_at: string
+          daily_balance: number
+          daily_reset_at: string
+          monthly_balance: number
+          monthly_reset_at: string
+          plan: string
+          topup_balance: number
+          updated_at: string
+          upgrade_requested_at: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_credits"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never
