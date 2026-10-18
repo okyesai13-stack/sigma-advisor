@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import Seo from "@/components/Seo";
-import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, resizeSection, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, resizeSection, removeSections, recreateSections, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
 import { CANVAS_BOXES, autofill, type Boxes, type BoxKey } from "@/lib/leanCanvas";
 
 const latest = (t: string, id: string) =>
@@ -87,6 +88,10 @@ const CanvasPage = () => {
   const [biz, setBiz] = useState<any>(null);
   const [notes, setNotes] = useState<Note[]>([]);
   const [sections, setSections] = useState(DEFAULT_SECTIONS);
+  const [removedSections, setRemovedSections] = useState<string[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const removedRef = useRef(removedSections); removedRef.current = removedSections;
+  const sectionTitle = (key: string) => CANVAS_BOXES.find((b) => b.key === key)?.title || AGENTS.find((a) => a.key === key)?.title || "Brainstorm area";
   const sectionsRef = useRef(sections); sectionsRef.current = sections;
   const [connections, setConnections] = useState<SectionConnection[]>([]);
   const [connectFrom, setConnectFrom] = useState<string | null>(null);
@@ -100,13 +105,13 @@ const CanvasPage = () => {
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [panel, setPanel] = useState<null | "tasks" | "review">(null);
   const [review, setReview] = useState<string[]>([]);
-  type Snap = { notes: Note[]; sections: Record<string, SectionRect>; connections: SectionConnection[]; tasks: BoardTask[] };
+  type Snap = { removedSections: string[]; notes: Note[]; sections: Record<string, SectionRect>; connections: SectionConnection[]; tasks: BoardTask[] };
   const hist = useRef<History<Snap>>({ past: [], future: [] });
   const lastSnap = useRef<Snap | null>(null);
   const restoring = useRef(false);
   const [, bump] = useState(0);
-  const zoneOf = (n: Note): BoxKey | null => CANVAS_BOXES.find((b) => containsNote(sections[b.key], n))?.key || null;
-  const frameOf = (n: Note): AgentKey | null => AGENTS.find((a) => containsNote(sections[a.key], n))?.key || null;
+  const zoneOf = (n: Note): BoxKey | null => CANVAS_BOXES.find((b) => !removedSections.includes(b.key) && containsNote(sections[b.key], n))?.key || null;
+  const frameOf = (n: Note): AgentKey | null => AGENTS.find((a) => !removedSections.includes(a.key) && containsNote(sections[a.key], n))?.key || null;
   const zoneSlot = (k: BoxKey, i: number) => slot(k, i, sections);
   const frameSlot = (k: AgentKey, i: number) => { const f = sections[k]; return { x: f.x + 12 + (i % 3) * (NW + 12), y: f.y + HEAD + Math.floor(i / 3) * 120 }; };
   const toBoxes = (ns: Note[]): Boxes => {
@@ -152,9 +157,11 @@ const CanvasPage = () => {
           h: Number.isFinite(position.h) ? Math.max(160, position.h) : rect.h,
         };
       }
+      const removed: string[] = Array.isArray(saved.__board?.removedSections) ? saved.__board.removedSections.filter((key: unknown) => typeof key === "string" && key in DEFAULT_SECTIONS) : [];
+      setRemovedSections(removed); removedRef.current = removed;
       sectionsRef.current = restored;
       setSections(restored);
-      setConnections(Array.isArray(saved.__board?.connections) ? saved.__board.connections.filter((c: SectionConnection) => restored[c.from] && restored[c.to] && typeof c.id === "string").map((c: SectionConnection) => ({ ...c, label: typeof c.label === "string" ? c.label : "" })) : []);
+      setConnections(Array.isArray(saved.__board?.connections) ? saved.__board.connections.filter((c: SectionConnection) => restored[c.from] && restored[c.to] && !removed.includes(c.from) && !removed.includes(c.to) && typeof c.id === "string").map((c: SectionConnection) => ({ ...c, label: typeof c.label === "string" ? c.label : "" })) : []);
       setTasks(Array.isArray(saved.__board?.tasks) ? saved.__board.tasks : []);
       hist.current = { past: [], future: [] }; lastSnap.current = null;
       setConnectFrom(null); setSelectedConnection(null); setSelectedSection(null); setConnectionTarget(null);
@@ -169,25 +176,25 @@ const CanvasPage = () => {
     if (!ready.current) return;
     setSaving(true);
     const t = setTimeout(async () => {
-      const { error } = await supabase.from("lean_canvas").upsert({ business_id: id, boxes: { ...toBoxes(notes), __board: { notes, sections, connections, tasks } } as any }, { onConflict: "business_id" });
+      const { error } = await supabase.from("lean_canvas").upsert({ business_id: id, boxes: { ...toBoxes(notes), __board: { notes, sections, connections, tasks, removedSections } } as any }, { onConflict: "business_id" });
       setSaving(false);
       if (error) toast({ title: "Couldn't save board", variant: "destructive" });
     }, 800);
     return () => clearTimeout(t);
-  }, [notes, sections, connections, tasks]);
+  }, [notes, sections, connections, tasks, removedSections]);
 
   // undo history: snapshot settles 400ms after a change
   useEffect(() => {
     if (!ready.current) return;
     const t = setTimeout(() => {
-      const snap = { notes, sections, connections, tasks };
+      const snap = { notes, sections, connections, tasks, removedSections };
       if (restoring.current) { restoring.current = false; lastSnap.current = snap; return; }
       if (lastSnap.current && !drag.current) { hist.current = record(hist.current, lastSnap.current); bump((x) => x + 1); }
       if (!drag.current) lastSnap.current = snap;
     }, 400);
     return () => clearTimeout(t);
-  }, [notes, sections, connections, tasks]);
-  const applySnap = (st: Snap) => { restoring.current = true; setNotes(st.notes); setSections(st.sections); setConnections(st.connections); setTasks(st.tasks); setSel(null); setSelectedConnection(null); bump((x) => x + 1); };
+  }, [notes, sections, connections, tasks, removedSections]);
+  const applySnap = (st: Snap) => { restoring.current = true; setNotes(st.notes); setSections(st.sections); setRemovedSections(st.removedSections); setSelectedSection(null); setConnectFrom(null); setConnections(st.connections); setTasks(st.tasks); setSel(null); setSelectedConnection(null); bump((x) => x + 1); };
   const doUndo = () => { const cur = lastSnap.current; if (!cur) return; const r = undoH(hist.current, cur); if (!r) return; hist.current = r.h; lastSnap.current = r.state; applySnap(r.state); };
   const doRedo = () => { const cur = lastSnap.current; if (!cur) return; const r = redoH(hist.current, cur); if (!r) return; hist.current = r.h; lastSnap.current = r.state; applySnap(r.state); };
 
@@ -219,7 +226,8 @@ const CanvasPage = () => {
   const fit = useCallback(() => {
     const el = wrap.current; if (!el) return;
     const r = el.getBoundingClientRect();
-    const rects = Object.values(sectionsRef.current);
+    const rects = Object.entries(sectionsRef.current).filter(([key]) => !removedRef.current.includes(key)).map(([, rect]) => rect);
+    if (!rects.length) { setView({ x: 40, y: 40, z: 0.7 }); return; }
     const minX = Math.min(...rects.map((f) => f.x)), minY = Math.min(...rects.map((f) => f.y));
     const W = Math.max(...rects.map((f) => f.x + f.w)) - minX, H = Math.max(...rects.map((f) => f.y + f.h)) - minY;
     const z = Math.min(1.2, Math.max(0.2, Math.min((r.width - 60) / W, (r.height - 60) / H)));
@@ -336,6 +344,27 @@ const CanvasPage = () => {
     else { setConnectFrom(null); setConnectionPoint(null); }
   };
 
+  const deleteSections = () => {
+    if (!deleteTarget) return;
+    const keys = deleteTarget === "all" ? Object.keys(DEFAULT_SECTIONS) : [deleteTarget];
+    // Record destructive actions immediately so Undo works even before the debounce settles.
+    const current = { notes, sections, connections, tasks, removedSections };
+    hist.current = record(hist.current, current);
+    const next = removeSections(connections, removedSections, keys);
+    setRemovedSections(next.removedSections); setConnections(next.connections);
+    lastSnap.current = { ...current, ...next }; restoring.current = true;
+    setSelectedSection(null); setSelectedConnection(null); setConnectFrom(null); setConnectionTarget(null);
+    setDeleteTarget(null); bump((x) => x + 1);
+  };
+  const restoreSections = (keys: string[]) => {
+    const current = { notes, sections, connections, tasks, removedSections };
+    hist.current = record(hist.current, current);
+    const next = recreateSections(removedSections, keys);
+    setRemovedSections(next); removedRef.current = next;
+    lastSnap.current = { ...current, removedSections: next }; restoring.current = true;
+    setSelectedSection(keys.length === 1 ? keys[0] : null); bump((x) => x + 1);
+    requestAnimationFrame(fit);
+  };
   const addNote = (x?: number, y?: number, text = "", c: Color = color) => {
     let p = { x: x ?? 0, y: y ?? 0 };
     if (x == null) { const r = wrap.current?.getBoundingClientRect(); if (!r) return; p = toWorld(r.left + r.width / 2, r.top + r.height / 2); p.x -= NW / 2; }
@@ -395,6 +424,7 @@ const CanvasPage = () => {
   const addTask = (text: string) => { setTasks((ts) => [...ts, { id: uid(), text: text.slice(0, 200), owner: "", due: "", status: "todo" }]); setPanel("tasks"); toast({ title: "Added to action tracker" }); };
   const patchTask = (tid: string, p: Partial<BoardTask>) => setTasks((ts) => ts.map((t) => (t.id === tid ? { ...t, ...p } : t)));
   const addTemplate = (tid: string) => {
+    if (removedSections.includes("ideas")) restoreSections(["ideas"]);
     const tpl = TEMPLATES.find((t) => t.id === tid); const r = sections.ideas; if (!tpl || !r) return;
     const base = notes.filter((n) => containsNote(r, n)).length;
     setNotes((ns) => [...ns, ...tpl.notes.map((t, i) => ({ id: uid(), text: t, color: "slate" as Color, x: r.x + 12 + ((base + i) % 3) * (NW + 12), y: r.y + HEAD + Math.floor((base + i) / 3) * 120 }))]);
@@ -417,7 +447,8 @@ const CanvasPage = () => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); return; }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "y") { e.preventDefault(); doRedo(); return; }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === "Escape") { setConnectFrom(null); setSelectedConnection(null); }
+      if (e.key === "Escape") { setConnectFrom(null); setSelectedConnection(null); setSelectedSection(null); }
+      if (e.key === "Delete" && selectedSection && !busy) { e.preventDefault(); setDeleteTarget(selectedSection); }
       if ((e.key === "Delete" || e.key === "Backspace") && selectedConnection) { e.preventDefault(); setConnections((cs) => cs.filter((c) => c.id !== selectedConnection)); setSelectedConnection(null); }
       if (e.key === "v") setTool("select");
       if (e.key === "h") setTool("hand");
@@ -435,16 +466,31 @@ const CanvasPage = () => {
 
   return (
     <div className="flex h-full flex-col animate-fade-in">
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader><AlertDialogTitle>{deleteTarget === "all" ? "Delete all sections?" : `Delete ${sectionTitle(deleteTarget || "")} section?`}</AlertDialogTitle>
+            <AlertDialogDescription>Section frames and their connected arrows will be removed. Your notes, tasks and dashboard analysis results stay intact. You can undo this or recreate sections later.</AlertDialogDescription></AlertDialogHeader>
+          <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={deleteSections}>Delete</AlertDialogAction></AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Seo title={`${biz.business_name} Whiteboard — Planz`} description="Startup whiteboard" path={`/workspace/${id}`} noindex />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate("/workspace")} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"><ArrowLeft className="h-3.5 w-3.5" />All analyses</button>
           <div><p className="eyebrow">Whiteboard</p><h1 className="font-display text-lg font-semibold leading-tight">{biz.business_name}</h1></div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">{saving ? "Saving…" : "Saved"}</span>
           <Button size="icon" variant="ghost" className="h-8 w-8" title="Undo (Ctrl+Z)" disabled={!hist.current.past.length} onClick={doUndo}><Undo2 className="h-4 w-4" /></Button>
           <Button size="icon" variant="ghost" className="h-8 w-8" title="Redo (Ctrl+Shift+Z)" disabled={!hist.current.future.length} onClick={doRedo}><Redo2 className="h-4 w-4" /></Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild><Button size="icon" variant="outline" title="Recreate sections" aria-label="Recreate sections" disabled={!removedSections.length || !!busy}><RotateCcw className="h-4 w-4" /></Button></DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => restoreSections(removedSections)}>Recreate all sections</DropdownMenuItem>
+              {removedSections.map((key) => <DropdownMenuItem key={key} onSelect={() => restoreSections([key])}>{sectionTitle(key)}</DropdownMenuItem>)}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button size="icon" variant="ghost" title="Delete all sections" aria-label="Delete all sections" className="text-destructive" disabled={removedSections.length === Object.keys(DEFAULT_SECTIONS).length || !!busy} onClick={() => setDeleteTarget("all")}><Trash2 className="h-4 w-4" /></Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-3.5 w-3.5" />Templates</Button></DropdownMenuTrigger>
             <DropdownMenuContent>{TEMPLATES.map((t) => <DropdownMenuItem key={t.id} onClick={() => addTemplate(t.id)}>{t.label}</DropdownMenuItem>)}</DropdownMenuContent>
@@ -463,7 +509,7 @@ const CanvasPage = () => {
         style={{ backgroundImage: "radial-gradient(hsl(var(--border)) 1px, transparent 1px)", backgroundSize: `${24 * view.z}px ${24 * view.z}px`, backgroundPosition: `${view.x}px ${view.y}px` }}
       >
         <div className="absolute left-0 top-0" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.z})`, transformOrigin: "0 0" }}>
-          {CANVAS_BOXES.map((b) => {
+          {CANVAS_BOXES.filter((b) => !removedSections.includes(b.key)).map((b) => {
             const z = sections[b.key];
             return (
               <div key={b.key} data-ui data-section-key={b.key} onPointerDown={(e) => selectSection(e, b.key)} className={`absolute rounded-lg border bg-card/40 ${busy === b.key || selectedSection === b.key ? "border-primary" : "border-border"}`} style={{ left: z.x, top: z.y, width: z.w, height: z.h }}>
@@ -482,12 +528,12 @@ const CanvasPage = () => {
               </div>
             );
           })}
-          <div data-ui data-section-key="ideas" onPointerDown={(e) => selectSection(e, "ideas")} className={`absolute rounded-lg border border-dashed ${selectedSection === "ideas" ? "border-primary" : "border-border"}`} style={{ left: sections.ideas.x, top: sections.ideas.y, width: sections.ideas.w, height: sections.ideas.h }}>
+          {!removedSections.includes("ideas") && <div data-ui data-section-key="ideas" onPointerDown={(e) => selectSection(e, "ideas")} className={`absolute rounded-lg border border-dashed ${selectedSection === "ideas" ? "border-primary" : "border-border"}`} style={{ left: sections.ideas.x, top: sections.ideas.y, width: sections.ideas.w, height: sections.ideas.h }}>
             <div data-ui onPointerDown={(e) => onSectionDown(e, "ideas")} className="flex cursor-grab items-center justify-between px-3 pt-2.5"><p className="flex items-center gap-1 font-display text-sm font-semibold"><GripVertical className="h-4 w-4" />Brainstorm area</p><Button size="icon" variant={connectFrom === "ideas" ? "default" : "ghost"} className="h-7 w-7" title="Connect Brainstorm area" aria-label="Connect Brainstorm area" onClick={() => connectSection("ideas")}><GitBranch className="h-3.5 w-3.5" /></Button></div>
             <p className="px-3 text-[11px] text-muted-foreground">Free space — drag notes into a box when ready</p>
-          </div>
+          </div>}
 
-          {AGENTS.map((a) => {
+          {AGENTS.filter((a) => !removedSections.includes(a.key)).map((a) => {
             const f = sections[a.key]; const has = !!results[a.key]; const Icon = a.icon;
             return (
               <div key={a.key} data-ui data-section-key={a.key} onPointerDown={(e) => selectSection(e, a.key)} className={`absolute rounded-lg border bg-card/30 ${busy === a.key || selectedSection === a.key ? "border-primary" : "border-border"}`} style={{ left: f.x, top: f.y, width: f.w, height: f.h }}>
@@ -556,7 +602,11 @@ const CanvasPage = () => {
             });
           })}
 
-          {selectedSection && sections[selectedSection] && (
+          {selectedSection && !removedSections.includes(selectedSection) && sections[selectedSection] && <Button data-ui size="icon" variant="outline" aria-label={`Delete ${sectionTitle(selectedSection)} section`} title={`Delete ${sectionTitle(selectedSection)} section`} disabled={!!busy}
+            className="absolute z-30 h-7 w-7 border-destructive bg-background text-destructive"
+            style={{ left: sections[selectedSection].x + sections[selectedSection].w - 32, top: sections[selectedSection].y + sections[selectedSection].h - 40 }}
+            onPointerDown={(e) => e.stopPropagation()} onClick={() => setDeleteTarget(selectedSection)}><Trash2 className="h-4 w-4" /></Button>}
+          {selectedSection && !removedSections.includes(selectedSection) && sections[selectedSection] && (
             <Button data-ui size="icon" variant="outline" aria-label="Resize selected section" title="Drag to resize section"
               className="absolute z-30 h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize border-primary bg-background text-primary"
               style={{ left: sections[selectedSection].x + sections[selectedSection].w, top: sections[selectedSection].y + sections[selectedSection].h }}
@@ -582,7 +632,7 @@ const CanvasPage = () => {
               {busy === n.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
             </div>
           ))}
-          {Object.entries(sections).filter(([key]) => key === selectedSection || key === connectFrom || (!!connectFrom && key === connectionTarget)).flatMap(([key, rect]) => (["top", "right", "bottom", "left"] as ConnectionSide[]).map((side) => {
+          {Object.entries(sections).filter(([key]) => !removedSections.includes(key) && (key === selectedSection || key === connectFrom || (!!connectFrom && key === connectionTarget))).flatMap(([key, rect]) => (["top", "right", "bottom", "left"] as ConnectionSide[]).map((side) => {
             const point = sectionAnchor(rect, side);
             const title = CANVAS_BOXES.find((b) => b.key === key)?.title || AGENTS.find((a) => a.key === key)?.title || "Brainstorm area";
             return <Button key={`${key}-${side}`} data-ui data-connection-port data-section-key={key} data-side={side} size="icon" variant="outline"
