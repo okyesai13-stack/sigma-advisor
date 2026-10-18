@@ -1,8 +1,8 @@
 # Redesign roadmap
 
-- [ ] Add confirmed single-section and all-section deletion and recreation
-- [ ] Persist removed sections and support Undo/Redo without deleting analysis results
-- [ ] Run section lifecycle checks and verify app health
+- [x] Add confirmed single-section and all-section deletion and recreation
+- [x] Persist removed sections and support Undo/Redo without deleting analysis results
+- [x] Run section lifecycle checks and verify app health (13 tests pass; build OK; signed-in interaction checks unavailable with external authentication)
 
 - [x] Make every whiteboard section resizable with saved dimensions
 - [x] Show connection points only on selected sections and active connection targets
