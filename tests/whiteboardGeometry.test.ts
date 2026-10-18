@@ -1,7 +1,18 @@
 import { describe, expect, test } from "bun:test";
-import { canConnect, connectionGeometry, containsNote, moveSectionNotes, resizeSection } from "../src/lib/whiteboardGeometry";
+import { canConnect, connectionGeometry, containsNote, moveSectionNotes, resizeSection, removeSections, recreateSections } from "../src/lib/whiteboardGeometry";
 
 describe("whiteboard section mapping", () => {
+  test("deleting one section removes only arrows attached to removed sections", () => {
+    const connections = [{ id: "one", from: "problem", to: "solution", label: "" }, { id: "two", from: "fm", to: "ms", label: "Budget" }];
+    expect(removeSections(connections, [], ["problem"])).toEqual({ removedSections: ["problem"], connections: [connections[1]] });
+  });
+  test("deleting all sections removes all their arrows", () => {
+    expect(removeSections([{ id: "one", from: "problem", to: "fm", label: "" }], ["ideas"], ["problem", "fm", "ideas"])).toEqual({ removedSections: ["ideas", "problem", "fm"], connections: [] });
+  });
+  test("recreation can restore one section or all sections", () => {
+    expect(recreateSections(["problem", "fm", "ideas"], ["fm"])).toEqual(["problem", "ideas"]);
+    expect(recreateSections(["problem", "fm", "ideas"], ["problem", "fm", "ideas"])).toEqual([]);
+  });
   test("Cost Structure can change width and height without moving its origin", () => {
     const rect = { x: 0, y: 712, w: 616, h: 280 };
     expect(resizeSection(rect, 120, 80)).toEqual({ x: 0, y: 712, w: 736, h: 360 });

@@ -5,6 +5,13 @@ export function resizeSection(rect: SectionRect, dx: number, dy: number, minWidt
 export type ConnectionSide = "top" | "right" | "bottom" | "left";
 export interface SectionConnection { id: string; from: string; to: string; label: string; fromSide?: ConnectionSide; toSide?: ConnectionSide }
 
+export function removeSections(connections: SectionConnection[], removed: string[], keys: string[]) {
+  const removedSections = [...new Set([...removed, ...keys])];
+  return { removedSections, connections: connections.filter((c) => !removedSections.includes(c.from) && !removedSections.includes(c.to)) };
+}
+
+export const recreateSections = (removed: string[], keys: string[]) => removed.filter((key) => !keys.includes(key));
+
 export function sectionAnchor(rect: SectionRect, side: ConnectionSide) {
   return { x: rect.x + (side === "left" ? 0 : side === "right" ? rect.w : rect.w / 2), y: rect.y + (side === "top" ? 0 : side === "bottom" ? rect.h : rect.h / 2) };
 }
