@@ -10,7 +10,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { useToast } from "@/hooks/use-toast";
 import Seo from "@/components/Seo";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, resizeSection, removeSections, recreateSections, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
+import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, resizeSection, removeSections, recreateSections, canDeleteBoard, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
 import { CANVAS_BOXES, autofill, type Boxes, type BoxKey } from "@/lib/leanCanvas";
 
 const latest = (t: string, id: string) =>
@@ -350,7 +350,7 @@ const CanvasPage = () => {
     // Record destructive actions immediately so Undo works even before the debounce settles.
     const current = { notes, sections, connections, tasks, removedSections };
     hist.current = record(hist.current, current);
-    const next = removeSections(connections, removedSections, keys, notes, deleteTarget === "all");
+    const next = removeSections(connections, removedSections, keys, notes, deleteTarget === "all", sections);
     setRemovedSections(next.removedSections); setConnections(next.connections); setNotes(next.notes); setSel(null);
     lastSnap.current = { ...current, ...next }; restoring.current = true;
     setSelectedSection(null); setSelectedConnection(null); setConnectFrom(null); setConnectionTarget(null);
@@ -469,7 +469,7 @@ const CanvasPage = () => {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>{deleteTarget === "all" ? "Delete all sections?" : `Delete ${sectionTitle(deleteTarget || "")} section?`}</AlertDialogTitle>
-            <AlertDialogDescription>{deleteTarget === "all" ? "All section frames, arrows and note cards will be removed. Your tasks and dashboard analysis results stay intact. Undo restores everything; recreating sections restores empty frames." : "This section frame and its connected arrows will be removed. Your notes, tasks and dashboard analysis results stay intact. You can undo this or recreate the section later."}</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogDescription>{deleteTarget === "all" ? "All section frames, arrows and note cards will be removed. Your tasks and dashboard analysis results stay intact. Undo restores everything; recreating sections restores empty frames." : "This section, its note cards and connected arrows will be removed. Other notes, tasks and dashboard analysis results stay intact. Undo restores everything; recreating the section restores its empty frame."}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={deleteSections}>Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -490,7 +490,7 @@ const CanvasPage = () => {
               {removedSections.map((key) => <DropdownMenuItem key={key} onSelect={() => restoreSections([key])}>{sectionTitle(key)}</DropdownMenuItem>)}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="icon" variant="ghost" title="Delete all sections" aria-label="Delete all sections" className="text-destructive" disabled={removedSections.length === Object.keys(DEFAULT_SECTIONS).length || !!busy} onClick={() => setDeleteTarget("all")}><Trash2 className="h-4 w-4" /></Button>
+          <Button size="icon" variant="ghost" title="Delete all sections and notes" aria-label="Delete all sections" className="text-destructive" disabled={!canDeleteBoard(Object.keys(DEFAULT_SECTIONS).length, removedSections.length, notes.length, connections.length) || !!busy} onClick={() => setDeleteTarget("all")}><Trash2 className="h-4 w-4" /></Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild><Button size="sm" variant="outline"><LayoutTemplate className="h-3.5 w-3.5" />Templates</Button></DropdownMenuTrigger>
             <DropdownMenuContent>{TEMPLATES.map((t) => <DropdownMenuItem key={t.id} onClick={() => addTemplate(t.id)}>{t.label}</DropdownMenuItem>)}</DropdownMenuContent>
