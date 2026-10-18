@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { canConnect, connectionGeometry, containsNote, moveSectionNotes, resizeSection, removeSections, recreateSections } from "../src/lib/whiteboardGeometry";
+import { canConnect, connectionGeometry, containsNote, moveSectionNotes, resizeSection, removeSections, recreateSections, canDeleteBoard } from "../src/lib/whiteboardGeometry";
 
 describe("whiteboard section mapping", () => {
   test("deleting one section removes only arrows attached to removed sections", () => {
@@ -14,9 +14,16 @@ describe("whiteboard section mapping", () => {
     expect(removeSections([], [], ["cost_structure", "ideas"], notes, true).notes).toEqual([]);
     expect(notes).toHaveLength(2);
   });
-  test("deleting a single section still keeps its note cards", () => {
-    const notes = [{ id: "inside", text: "Cost estimate" }];
-    expect(removeSections([], [], ["cost_structure"], notes).notes).toEqual(notes);
+  test("deleting a single section removes its note cards but not other notes", () => {
+    const notes = [{ id: "inside", x: 20, y: 760 }, { id: "other", x: 900, y: 760 }];
+    const sections = { cost_structure: { x: 0, y: 712, w: 616, h: 280 } };
+    expect(removeSections([], [], ["cost_structure"], notes, false, sections).notes).toEqual([notes[1]]);
+  });
+  test("Delete all remains available for leftover notes after all frames are deleted", () => {
+    expect(canDeleteBoard(16, 16, 3, 0)).toBe(true);
+    expect(canDeleteBoard(16, 16, 0, 0)).toBe(false);
+    const notes = [{ x: 20, y: 760 }];
+    expect(removeSections([], ["cost_structure"], ["cost_structure"], notes, true).notes).toEqual([]);
   });
   test("recreation can restore one section or all sections", () => {
     expect(recreateSections(["problem", "fm", "ideas"], ["fm"])).toEqual(["problem", "ideas"]);

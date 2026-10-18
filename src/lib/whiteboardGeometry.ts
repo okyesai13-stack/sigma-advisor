@@ -5,10 +5,13 @@ export function resizeSection(rect: SectionRect, dx: number, dy: number, minWidt
 export type ConnectionSide = "top" | "right" | "bottom" | "left";
 export interface SectionConnection { id: string; from: string; to: string; label: string; fromSide?: ConnectionSide; toSide?: ConnectionSide }
 
-export function removeSections<T>(connections: SectionConnection[], removed: string[], keys: string[], notes: T[] = [], clearNotes = false) {
+export function removeSections<T extends { x: number; y: number }>(connections: SectionConnection[], removed: string[], keys: string[], notes: T[] = [], clearNotes = false, sections: Record<string, SectionRect> = {}) {
   const removedSections = [...new Set([...removed, ...keys])];
-  return { removedSections, connections: connections.filter((c) => !removedSections.includes(c.from) && !removedSections.includes(c.to)), notes: clearNotes ? [] : notes };
+  return { removedSections, connections: connections.filter((c) => !removedSections.includes(c.from) && !removedSections.includes(c.to)), notes: clearNotes ? [] : notes.filter((note) => !keys.some((key) => sections[key] && containsNote(sections[key], note))) };
 }
+
+export const canDeleteBoard = (sectionCount: number, removedCount: number, noteCount: number, connectionCount: number) =>
+  removedCount < sectionCount || noteCount > 0 || connectionCount > 0;
 
 export const recreateSections = (removed: string[], keys: string[]) => removed.filter((key) => !keys.includes(key));
 
