@@ -4,10 +4,19 @@ import { canConnect, connectionGeometry, containsNote, moveSectionNotes, resizeS
 describe("whiteboard section mapping", () => {
   test("deleting one section removes only arrows attached to removed sections", () => {
     const connections = [{ id: "one", from: "problem", to: "solution", label: "" }, { id: "two", from: "fm", to: "ms", label: "Budget" }];
-    expect(removeSections(connections, [], ["problem"])).toEqual({ removedSections: ["problem"], connections: [connections[1]] });
+    expect(removeSections(connections, [], ["problem"])).toEqual({ removedSections: ["problem"], connections: [connections[1]], notes: [] });
   });
   test("deleting all sections removes all their arrows", () => {
-    expect(removeSections([{ id: "one", from: "problem", to: "fm", label: "" }], ["ideas"], ["problem", "fm", "ideas"])).toEqual({ removedSections: ["ideas", "problem", "fm"], connections: [] });
+    expect(removeSections([{ id: "one", from: "problem", to: "fm", label: "" }], ["ideas"], ["problem", "fm", "ideas"])).toEqual({ removedSections: ["ideas", "problem", "fm"], connections: [], notes: [] });
+  });
+  test("Delete all clears every small note card, including loose notes", () => {
+    const notes = [{ id: "inside", x: 20, y: 60, text: "Cost estimate" }, { id: "loose", x: 9000, y: 600, text: "Idea" }];
+    expect(removeSections([], [], ["cost_structure", "ideas"], notes, true).notes).toEqual([]);
+    expect(notes).toHaveLength(2);
+  });
+  test("deleting a single section still keeps its note cards", () => {
+    const notes = [{ id: "inside", text: "Cost estimate" }];
+    expect(removeSections([], [], ["cost_structure"], notes).notes).toEqual(notes);
   });
   test("recreation can restore one section or all sections", () => {
     expect(recreateSections(["problem", "fm", "ideas"], ["fm"])).toEqual(["problem", "ideas"]);
