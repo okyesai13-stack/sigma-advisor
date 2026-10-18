@@ -5,9 +5,9 @@ export function resizeSection(rect: SectionRect, dx: number, dy: number, minWidt
 export type ConnectionSide = "top" | "right" | "bottom" | "left";
 export interface SectionConnection { id: string; from: string; to: string; label: string; fromSide?: ConnectionSide; toSide?: ConnectionSide }
 
-export function removeSections(connections: SectionConnection[], removed: string[], keys: string[]) {
+export function removeSections<T>(connections: SectionConnection[], removed: string[], keys: string[], notes: T[] = [], clearNotes = false) {
   const removedSections = [...new Set([...removed, ...keys])];
-  return { removedSections, connections: connections.filter((c) => !removedSections.includes(c.from) && !removedSections.includes(c.to)) };
+  return { removedSections, connections: connections.filter((c) => !removedSections.includes(c.from) && !removedSections.includes(c.to)), notes: clearNotes ? [] : notes };
 }
 
 export const recreateSections = (removed: string[], keys: string[]) => removed.filter((key) => !keys.includes(key));

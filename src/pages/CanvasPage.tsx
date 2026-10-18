@@ -350,8 +350,8 @@ const CanvasPage = () => {
     // Record destructive actions immediately so Undo works even before the debounce settles.
     const current = { notes, sections, connections, tasks, removedSections };
     hist.current = record(hist.current, current);
-    const next = removeSections(connections, removedSections, keys);
-    setRemovedSections(next.removedSections); setConnections(next.connections);
+    const next = removeSections(connections, removedSections, keys, notes, deleteTarget === "all");
+    setRemovedSections(next.removedSections); setConnections(next.connections); setNotes(next.notes); setSel(null);
     lastSnap.current = { ...current, ...next }; restoring.current = true;
     setSelectedSection(null); setSelectedConnection(null); setConnectFrom(null); setConnectionTarget(null);
     setDeleteTarget(null); bump((x) => x + 1);
@@ -469,7 +469,7 @@ const CanvasPage = () => {
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <AlertDialogContent>
           <AlertDialogHeader><AlertDialogTitle>{deleteTarget === "all" ? "Delete all sections?" : `Delete ${sectionTitle(deleteTarget || "")} section?`}</AlertDialogTitle>
-            <AlertDialogDescription>Section frames and their connected arrows will be removed. Your notes, tasks and dashboard analysis results stay intact. You can undo this or recreate sections later.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogDescription>{deleteTarget === "all" ? "All section frames, arrows and note cards will be removed. Your tasks and dashboard analysis results stay intact. Undo restores everything; recreating sections restores empty frames." : "This section frame and its connected arrows will be removed. Your notes, tasks and dashboard analysis results stay intact. You can undo this or recreate the section later."}</AlertDialogDescription></AlertDialogHeader>
           <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={deleteSections}>Delete</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
