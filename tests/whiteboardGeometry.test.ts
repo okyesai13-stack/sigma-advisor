@@ -1,7 +1,13 @@
 import { describe, expect, test } from "bun:test";
-import { canConnect, connectionGeometry, containsNote, moveSectionNotes } from "../src/lib/whiteboardGeometry";
+import { canConnect, connectionGeometry, containsNote, moveSectionNotes, resizeSection } from "../src/lib/whiteboardGeometry";
 
 describe("whiteboard section mapping", () => {
+  test("Cost Structure can change width and height without moving its origin", () => {
+    const rect = { x: 0, y: 712, w: 616, h: 280 };
+    expect(resizeSection(rect, 120, 80)).toEqual({ x: 0, y: 712, w: 736, h: 360 });
+    expect(resizeSection(rect, -1000, -1000)).toEqual({ x: 0, y: 712, w: 300, h: 160 });
+    expect(connectionGeometry(resizeSection(rect, 120, 80), { x: 1000, y: 712, w: 300, h: 340 }, "right", "left").start).toEqual({ x: 736, y: 892 });
+  });
   test("moving a section carries its notes, leaving other notes in place", () => {
     const notes = [{ id: "inside", x: 20, y: 60 }, { id: "outside", x: 900, y: 600 }];
     const moved = moveSectionNotes(notes, notes, ["inside"], 120, -40);

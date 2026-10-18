@@ -1,5 +1,9 @@
 # Redesign roadmap
 
+- [ ] Make every whiteboard section resizable with saved dimensions
+- [ ] Show connection points only on selected sections and active connection targets
+- [ ] Verify resizing and mapping checks
+
 - [x] Add flow-diagram handles and drag-to-connect arrows to every whiteboard section
 - [x] Verify side-anchored connection geometry and existing mapping tests (five passing tests; build OK)
 
