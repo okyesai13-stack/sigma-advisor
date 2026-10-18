@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { creditAwareError, notifyCreditsChanged, OUT_OF_CREDITS, spendCredits } from "@/lib/credits";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X, Undo2, Redo2, ListChecks, LayoutTemplate, ClipboardCheck, CheckCircle2, Circle, CircleDot } from "lucide-react";
+import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X, Undo2, Redo2, ListChecks, LayoutTemplate, ClipboardCheck, CheckCircle2, Circle, CircleDot, MoveDiagonal2 } from "lucide-react";
 import { record, undo as undoH, redo as redoH, nextStatus, TEMPLATES, type BoardTask, type History } from "@/lib/boardExtras";
 import { supabase } from "@/integrations/supabase/client";
 import { useResume } from "@/contexts/ResumeContext";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import Seo from "@/components/Seo";
-import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
+import { containsNote, moveSectionNotes, canConnect, connectionGeometry, sectionAnchor, resizeSection, type ConnectionSide, type SectionRect, type SectionConnection } from "@/lib/whiteboardGeometry";
 import { CANVAS_BOXES, autofill, type Boxes, type BoxKey } from "@/lib/leanCanvas";
 
 const latest = (t: string, id: string) =>
@@ -94,6 +94,8 @@ const CanvasPage = () => {
   const [connectionPoint, setConnectionPoint] = useState<{ x: number; y: number } | null>(null);
   const connectionDrag = useRef<{ key: string; side: ConnectionSide; x: number; y: number } | null>(null);
   const [rerouting, setRerouting] = useState<{ id: string; moving: "from" | "to" } | null>(null);
+  const [selectedSection, setSelectedSection] = useState<string | null>(null);
+  const [connectionTarget, setConnectionTarget] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
   const [tasks, setTasks] = useState<BoardTask[]>([]);
   const [panel, setPanel] = useState<null | "tasks" | "review">(null);
@@ -122,7 +124,7 @@ const CanvasPage = () => {
   const [view, setView] = useState({ x: 40, y: 40, z: 0.7 });
   const viewRef = useRef(view); viewRef.current = view;
   const wrap = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ kind: "pan" | "note" | "section"; id?: string; sx: number; sy: number; ox: number; oy: number; initial?: Note[]; ids?: string[] } | null>(null);
+  const drag = useRef<{ kind: "pan" | "note" | "section" | "resize"; rect?: SectionRect; id?: string; sx: number; sy: number; ox: number; oy: number; initial?: Note[]; ids?: string[] } | null>(null);
   const ready = useRef(false);
   const [results, setResults] = useState<Partial<Record<AgentKey, any>>>({});
 
@@ -144,14 +146,18 @@ const CanvasPage = () => {
       const restored = { ...DEFAULT_SECTIONS };
       for (const [key, rect] of Object.entries(DEFAULT_SECTIONS)) {
         const position = saved.__board?.sections?.[key];
-        if (Number.isFinite(position?.x) && Number.isFinite(position?.y)) restored[key] = { ...rect, x: position.x, y: position.y };
+        if (Number.isFinite(position?.x) && Number.isFinite(position?.y)) restored[key] = {
+          ...rect, x: position.x, y: position.y,
+          w: Number.isFinite(position.w) ? Math.max(AGENTS.some((a) => a.key === key) ? 480 : 300, position.w) : rect.w,
+          h: Number.isFinite(position.h) ? Math.max(160, position.h) : rect.h,
+        };
       }
       sectionsRef.current = restored;
       setSections(restored);
       setConnections(Array.isArray(saved.__board?.connections) ? saved.__board.connections.filter((c: SectionConnection) => restored[c.from] && restored[c.to] && typeof c.id === "string").map((c: SectionConnection) => ({ ...c, label: typeof c.label === "string" ? c.label : "" })) : []);
       setTasks(Array.isArray(saved.__board?.tasks) ? saved.__board.tasks : []);
       hist.current = { past: [], future: [] }; lastSnap.current = null;
-      setConnectFrom(null); setSelectedConnection(null);
+      setConnectFrom(null); setSelectedConnection(null); setSelectedSection(null); setConnectionTarget(null);
       if (Array.isArray(saved.__board?.notes)) setNotes(saved.__board.notes);
       else setNotes(layout(Object.keys(saved).length ? saved : filled));
       setLoading(false);
@@ -232,14 +238,14 @@ const CanvasPage = () => {
     if (outside(e) || e.button !== 0) return;
     if ((e.target as HTMLElement).closest("[data-note],[data-ui]")) return;
     (document.activeElement as HTMLElement | null)?.blur?.();
-    setSel(null); setSelectedConnection(null);
+    setSel(null); setSelectedConnection(null); setSelectedSection(null);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
   };
   const onNoteDown = (e: React.PointerEvent, n: Note) => {
     e.stopPropagation();
     if (outside(e) || e.button !== 0) return;
-    setSel(n.id); setSelectedConnection(null); setConnectFrom(null);
+    setSel(n.id); setSelectedConnection(null); setSelectedSection(null); setConnectFrom(null);
     if ((e.target as HTMLElement).tagName === "TEXTAREA" && tool === "select") return;
     if ((e.target as HTMLElement).closest("button")) return;
     e.preventDefault();
@@ -252,7 +258,7 @@ const CanvasPage = () => {
     e.stopPropagation();
     if (outside(e) || e.button !== 0 || (e.target as HTMLElement).closest("button,[role=menuitem]")) return;
     if (connectFrom) { connectSection(key); return; }
-    e.preventDefault(); setSel(null); setSelectedConnection(null);
+    e.preventDefault(); setSel(null); setSelectedConnection(null); setSelectedSection(key);
     wrap.current?.setPointerCapture(e.pointerId);
     if (tool === "hand") {
       drag.current = { kind: "pan", sx: e.clientX, sy: e.clientY, ox: view.x, oy: view.y };
@@ -261,8 +267,20 @@ const CanvasPage = () => {
     const rect = sections[key];
     drag.current = { kind: "section", id: key, sx: e.clientX, sy: e.clientY, ox: rect.x, oy: rect.y, initial: notes, ids: notes.filter((n) => containsNote(rect, n)).map((n) => n.id) };
   };
+  const selectSection = (e: React.PointerEvent, key: string) => {
+    if (e.button !== 0 || outside(e)) return;
+    e.stopPropagation(); setSelectedSection(key); setSel(null); setSelectedConnection(null);
+    if (connectFrom && !(e.target as HTMLElement).closest("button")) connectSection(key);
+  };
+  const onResizeDown = (e: React.PointerEvent, key: string) => {
+    e.stopPropagation(); e.preventDefault();
+    if (e.button !== 0) return;
+    setSelectedSection(key); setSel(null); setSelectedConnection(null);
+    wrap.current?.setPointerCapture(e.pointerId);
+    drag.current = { kind: "resize", id: key, rect: sections[key], sx: e.clientX, sy: e.clientY, ox: 0, oy: 0 };
+  };
   const connectSection = (key: string, side?: ConnectionSide) => {
-    setSel(null); setSelectedConnection(null);
+    setSel(null); setSelectedConnection(null); setSelectedSection(key);
     if (!connectFrom) { setConnectFrom(key); setConnectSide(side); setConnectionPoint(null); return; }
     if (connectFrom === key) { setConnectFrom(null); setConnectionPoint(null); return; }
     const from = connectFrom;
@@ -271,10 +289,18 @@ const CanvasPage = () => {
     setConnectFrom(null); setConnectionPoint(null); setSelectedConnection(connectionId);
   };
   const onMove = (e: React.PointerEvent) => {
-    if (connectFrom) setConnectionPoint(toWorld(e.clientX, e.clientY));
+    if (connectFrom) {
+      setConnectionPoint(toWorld(e.clientX, e.clientY));
+      const target = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-section-key]");
+      setConnectionTarget(target?.dataset.sectionKey || null);
+    }
     const d = drag.current; if (!d) return;
     const dx = e.clientX - d.sx, dy = e.clientY - d.sy;
     if (d.kind === "pan") setView((v) => ({ ...v, x: d.ox + dx, y: d.oy + dy }));
+    else if (d.kind === "resize" && d.id && d.rect) {
+      const key = d.id, rect = d.rect;
+      setSections((ss) => ({ ...ss, [key]: resizeSection(rect, dx / viewRef.current.z, dy / viewRef.current.z, AGENTS.some((a) => a.key === key) ? 480 : 300) }));
+    }
     else if (d.kind === "section" && d.id) {
       const key = d.id, wx = dx / viewRef.current.z, wy = dy / viewRef.current.z;
       setSections((ss) => ({ ...ss, [key]: { ...ss[key], x: d.ox + wx, y: d.oy + wy } }));
@@ -283,14 +309,15 @@ const CanvasPage = () => {
     else setNotes((ns) => ns.map((n) => (n.id === d.id ? { ...n, x: d.ox + dx / viewRef.current.z, y: d.oy + dy / viewRef.current.z } : n)));
   };
   const onUp = (e: React.PointerEvent) => {
-    drag.current = null;
+    drag.current = null; setConnectionTarget(null);
     const start = connectionDrag.current;
     connectionDrag.current = null;
     if (rerouting) {
       const r = rerouting; setRerouting(null); setConnectFrom(null); setConnectionPoint(null);
       if (!start || e.type === "pointercancel" || Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
       const t = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-connection-port]");
-      const k = t?.dataset.sectionKey, sd = t?.dataset.side as ConnectionSide | undefined;
+      const section = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-section-key]");
+      const k = t?.dataset.sectionKey || section?.dataset.sectionKey, sd = t?.dataset.side as ConnectionSide | undefined;
       setConnections((cs) => {
         const c = cs.find((x) => x.id === r.id); if (!c) return cs;
         const rest = cs.filter((x) => x.id !== r.id);
@@ -303,7 +330,7 @@ const CanvasPage = () => {
     if (!start || e.type === "pointercancel") return;
     if (Math.hypot(e.clientX - start.x, e.clientY - start.y) < 5) return;
     const target = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-connection-port]");
-    const key = target?.dataset.sectionKey;
+    const key = target?.dataset.sectionKey || document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-section-key]")?.dataset.sectionKey;
     const side = target?.dataset.side as ConnectionSide | undefined;
     if (key && key !== start.key) connectSection(key, side);
     else { setConnectFrom(null); setConnectionPoint(null); }
@@ -439,8 +466,8 @@ const CanvasPage = () => {
           {CANVAS_BOXES.map((b) => {
             const z = sections[b.key];
             return (
-              <div key={b.key} className={`absolute rounded-lg border bg-card/40 ${busy === b.key ? "border-primary" : "border-border"}`} style={{ left: z.x, top: z.y, width: z.w, height: z.h }}>
-                <div data-ui onPointerDown={(e) => onSectionDown(e, b.key)} className="flex cursor-grab items-start justify-between gap-2 px-3 pt-2.5 active:cursor-grabbing">
+              <div key={b.key} data-ui data-section-key={b.key} onPointerDown={(e) => selectSection(e, b.key)} className={`absolute rounded-lg border bg-card/40 ${busy === b.key || selectedSection === b.key ? "border-primary" : "border-border"}`} style={{ left: z.x, top: z.y, width: z.w, height: z.h }}>
+                <div data-ui onPointerDown={(e) => onSectionDown(e, b.key)} className="flex cursor-grab flex-wrap items-start justify-between gap-2 px-3 pt-2.5 active:cursor-grabbing">
                   <div className="flex items-start gap-1"><GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" /><div><p className="font-display text-sm font-semibold">{b.title}</p><p className="text-[11px] text-muted-foreground">{b.hint}</p></div></div>
                   <div className="flex items-center">
                     <Button size="icon" variant={connectFrom === b.key ? "default" : "ghost"} className="h-7 w-7" title={connectFrom ? `Connect to ${b.title}` : `Connect ${b.title}`} aria-label={`Connect ${b.title}`} onClick={() => connectSection(b.key)}><GitBranch className="h-3.5 w-3.5" /></Button>
@@ -455,7 +482,7 @@ const CanvasPage = () => {
               </div>
             );
           })}
-          <div className="absolute rounded-lg border border-dashed border-border" style={{ left: sections.ideas.x, top: sections.ideas.y, width: sections.ideas.w, height: sections.ideas.h }}>
+          <div data-ui data-section-key="ideas" onPointerDown={(e) => selectSection(e, "ideas")} className={`absolute rounded-lg border border-dashed ${selectedSection === "ideas" ? "border-primary" : "border-border"}`} style={{ left: sections.ideas.x, top: sections.ideas.y, width: sections.ideas.w, height: sections.ideas.h }}>
             <div data-ui onPointerDown={(e) => onSectionDown(e, "ideas")} className="flex cursor-grab items-center justify-between px-3 pt-2.5"><p className="flex items-center gap-1 font-display text-sm font-semibold"><GripVertical className="h-4 w-4" />Brainstorm area</p><Button size="icon" variant={connectFrom === "ideas" ? "default" : "ghost"} className="h-7 w-7" title="Connect Brainstorm area" aria-label="Connect Brainstorm area" onClick={() => connectSection("ideas")}><GitBranch className="h-3.5 w-3.5" /></Button></div>
             <p className="px-3 text-[11px] text-muted-foreground">Free space — drag notes into a box when ready</p>
           </div>
@@ -463,8 +490,8 @@ const CanvasPage = () => {
           {AGENTS.map((a) => {
             const f = sections[a.key]; const has = !!results[a.key]; const Icon = a.icon;
             return (
-              <div key={a.key} className={`absolute rounded-lg border bg-card/30 ${busy === a.key ? "border-primary" : "border-border"}`} style={{ left: f.x, top: f.y, width: f.w, height: f.h }}>
-                <div data-ui onPointerDown={(e) => onSectionDown(e, a.key)} className="flex cursor-grab items-start justify-between gap-2 px-3 pt-2.5 active:cursor-grabbing">
+              <div key={a.key} data-ui data-section-key={a.key} onPointerDown={(e) => selectSection(e, a.key)} className={`absolute rounded-lg border bg-card/30 ${busy === a.key || selectedSection === a.key ? "border-primary" : "border-border"}`} style={{ left: f.x, top: f.y, width: f.w, height: f.h }}>
+                <div data-ui onPointerDown={(e) => onSectionDown(e, a.key)} className="flex cursor-grab flex-wrap items-start justify-between gap-2 px-3 pt-2.5 active:cursor-grabbing">
                   <div className="flex items-center gap-2"><GripVertical className="h-4 w-4 shrink-0 text-muted-foreground" /><span className="grid h-7 w-7 place-items-center rounded-md bg-primary/10 text-primary"><Icon className="h-3.5 w-3.5" /></span>
                     <div><p className="font-display text-sm font-semibold">{a.title}</p><p className="text-[11px] text-muted-foreground">{has ? "Results ready" : "Not run yet"}</p></div></div>
                   <div className="flex items-center">
@@ -529,6 +556,12 @@ const CanvasPage = () => {
             });
           })}
 
+          {selectedSection && sections[selectedSection] && (
+            <Button data-ui size="icon" variant="outline" aria-label="Resize selected section" title="Drag to resize section"
+              className="absolute z-30 h-7 w-7 -translate-x-1/2 -translate-y-1/2 cursor-nwse-resize border-primary bg-background text-primary"
+              style={{ left: sections[selectedSection].x + sections[selectedSection].w, top: sections[selectedSection].y + sections[selectedSection].h }}
+              onPointerDown={(e) => onResizeDown(e, selectedSection)}><MoveDiagonal2 className="h-4 w-4" /></Button>
+          )}
           {notes.map((n) => (
             <div
               key={n.id} data-note
@@ -549,7 +582,7 @@ const CanvasPage = () => {
               {busy === n.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
             </div>
           ))}
-          {Object.entries(sections).flatMap(([key, rect]) => (["top", "right", "bottom", "left"] as ConnectionSide[]).map((side) => {
+          {Object.entries(sections).filter(([key]) => key === selectedSection || key === connectFrom || (!!connectFrom && key === connectionTarget)).flatMap(([key, rect]) => (["top", "right", "bottom", "left"] as ConnectionSide[]).map((side) => {
             const point = sectionAnchor(rect, side);
             const title = CANVAS_BOXES.find((b) => b.key === key)?.title || AGENTS.find((a) => a.key === key)?.title || "Brainstorm area";
             return <Button key={`${key}-${side}`} data-ui data-connection-port data-section-key={key} data-side={side} size="icon" variant="outline"

@@ -1,4 +1,7 @@
 export interface SectionRect { x: number; y: number; w: number; h: number }
+export function resizeSection(rect: SectionRect, dx: number, dy: number, minWidth = 300): SectionRect {
+  return { ...rect, w: Math.max(minWidth, rect.w + dx), h: Math.max(160, rect.h + dy) };
+}
 export type ConnectionSide = "top" | "right" | "bottom" | "left";
 export interface SectionConnection { id: string; from: string; to: string; label: string; fromSide?: ConnectionSide; toSide?: ConnectionSide }
 
