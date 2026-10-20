@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Plus, LayoutGrid, Loader2, ArrowRight, ShieldAlert } from "lucide-react";
+import { Plus, LayoutGrid, Loader2, ArrowRight, ShieldAlert, Map } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import Seo from "@/components/Seo";
