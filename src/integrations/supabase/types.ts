@@ -497,6 +497,41 @@ export type Database = {
         }
         Relationships: []
       }
+      startup_roadmap: {
+        Row: {
+          business_id: string
+          created_at: string
+          goal: string | null
+          id: string
+          phases: Json
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          goal?: string | null
+          id?: string
+          phases?: Json
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          goal?: string | null
+          id?: string
+          phases?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "startup_roadmap_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_credits: {
         Row: {
           created_at: string

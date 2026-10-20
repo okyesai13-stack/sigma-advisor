@@ -15,6 +15,7 @@ export const CREDIT_COSTS = {
   stress_test: 5,
   canvas_ai: 1,
   advisor_chat: 1,
+  roadmap: 3,
 } as const;
 export type CreditAction = keyof typeof CREDIT_COSTS;
 
@@ -30,6 +31,7 @@ export const ACTION_LABELS: Record<string, string> = {
   stress_test: "Stress test",
   canvas_ai: "Whiteboard AI",
   advisor_chat: "Advisor chat",
+  roadmap: "Built a startup roadmap",
   coupon_pro: "Coupon: Pro activated",
 };
 

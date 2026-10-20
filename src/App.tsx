@@ -24,6 +24,7 @@ import WorkspacePage from "./pages/WorkspacePage";
 import CanvasPage from "./pages/CanvasPage";
 import StressTestPage from "./pages/StressTestPage";
 import PricingPage from "./pages/PricingPage";
+import RoadmapPage from "./pages/RoadmapPage";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ const App = () => (
                 <Route path="/workspace/:id" element={<CanvasPage />} />
                 <Route path="/stress-test/:id" element={<StressTestPage />} />
                 <Route path="/pricing" element={<PricingPage />} />
+                <Route path="/roadmap/:id" element={<RoadmapPage />} />
               </Route>
 
               <Route path="/deck" element={<ProtectedRoute><PitchDeckPage /></ProtectedRoute>} />
