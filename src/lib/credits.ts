@@ -30,6 +30,7 @@ export const ACTION_LABELS: Record<string, string> = {
   stress_test: "Stress test",
   canvas_ai: "Whiteboard AI",
   advisor_chat: "Advisor chat",
+  coupon_pro: "Coupon: Pro activated",
 };
 
 export interface Balances { daily: number; monthly: number; topup: number }

@@ -563,6 +563,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      redeem_coupon: { Args: { p_code: string }; Returns: undefined }
       refresh_credits: {
         Args: { p_user: string }
         Returns: {

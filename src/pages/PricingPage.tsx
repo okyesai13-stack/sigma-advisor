@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Check, Coins, Loader2, Sparkles } from "lucide-react";
+import { Check, Coins, Loader2, Sparkles, Ticket } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import Seo from "@/components/Seo";
 import { ACTION_LABELS, CREDIT_COSTS, CREDIT_PACKS, DAILY_CREDITS, PLANS, notifyCreditsChanged, useCredits } from "@/lib/credits";
@@ -10,7 +11,21 @@ const PricingPage = () => {
   const { credits } = useCredits();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState("");
+  const [redeeming, setRedeeming] = useState(false);
   const isPro = credits?.plan === "pro";
+
+  const redeem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRedeeming(true);
+    const { error } = await (supabase.rpc as any)("redeem_coupon", { p_code: code });
+    setRedeeming(false);
+    notifyCreditsChanged();
+    if (!error) { setCode(""); toast({ title: "Pro plan activated", description: "100 monthly credits added to your account." }); return; }
+    const m = error.message || "";
+    toast({ variant: "destructive", title: "Couldn't apply code",
+      description: m.includes("invalid_coupon") ? "That coupon code isn't valid." : m.includes("already_pro") ? "You're already on Pro." : m });
+  };
 
   const upgrade = async () => {
     setBusy(true);
@@ -20,6 +35,7 @@ const PricingPage = () => {
     toast(error ? { title: "Something went wrong", description: error.message, variant: "destructive" }
       : { title: "You're on the list", description: "Payments are coming soon. We'll let you know when Pro is ready." });
   };
+
 
   const plans = [
     { id: "free", features: [`${DAILY_CREDITS} AI credits every day`, "All six agents", "Whiteboard and pitch deck"] },
@@ -59,6 +75,19 @@ const PricingPage = () => {
           );
         })}
       </div>
+
+      {!isPro && (
+        <form onSubmit={redeem} className="panel-surface flex flex-col gap-3 p-6 sm:flex-row sm:items-end">
+          <div className="flex-1">
+            <h2 className="flex items-center gap-2 font-display text-lg font-semibold"><Ticket className="h-4 w-4 text-primary" /> Have a coupon code?</h2>
+            <p className="mb-2 text-sm text-muted-foreground">Enter it to activate the Pro plan.</p>
+            <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="Coupon code" aria-label="Coupon code" />
+          </div>
+          <Button type="submit" disabled={redeeming || !code.trim()}>{redeeming ? <Loader2 className="animate-spin" /> : null}Apply code</Button>
+        </form>
+      )}
+
+
 
       <div className="panel-surface space-y-4 p-6">
         <div className="flex items-center justify-between">
