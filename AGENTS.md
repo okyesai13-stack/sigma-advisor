@@ -11,3 +11,7 @@
 - Use dnd-kit sensors for Kanban movement with optimistic version-checked persistence and rollback; never store board status only in browser state.
 - Preserve the strategy dossier at /analysis and support legacy /dashboard#section-* links while /dashboard displays the project overview; synchronize route project IDs into the business context so advisor queries use the opened project.
 - Use SidebarProvider for navigation and a closed-by-default right advisor panel on wide desktop or Sheet on smaller screens; main workspace width is never permanently reserved for AI.
+- Relational planning uses milestones, milestone_tasks and task_dependencies in the execution context; all links are required, tasks may belong to multiple milestones in the same project, and progress is calculated rather than stored to stay current after task changes.
+- Milestone editing and link replacement run in one authorized save_milestone transaction with version checks; only workspace owners/admins may override incomplete linked tasks with a recorded reason.
+- Finish-to-Start is the active dependency type; backend project-locked cycle validation rejects invalid graphs, while date conflicts require explicit browser confirmation and never auto-reschedule successors.
+- Calendar dates and timeline geometry use local date-only arithmetic; timeline pages contain at most 100 task rows and date writes retain task version checks and activity history.

@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.validate_dependency(),public.guard_milestone(),public.guard_milestone_link(),public.log_schedule_change() FROM anon,authenticated;
+REVOKE EXECUTE ON FUNCTION public.save_milestone(jsonb,uuid[],uuid,integer) FROM anon;

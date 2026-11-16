@@ -470,6 +470,131 @@ export type Database = {
           },
         ]
       }
+      milestone_tasks: {
+        Row: {
+          created_at: string
+          id: string
+          milestone_id: string
+          project_id: string
+          task_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          milestone_id: string
+          project_id: string
+          task_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          milestone_id?: string
+          project_id?: string
+          task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestone_tasks_milestone_id_project_id_fkey"
+            columns: ["milestone_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "milestones"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "milestone_tasks_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milestone_tasks_task_id_project_id_fkey"
+            columns: ["task_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "project_id"]
+          },
+        ]
+      }
+      milestones: {
+        Row: {
+          completion_date: string | null
+          completion_override_reason: string | null
+          created_at: string
+          created_by: string
+          description: string
+          due_date: string | null
+          id: string
+          owner_id: string | null
+          project_id: string
+          start_date: string | null
+          status: string
+          title: string
+          updated_at: string
+          version: number
+          workspace_id: string
+        }
+        Insert: {
+          completion_date?: string | null
+          completion_override_reason?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          owner_id?: string | null
+          project_id: string
+          start_date?: string | null
+          status?: string
+          title: string
+          updated_at?: string
+          version?: number
+          workspace_id: string
+        }
+        Update: {
+          completion_date?: string | null
+          completion_override_reason?: string | null
+          created_at?: string
+          created_by?: string
+          description?: string
+          due_date?: string | null
+          id?: string
+          owner_id?: string | null
+          project_id?: string
+          start_date?: string | null
+          status?: string
+          title?: string
+          updated_at?: string
+          version?: number
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milestones_project_id_workspace_id_fkey"
+            columns: ["project_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "workspace_id"]
+          },
+          {
+            foreignKeyName: "milestones_workspace_id_owner_id_fkey"
+            columns: ["workspace_id", "owner_id"]
+            isOneToOne: false
+            referencedRelation: "workspace_members"
+            referencedColumns: ["workspace_id", "user_id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -536,6 +661,64 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspace_members"
             referencedColumns: ["workspace_id", "user_id"]
+          },
+        ]
+      }
+      project_schedule_activity: {
+        Row: {
+          actor_id: string | null
+          changes: Json
+          created_at: string
+          event: string
+          id: string
+          project_id: string
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          actor_id?: string | null
+          changes?: Json
+          created_at?: string
+          event: string
+          id?: string
+          project_id: string
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          actor_id?: string | null
+          changes?: Json
+          created_at?: string
+          event?: string
+          id?: string
+          project_id?: string
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_schedule_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_schedule_activity_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_schedule_activity_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -709,6 +892,68 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workspaces"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      task_dependencies: {
+        Row: {
+          created_at: string
+          created_by: string
+          dependency_type: string
+          id: string
+          predecessor_task_id: string
+          project_id: string
+          successor_task_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string
+          dependency_type?: string
+          id?: string
+          predecessor_task_id: string
+          project_id: string
+          successor_task_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          dependency_type?: string
+          id?: string
+          predecessor_task_id?: string
+          project_id?: string
+          successor_task_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_dependencies_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_predecessor_task_id_project_id_fkey"
+            columns: ["predecessor_task_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_dependencies_successor_task_id_project_id_fkey"
+            columns: ["successor_task_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "project_id"]
           },
         ]
       }
@@ -976,6 +1221,15 @@ export type Database = {
         }
       }
       request_upgrade: { Args: never; Returns: undefined }
+      save_milestone: {
+        Args: {
+          p_id?: string
+          p_task_ids: string[]
+          p_values: Json
+          p_version?: number
+        }
+        Returns: string
+      }
       spend_credits: {
         Args: { p_action: string }
         Returns: {

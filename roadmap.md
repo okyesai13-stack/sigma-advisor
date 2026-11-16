@@ -1,5 +1,11 @@
 # Redesign roadmap
 
+- [x] Add Phase 3 milestones, task links and dependency safeguards
+- [x] Implement milestone editor, live Gantt and project calendar
+- [x] Integrate scheduling warnings and dashboard deadlines
+- [x] Test scheduling rules, database authorization and application health (43 tests; rollback database checks; build OK)
+- [ ] Verify signed-in scheduling flows (blocked: externally managed authentication)
+
 - [x] Add Phase 2 workspace membership, project, task and activity tables with server-enforced permissions
 - [x] Implement workspace switching, project lifecycle and editable task board/list
 - [x] Connect real project/task progress and dashboard data while retaining legacy analyses
