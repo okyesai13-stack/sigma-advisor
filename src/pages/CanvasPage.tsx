@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { creditAwareError, notifyCreditsChanged, OUT_OF_CREDITS, spendCredits } from "@/lib/credits";
+import { creditAwareError, notifyCreditsChanged } from "@/lib/credits";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X, Undo2, Redo2, ListChecks, LayoutTemplate, ClipboardCheck, CheckCircle2, Circle, CircleDot, MoveDiagonal2 } from "lucide-react";
 import { record, undo as undoH, redo as redoH, nextStatus, TEMPLATES, type BoardTask, type History } from "@/lib/boardExtras";
@@ -398,10 +398,9 @@ const CanvasPage = () => {
     setNotes((ns) => [...ns.filter((n) => frameOf(n) !== k), ...items.map((t, i) => ({ id: uid(), text: t, color: "slate" as Color, ...frameSlot(k, i) }))]);
   };
   const rerunAgent = async (a: typeof AGENTS[number]) => {
-    const paid = await spendCredits("agent_rerun");
-    if (paid !== "ok") { toast(paid === "insufficient" ? { ...OUT_OF_CREDITS, variant: "destructive" } : { title: "Couldn't check your credits", variant: "destructive" }); return; }
     setBusy(a.key);
     const { data, error } = await supabase.functions.invoke(a.fn, { body: { business_id: id } });
+    notifyCreditsChanged();
     if (error || !data?.success) { setBusy(null); toast({ title: `${a.title} failed`, description: data?.error || error?.message, variant: "destructive" }); return; }
     const { data: row } = await latest(a.table, id);
     setResults((r) => ({ ...r, [a.key]: row }));

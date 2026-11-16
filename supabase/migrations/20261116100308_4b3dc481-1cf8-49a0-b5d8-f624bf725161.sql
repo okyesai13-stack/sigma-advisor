@@ -1,0 +1,22 @@
+BEGIN;
+DO $$ DECLARE u uuid;o uuid;w uuid:=gen_random_uuid();p uuid:=gen_random_uuid();c uuid:=gen_random_uuid();a uuid:=gen_random_uuid();f uuid:=gen_random_uuid();t uuid;receipt jsonb;n integer;denied boolean:=false;b uuid;run uuid:=gen_random_uuid();before_ integer;after_ integer;BEGIN
+SELECT id INTO u FROM public.profiles ORDER BY created_at LIMIT 1;SELECT id INTO o FROM public.profiles WHERE id<>u ORDER BY created_at LIMIT 1;IF u IS NULL OR o IS NULL THEN RAISE EXCEPTION 'Two profiles required';END IF;
+INSERT INTO public.workspaces(id,name,owner_id)VALUES(w,'Stage2 rollback fixture',u);INSERT INTO public.workspace_members(workspace_id,user_id,role)VALUES(w,u,'owner'),(w,o,'viewer');
+PERFORM set_config('request.jwt.claim.sub',u::text,true);INSERT INTO public.projects(id,workspace_id,name,owner_id,created_by)VALUES(p,w,'Stage2 fixture',u,u);INSERT INTO public.ai_conversations(id,user_id,workspace_id,project_id)VALUES(c,u,w,p);
+INSERT INTO public.ai_action_proposals(id,conversation_id,user_id,workspace_id,project_id,kind,plan)VALUES(a,c,u,w,p,'execution','{"actions":[{"type":"create_task","ref":"task1","values":{"title":"Approved fixture","priority":"High"}},{"type":"create_milestone","ref":"m","task_refs":["task1"],"values":{"title":"Approved milestone"}}]}');
+SET LOCAL ROLE authenticated;
+SELECT count(*) INTO n FROM public.tasks WHERE project_id=p;IF n<>0 THEN RAISE EXCEPTION 'Unapproved action changed data';END IF;
+receipt:=public.decide_ai_proposal(a,true);IF receipt->>'status'<>'Completed' THEN RAISE EXCEPTION 'Approved execution failed %',receipt;END IF;
+SELECT count(*) INTO n FROM public.tasks WHERE project_id=p;IF n<>1 THEN RAISE EXCEPTION 'Approved task not persisted';END IF;
+receipt:=public.decide_ai_proposal(a,true);SELECT count(*) INTO n FROM public.tasks WHERE project_id=p;IF n<>1 THEN RAISE EXCEPTION 'Duplicate approval duplicated tasks';END IF;
+RESET ROLE;SELECT id INTO t FROM public.tasks WHERE project_id=p;
+INSERT INTO public.ai_action_proposals(id,conversation_id,user_id,workspace_id,project_id,kind,plan)VALUES(f,c,u,w,p,'execution',jsonb_build_object('actions',jsonb_build_array(jsonb_build_object('type','create_task','ref','temp','values',jsonb_build_object('title','Must rollback')),jsonb_build_object('type','update_task','ref','update','record_id',t,'version',999,'values',jsonb_build_object('title','Stale')))));
+SET LOCAL ROLE authenticated;receipt:=public.decide_ai_proposal(f,true);IF receipt->>'status'<>'Failed' THEN RAISE EXCEPTION 'Stale version accepted';END IF;SELECT count(*) INTO n FROM public.tasks WHERE project_id=p;IF n<>1 THEN RAISE EXCEPTION 'Failed batch did not rollback';END IF;
+RESET ROLE;PERFORM set_config('request.jwt.claim.sub',o::text,true);SET LOCAL ROLE authenticated;SELECT count(*) INTO n FROM public.ai_action_proposals WHERE id=a;IF n<>0 THEN RAISE EXCEPTION 'Other user sees private proposal';END IF;BEGIN PERFORM public.decide_ai_proposal(a,true);EXCEPTION WHEN insufficient_privilege THEN denied:=true;END;IF NOT denied THEN RAISE EXCEPTION 'Other user could approve';END IF;
+RESET ROLE;PERFORM set_config('request.jwt.claim.sub',u::text,true);INSERT INTO public.business_store(user_id,business_name,pitch,stage)VALUES(u,'Stage2 billing fixture','fixture','idea') RETURNING id INTO b;
+PERFORM public.refresh_credits(u);UPDATE public.user_credits SET daily_balance=100,monthly_balance=0,topup_balance=0 WHERE user_id=u;
+SET LOCAL ROLE authenticated;PERFORM public.authorize_ai_specialists(run,b,NULL);PERFORM public.authorize_ai_specialists(run,b,NULL);RESET ROLE;SELECT daily_balance INTO after_ FROM public.user_credits WHERE user_id=u;IF after_<>90 THEN RAISE EXCEPTION 'Full run must cost exactly 10 once, got %',after_;END IF;
+IF NOT public.claim_ai_specialist(run,u,b,'market-research') THEN RAISE EXCEPTION 'Paid claim failed';END IF;IF public.claim_ai_specialist(run,u,b,'market-research') THEN RAISE EXCEPTION 'Claim replay succeeded';END IF;IF public.claim_ai_specialist(run,o,b,'financial-model') THEN RAISE EXCEPTION 'Cross-user claim succeeded';END IF;
+SET LOCAL ROLE authenticated;PERFORM public.authorize_ai_specialists(gen_random_uuid(),b,'financial-model');RESET ROLE;SELECT daily_balance INTO after_ FROM public.user_credits WHERE user_id=u;IF after_<>88 THEN RAISE EXCEPTION 'Single run must cost exactly 2';END IF;
+END $$;
+ROLLBACK;

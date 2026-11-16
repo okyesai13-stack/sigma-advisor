@@ -1,3 +1,5 @@
+import { assertAiAvailable, recordAiBlock } from '../_shared/ai-service-state.ts';
+import { claimSpecialist } from '../_shared/specialist-billing.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -8,14 +10,15 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  let paid: string | null = null; let billing: any;
   try {
-    const { business_id } = await req.json();
+    const { business_id, paid_run } = await req.json();
     if (!business_id || typeof business_id !== "string") return j({ success: false, error: "business_id required" }, 400);
 
     const url = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !serviceKey) throw new Error("Service configuration missing");
-    const supabase = createClient(url, serviceKey);
+    const supabase = createClient(url, serviceKey); billing=supabase;
     const authorization = req.headers.get("Authorization");
     if (!authorization?.startsWith("Bearer ")) return j({ error: "Not authenticated" }, 401);
     const { data: caller, error: authError } = await supabase.auth.getUser(authorization.slice(7));
@@ -24,6 +27,9 @@ serve(async (req) => {
     if (!owned) return j({ error: "Business unavailable" }, 403);
     const { data: biz } = await supabase.from("business_store").select("*").eq("id", business_id).maybeSingle();
     if (!biz) return j({ success: false, error: "Business not found" }, 404);
+
+    await assertAiAvailable("openai/gpt-6-astra");
+    paid=await claimSpecialist(supabase,authorization,caller.user.id,business_id,"ai-operations",paid_run);
 
     const system = `You are a senior AI transformation consultant. You find the real operational pain points of a business in the current AI era and prescribe concrete, practical AI automations with measurable ROI. Be specific: name real tools and realistic numbers. Output ONLY valid JSON:
 {
@@ -59,8 +65,11 @@ Context: ${biz.raw_context || "N/A"}`;
       roi: result.roi || {},
     });
     if (error) throw error;
+    await supabase.rpc("record_ai_specialist",{p_id:paid,p_endpoint:"ai-operations",p_result:{success:true}});
     return j({ success: true, data: result });
   } catch (e: any) {
+    await recordAiBlock("openai/gpt-6-astra",e);
+    if(paid&&billing)await billing.rpc("record_ai_specialist",{p_id:paid,p_endpoint:"ai-operations",p_result:{success:false,error:e instanceof Error?e.message:"Failed"}});
     console.error("[ai-operations]", e);
     return j({ success: false, error: e instanceof Error ? e.message : "Unknown" }, e?.status || 500);
   }

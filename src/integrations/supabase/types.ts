@@ -46,6 +46,103 @@ export type Database = {
           },
         ]
       }
+      ai_action_execution_logs: {
+        Row: {
+          created_at: string
+          details: Json
+          event: string
+          id: string
+          proposal_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          details?: Json
+          event: string
+          id?: string
+          proposal_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          details?: Json
+          event?: string
+          id?: string
+          proposal_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_action_execution_logs_proposal_id_fkey"
+            columns: ["proposal_id"]
+            isOneToOne: false
+            referencedRelation: "ai_action_proposals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_action_proposals: {
+        Row: {
+          business_id: string | null
+          conversation_id: string
+          cost: number
+          created_at: string
+          error_message: string | null
+          expires_at: string
+          id: string
+          kind: string
+          plan: Json
+          project_id: string | null
+          result: Json | null
+          status: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          business_id?: string | null
+          conversation_id: string
+          cost?: number
+          created_at?: string
+          error_message?: string | null
+          expires_at?: string
+          id?: string
+          kind: string
+          plan: Json
+          project_id?: string | null
+          result?: Json | null
+          status?: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          business_id?: string | null
+          conversation_id?: string
+          cost?: number
+          created_at?: string
+          error_message?: string | null
+          expires_at?: string
+          id?: string
+          kind?: string
+          plan?: Json
+          project_id?: string | null
+          result?: Json | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_action_proposals_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           business_id: string | null
@@ -201,6 +298,7 @@ export type Database = {
           conversation_id: string
           created_at: string
           error_message: string | null
+          heartbeat_at: string
           id: string
           intent: string | null
           status: string
@@ -212,6 +310,7 @@ export type Database = {
           conversation_id: string
           created_at?: string
           error_message?: string | null
+          heartbeat_at?: string
           id: string
           intent?: string | null
           status?: string
@@ -223,6 +322,7 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           error_message?: string | null
+          heartbeat_at?: string
           id?: string
           intent?: string | null
           status?: string
@@ -235,6 +335,74 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_service_blocks: {
+        Row: {
+          created_at: string
+          message: string
+          model: string
+          status: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          message: string
+          model: string
+          status: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          message?: string
+          model?: string
+          status?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      ai_specialist_runs: {
+        Row: {
+          business_id: string
+          claimed: string[]
+          created_at: string
+          endpoints: string[]
+          expires_at: string
+          id: string
+          receipts: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          business_id: string
+          claimed?: string[]
+          created_at?: string
+          endpoints: string[]
+          expires_at?: string
+          id: string
+          receipts?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          business_id?: string
+          claimed?: string[]
+          created_at?: string
+          endpoints?: string[]
+          expires_at?: string
+          id?: string
+          receipts?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_specialist_runs_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
             referencedColumns: ["id"]
           },
         ]
@@ -1775,8 +1943,21 @@ export type Database = {
         Args: { p_token: string }
         Returns: string
       }
+      authorize_ai_specialists: {
+        Args: { p_business: string; p_endpoint?: string; p_id: string }
+        Returns: string
+      }
       begin_ai_request: {
         Args: { p_conversation: string; p_id: string; p_user: string }
+        Returns: boolean
+      }
+      claim_ai_specialist: {
+        Args: {
+          p_business: string
+          p_endpoint: string
+          p_id: string
+          p_user: string
+        }
         Returns: boolean
       }
       claim_collaboration_emails: {
@@ -1811,6 +1992,10 @@ export type Database = {
         Returns: string
       }
       credit_cost: { Args: { p_action: string }; Returns: number }
+      decide_ai_proposal: {
+        Args: { p_approve: boolean; p_id: string }
+        Returns: Json
+      }
       duplicate_project: { Args: { p_project: string }; Returns: string }
       enqueue_notification: {
         Args: {
@@ -1864,6 +2049,14 @@ export type Database = {
         Returns: undefined
       }
       process_deadline_reminders: { Args: never; Returns: number }
+      reconcile_ai_request: {
+        Args: { p_conversation: string; p_user: string }
+        Returns: Json
+      }
+      record_ai_specialist: {
+        Args: { p_endpoint: string; p_id: string; p_result: Json }
+        Returns: undefined
+      }
       redeem_coupon: { Args: { p_code: string }; Returns: undefined }
       refresh_credits: {
         Args: { p_user: string }
@@ -1919,6 +2112,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      revise_ai_proposal: {
+        Args: { p_id: string; p_plan: Json; p_user: string }
+        Returns: Json
       }
       revoke_workspace_invitation: {
         Args: { p_id: string }

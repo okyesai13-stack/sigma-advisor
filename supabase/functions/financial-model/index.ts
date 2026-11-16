@@ -1,3 +1,5 @@
+import { assertAiAvailable, recordAiBlock } from '../_shared/ai-service-state.ts';
+import { claimSpecialist } from '../_shared/specialist-billing.ts';
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -8,14 +10,15 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  let paid: string | null = null; let billing: any;
   try {
-    const { business_id } = await req.json();
+    const { business_id, paid_run } = await req.json();
     if (!business_id) return j({ success: false, error: "business_id required" }, 400);
 
     const url = Deno.env.get("SUPABASE_URL");
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!url || !serviceKey) throw new Error("Service configuration missing");
-    const supabase = createClient(url, serviceKey);
+    const supabase = createClient(url, serviceKey); billing=supabase;
     const authorization = req.headers.get("Authorization");
     if (!authorization?.startsWith("Bearer ")) return j({ error: "Not authenticated" }, 401);
     const { data: caller, error: authError } = await supabase.auth.getUser(authorization.slice(7));
@@ -24,6 +27,9 @@ serve(async (req) => {
     if (!owned) return j({ error: "Business unavailable" }, 403);
     const { data: biz } = await supabase.from("business_store").select("*").eq("id", business_id).maybeSingle();
     if (!biz) return j({ success: false, error: "Business not found" }, 404);
+
+    await assertAiAvailable("google/gemini-3-flash-preview");
+    paid=await claimSpecialist(supabase,authorization,caller.user.id,business_id,"financial-model",paid_run);
 
     const system = `You are a startup CFO building a financial model. Output ONLY valid JSON:
 {
@@ -68,10 +74,13 @@ Build a credible 3-year financial model.`;
       key_assumptions: result.key_assumptions || [],
     });
     if (error) throw error;
+    await supabase.rpc("record_ai_specialist",{p_id:paid,p_endpoint:"financial-model",p_result:{success:true}});
     return j({ success: true, data: result });
-  } catch (e) {
+  } catch (e: any) {
+    await recordAiBlock("google/gemini-3-flash-preview",e);
+    if(paid&&billing)await billing.rpc("record_ai_specialist",{p_id:paid,p_endpoint:"financial-model",p_result:{success:false,error:e instanceof Error?e.message:"Failed"}});
     console.error("[financial-model]", e);
-    return j({ success: false, error: e instanceof Error ? e.message : "Unknown" }, 500);
+    return j({ success: false, error: e instanceof Error ? e.message : "Unknown" }, e?.status || 500);
   }
 });
 
@@ -90,7 +99,7 @@ async function callAI(system: string, user: string) {
   });
   if (res.status === 429) throw Object.assign(new Error("Rate limit"), { status: 429 });
   if (res.status === 402) throw Object.assign(new Error("AI credits exhausted"), { status: 402 });
-  if (!res.ok) throw new Error(`AI gateway ${res.status}`);
+  if (!res.ok) throw Object.assign(new Error(`AI gateway ${res.status}: ${(await res.text()).slice(0,200)}`), {status:res.status});
   const data = await res.json();
   const content = data.choices?.[0]?.message?.content || "";
   const match = content.match(/\{[\s\S]*\}/);

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AiProjectResult, AiActionProposal } from '@/components/collaboration/AiProjectResult';
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, isToolUIPart, type UIMessage } from "ai";
@@ -22,7 +23,7 @@ import { notifyCreditsChanged } from "@/lib/credits";
 import { mergeCanvasSuggestions } from "@/lib/planzCanvas";
 import type { Tables } from "@/integrations/supabase/types";
 type Thread=Tables<"ai_conversations">;
-const prompts=["Analyze my business idea.","Create a Lean Canvas.","Stress test my business.","Generate a startup roadmap.","Analyze my current project.","Give me project recommendations."];
+const prompts=["Create a structured project plan from my idea.","Check the health of my active project.","Find tasks and milestones that could delay my project.","Analyze team assignments and recommend workload improvements.","What should I work on next?","Create a weekly progress report.","Analyze my business idea.","Create a Lean Canvas.","Stress test my business.","Generate a startup roadmap."];
 
 export default function PlanzAiPage() {
   const {conversationId}=useParams();const navigate=useNavigate();const [params]=useSearchParams();const {user}=useAuth();const engine=useProjectEngine();const legacy=useWorkspace();
@@ -58,7 +59,7 @@ export function ChatWindow({thread,initial,onFinish}:{thread:Thread;initial:UIMe
   const busy=status==="submitted"||status==="streaming";
   useEffect(()=>{ta.current?.focus();},[thread.id,busy]);
   useEffect(()=>{const prompt=chatParams.get("prompt");if(prompt)setInput(prompt);},[chatParams]);
-  const send=async(text:string,confirmed=false)=>{if(!text.trim()||busy||sending.current)return;sending.current=true;setError("");setInput("");try{await sendMessage({text},{body:{confirmed}});}finally{sending.current=false;}};
+  const send=async(text:string,confirmed=false,proposalId?:string)=>{if(!text.trim()||busy||sending.current)return;sending.current=true;setError("");setInput("");const date=new Date();const today=`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;try{await sendMessage({text},{body:{confirmed,proposalId,today}});}finally{sending.current=false;}};
   const [actionError,setActionError]=useState("");const [saved,setSaved]=useState<string[]>([]);
   const addCanvas=async(id:string,data:any)=>{if(!thread.business_id||saved.includes(id))return;const r=await supabase.from("lean_canvas").select("boxes").eq("business_id",thread.business_id).maybeSingle();if(r.error){setActionError(r.error.message);return;}const boxes=mergeCanvasSuggestions((r.data?.boxes||{}) as Record<string,unknown>,data.canvas,()=>crypto.randomUUID());const save=await supabase.from("lean_canvas").upsert({business_id:thread.business_id,boxes:boxes as any},{onConflict:"business_id"});if(save.error)setActionError(save.error.message);else{setSaved(s=>[...s,id]);bumpResults();}};
   const undo=async(id:string,update:any)=>{const r=await supabase.functions.invoke("advisor-chat-stream",{body:{business_id:thread.business_id,undo:{agent:update.agent,field:update.field,previous:update.previous}}});if(r.error)setActionError(r.error.message);else{setSaved(s=>[...s,id]);bumpResults();}};
@@ -66,7 +67,9 @@ export function ChatWindow({thread,initial,onFinish}:{thread:Thread;initial:UIMe
     {messages.map(m=><Message key={m.id} from={m.role}><MessageContent className={m.role==="assistant"?"w-full bg-transparent":"bg-primary text-primary-foreground"}>{m.parts.map((part,i)=>{
       if(part.type==="text")return <MessageResponse key={i}>{part.text}</MessageResponse>;
       if(isToolUIPart(part))return <Tool key={i} defaultOpen={false}><ToolHeader type="tool-project-work" title="Your request" state={part.state}/><ToolContent><p className="text-sm">{part.state==="output-error"?part.errorText:String((part as any).output?.summary||"Working…")}</p></ToolContent></Tool>;
-      if(part.type==="data-confirmation"){const d=part.data as {message:string;cost:number};return <Button key={i} disabled={busy} variant="outline" className="mt-3" onClick={()=>void send(d.message,true)}>Confirm · {d.cost} credits</Button>;}
+      if(part.type==='data-intelligence')return <AiProjectResult key={i} data={part.data}/>;
+      if(part.type==='data-proposal')return <AiActionProposal key={i} data={part.data}/>;
+      if(part.type==="data-confirmation"){const d=part.data as {message:string;cost:number;proposalId?:string};return <Button key={i} disabled={busy||!d.proposalId} variant="outline" className="mt-3" onClick={()=>void send(d.message,true,d.proposalId)}>Confirm · {d.cost} credits</Button>;}
       if(part.type==="data-capability"){const d=part.data as any;return <div key={i} className="mt-3 space-y-3">{d.data?.canvas&&<><div className="grid gap-3 sm:grid-cols-2">{Object.entries(d.data.canvas).map(([box,notes])=><div key={box} className="border-b py-3"><h3 className="text-sm font-medium">{box.replace(/_/g," ")}</h3><ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-muted-foreground">{(notes as string[]).map(n=><li key={n}>{n}</li>)}</ul></div>)}</div><Button variant="outline" disabled={saved.includes(m.id)} onClick={()=>void addCanvas(m.id,d.data)}>{saved.includes(m.id)?"Added to whiteboard":"Add to whiteboard"}</Button></>}{d.records?.map((r:any)=><Button key={r.table+r.id} asChild variant="outline" size="sm" onClick={()=>{const b=projects.find(x=>x.id===thread.business_id);if(b)setBusiness(b);}}><Link to={r.url}><ArrowUpRight/>Open saved result</Link></Button>)}{d.data?.update&&<Button variant="ghost" size="sm" disabled={saved.includes(m.id)} onClick={()=>void undo(m.id,d.data.update)}><Undo2/>{saved.includes(m.id)?"Reverted":"Undo change"}</Button>}{d.warnings?.map((w:string)=><p key={w} className="text-xs text-muted-foreground">{w}</p>)}</div>;}
       return null;
     })}</MessageContent></Message>)}{busy&&<Shimmer>{statusLabel}</Shimmer>}</ConversationContent><ConversationScrollButton/></Conversation>

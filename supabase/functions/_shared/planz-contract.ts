@@ -1,4 +1,5 @@
-export const intents = ["BUSINESS_ANALYSIS", "PROJECT_STRATEGY", "LEAN_CANVAS", "BUSINESS_STRESS_TEST", "STARTUP_ROADMAP", "PROJECT_ANALYSIS", "GENERAL_PROJECT_ADVICE", "GENERAL_CONVERSATION"] as const;
+import { projectCapabilities } from './planz-intelligence.ts';
+export const intents = ["BUSINESS_ANALYSIS", "PROJECT_STRATEGY", "LEAN_CANVAS", "BUSINESS_STRESS_TEST", "STARTUP_ROADMAP", "PROJECT_ANALYSIS", "GENERAL_PROJECT_ADVICE", "GENERAL_CONVERSATION", ...projectCapabilities] as const;
 export type Intent = typeof intents[number];
 export const specialists = ["market-research", "competitor-analysis", "business-plan", "financial-model", "marketing-strategy", "ai-operations"] as const;
 export type Specialist = typeof specialists[number];

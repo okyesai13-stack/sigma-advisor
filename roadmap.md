@@ -1,10 +1,10 @@
 # Redesign roadmap
 
 - [x] Audit actual Stage 1 code, live access policies, credit rules and regression tests for Stage 2
-- [ ] Review Stage 2 incremental implementation plan (waiting for plan approval)
-- [ ] Harden exact AI approvals, request recovery and legacy server billing before consequential execution
-- [ ] Add validated project intelligence, planning and workload capabilities to the existing orchestrator
-- [ ] Add evidence-based monitoring/reporting and editable, authorized action proposals
+- [x] Review Stage 2 incremental implementation plan
+- [x] Bind exact approvals, add conservative request reconciliation and one-use legacy server billing
+- [x] Add validated project intelligence, planning and workload capabilities to the existing orchestrator
+- [x] Add evidence-based monitoring/reporting and editable, authorized action proposals
 - [ ] Verify Stage 2 persistence, permissions, idempotency, exports and regressions (signed-in UI checks unavailable with external authentication)
 
 - [x] Complete Stage 1 AI inventory and safest integration strategy

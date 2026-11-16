@@ -24,4 +24,6 @@
 - Notification subscriptions are user-scoped and cleaned up; deadline reminders run hourly in Postgres with recipient timezone/preferences and event keys, independent of browser sessions.
 - Email delivery stays pending until provider configuration exists; the authenticated manager-only collaboration-email endpoint uses provider idempotency keys and never exposes outbox or credentials to clients.
 - Planz AI uses private route-addressed conversations and a server orchestrator with typed adapters around existing AI functions; execution project and owner-only business context stay distinct so workspace membership cannot expose another user's dossier.
-- AI request IDs and per-conversation server locks prevent duplicate generation; the registry charges only legacy generator batches while existing self-charging adapters retain their own debits, preserving original prices without a new balance system.
+- AI requests use conversation locks; specialists claim one-use paid runs (full/single) server-side, while other self-charging adapters retain their debits so caller-side charges cannot bypass or duplicate billing.
+- Project intelligence computes measured evidence from complete authorized project reads before bounded model interpretation; missing baselines, capacity and skills remain unknown rather than inferred.
+- Consequential AI changes require immutable scoped proposals and transactional authorized execution receipts; approvals execute the saved plan without reclassification, and task edits retain version checks.

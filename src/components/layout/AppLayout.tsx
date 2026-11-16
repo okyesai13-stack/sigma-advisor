@@ -32,6 +32,9 @@ function WorkspaceShell() {
     const businessId = location.pathname.match(/^\/(?:workspace|roadmap|stress-test)\/([^/]+)/)?.[1] || (location.pathname === '/analysis' ? business?.id : undefined);
     const context = new URLSearchParams();
     if (authorizedProject) context.set('project', authorizedProject.id);
+    const taskId=location.pathname.match(/^\/projects\/[^/]+\/tasks\/([^/]+)/)?.[1];
+    const task=engine.tasks.find(t=>t.id===taskId&&t.project_id===authorizedProject?.id);
+    if(task)context.set('prompt',`Review the task “${task.title}” (record ${task.id}) and its dependencies. Recommend next steps without changing it.`);
     if (businessId && projects.some(p => p.id === businessId)) context.set('business', businessId);
     navigate(`/ai-assistant${context.size ? '?' + context.toString() : ''}`);
   };

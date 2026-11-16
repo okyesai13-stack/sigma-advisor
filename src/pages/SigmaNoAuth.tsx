@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw, Megaphone, Cpu } from "lucide-react";
 import Seo from "@/components/Seo";
-import { OUT_OF_CREDITS, spendCredits } from "@/lib/credits";
+import { notifyCreditsChanged } from "@/lib/credits";
 
 type Status = "pending" | "running" | "completed" | "error";
 type AgentId = "market_research" | "competitor_analysis" | "business_plan" | "financial_model" | "marketing_strategy" | "ai_operations";
@@ -46,12 +46,12 @@ const SigmaNoAuth = () => {
     runAll();
   }, [business?.id, isReady]);
 
-  const runAgent = async (a: typeof AGENTS[number]): Promise<boolean> => {
+  const runAgent = async (a: typeof AGENTS[number], paidRun?:string): Promise<boolean> => {
     if (!business) return false;
     setStatus((p) => ({ ...p, [a.id]: "running" }));
     try {
       const { data, error } = await supabase.functions.invoke(a.endpoint, {
-        body: { business_id: business.id },
+        body: { business_id: business.id, paid_run:paidRun },
       });
       if (error) {
         let msg = error.message;
@@ -69,16 +69,12 @@ const SigmaNoAuth = () => {
     }
   };
 
-  const charge = async (action: "convene" | "agent_rerun") => {
-    const r = await spendCredits(action);
-    if (r === "ok") return true;
-    toast(r === "insufficient" ? { ...OUT_OF_CREDITS, variant: "destructive" } : { title: "Couldn't check your credits", variant: "destructive" });
-    return false;
-  };
-
   const runAll = async () => {
-    if (!(await charge("convene"))) { setAllDone(true); return; }
-    const results = await Promise.all(AGENTS.map(runAgent));
+    if(!business)return;
+    const paid=await supabase.rpc('authorize_ai_specialists',{p_id:crypto.randomUUID(),p_business:business.id,p_endpoint:null});
+    if(paid.error){toast({title:'Could not start strategy session',description:paid.error.message,variant:'destructive'});setAllDone(true);return;}
+    const results = await Promise.all(AGENTS.map(a=>runAgent(a,paid.data)));
+    notifyCreditsChanged();
     setAllDone(true);
     const ok = results.filter(Boolean).length;
     toast(ok === AGENTS.length
@@ -88,7 +84,7 @@ const SigmaNoAuth = () => {
 
   const retry = async (id: AgentId) => {
     const a = AGENTS.find((x) => x.id === id);
-    if (a && (await charge("agent_rerun"))) runAgent(a);
+    if (a) {await runAgent(a);notifyCreditsChanged();}
   };
 
   const StatusIcon = ({ s }: { s: Status }) => {
