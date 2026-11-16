@@ -1,5 +1,11 @@
 # Redesign roadmap
 
+- [x] Apply Phase 1 neutral design and collapsible project-first shell
+- [x] Add Overview and functional primary navigation backed by existing data
+- [x] Preserve legacy analysis routes and optional AI advisor
+- [x] Test data calculations, route protection, isolated responsive shell, and app health
+- [ ] Verify real signed-in overview, login/logout and advisor replies (blocked: externally managed authentication)
+
 - [x] Add confirmed single-section and all-section deletion and recreation
 - [x] Persist removed sections and support Undo/Redo without deleting analysis results
 - [x] Run section lifecycle checks and verify app health (13 tests pass; build OK; signed-in interaction checks unavailable with external authentication)

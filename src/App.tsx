@@ -26,6 +26,11 @@ import StressTestPage from "./pages/StressTestPage";
 import PricingPage from "./pages/PricingPage";
 import RoadmapPage from "./pages/RoadmapPage";
 
+import OverviewPage from "./pages/OverviewPage";
+import WorkspaceViews from "./pages/WorkspaceViews";
+import ProjectPage from "./pages/ProjectPage";
+import WorkspaceUtilityPages from "./pages/WorkspaceUtilityPages";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -50,7 +55,18 @@ const App = () => (
               }>
                 <Route path="/setup" element={<SetupNoAuth />} />
                 <Route path="/sigma" element={<SigmaNoAuth />} />
-                <Route path="/dashboard" element={<DashboardNoAuth />} />
+                <Route path="/dashboard" element={<OverviewPage />} />
+                <Route path="/analysis" element={<DashboardNoAuth />} />
+                <Route path="/projects" element={<WorkspaceViews />} />
+                <Route path="/my-tasks" element={<WorkspaceViews />} />
+                <Route path="/calendar" element={<WorkspaceViews />} />
+                <Route path="/team" element={<WorkspaceViews />} />
+                <Route path="/reports" element={<WorkspaceViews />} />
+                <Route path="/projects/:projectId/:view" element={<ProjectPage />} />
+                <Route path="/projects/:projectId" element={<ProjectPage />} />
+                <Route path="/ai-assistant" element={<WorkspaceUtilityPages />} />
+                <Route path="/settings" element={<WorkspaceUtilityPages />} />
+                <Route path="/help" element={<WorkspaceUtilityPages />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/workspace" element={<WorkspacePage />} />
                 <Route path="/workspace/:id" element={<CanvasPage />} />

@@ -172,7 +172,7 @@ const AdvisorChatPanel = () => {
   return (
     <div className="flex h-full flex-col bg-sidebar">
       <div className="shrink-0 border-b border-border px-4 py-3">
-        <div className="flex items-center justify-between"><div><p className="eyebrow">Resident advisor</p><h2 className="mt-0.5 font-display text-lg font-semibold">Strategy counsel</h2></div><span className="grid h-8 w-8 place-items-center rounded-md bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span></div>
+        <div className="flex items-center gap-3 pr-10"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"><Sparkles className="h-4 w-4" /></span><div className="min-w-0"><h2 className="font-display text-base font-semibold">AI Assistant</h2><p className="truncate text-xs text-muted-foreground">{business?.business_name || "No project selected"}</p></div></div>
       </div>
 
       {messages.length === 0 ? (
@@ -185,17 +185,17 @@ const AdvisorChatPanel = () => {
             {businessId && (
               <div className="space-y-2">
                 {suggestions.map((s) => (
-                  <button
+                  <Button variant="ghost"
                     key={s.title}
                     onClick={() => { setInput(s.q); taRef.current?.focus(); }}
-                    className="flex w-full items-start gap-3 rounded-md border border-border bg-card px-4 py-3 text-left transition-all hover:border-primary/40 hover:bg-accent"
+                    className="flex h-auto w-full items-start justify-start gap-3 whitespace-normal rounded-md border border-border bg-card px-4 py-3 text-left font-normal transition-all hover:border-primary/40 hover:bg-accent"
                   >
                     <s.icon className="w-4 h-4 mt-0.5 text-muted-foreground" />
                     <div>
                       <p className="eyebrow">{s.title}</p>
                       <p className="text-sm mt-0.5">{s.q}</p>
                     </div>
-                  </button>
+                  </Button>
                 ))}
               </div>
             )}
@@ -270,6 +270,7 @@ const Composer = ({ ta, value, disabled, loading, onChange, onKey, onSend }: any
         onClick={onSend}
         disabled={!value.trim() || loading || disabled}
         size="icon"
+        aria-label="Send message"
         className="absolute bottom-1.5 right-1.5 h-8 w-8 disabled:opacity-30"
       >
         {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}

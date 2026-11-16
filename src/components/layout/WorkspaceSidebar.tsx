@@ -1,0 +1,22 @@
+import { Link, useLocation } from "react-router-dom";
+import { BarChart3, CalendarDays, ChevronDown, CircleHelp, FolderKanban, LayoutDashboard, ListTodo, LogOut, Settings, Sparkles, UserCircle, Users, Layers3, PanelLeftClose } from "lucide-react";
+import { Sidebar, SidebarContent, SidebarFooter, SidebarGroup, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/contexts/AuthContext";
+export const workspaceNavigation = [
+  { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+  { title: "My Tasks", url: "/my-tasks", icon: ListTodo },
+  { title: "Projects", url: "/projects", icon: FolderKanban },
+  { title: "Calendar", url: "/calendar", icon: CalendarDays },
+  { title: "Team", url: "/team", icon: Users },
+  { title: "Reports", url: "/reports", icon: BarChart3 },
+];
+export default function WorkspaceSidebar({ signOut }: { signOut: () => void }) {
+  const { pathname } = useLocation();
+  const { state, setOpenMobile, toggleSidebar, isMobile } = useSidebar();
+  const { user } = useAuth();
+  const collapsed = state === "collapsed" && !isMobile;
+  const nav = (items: typeof workspaceNavigation) => <SidebarMenu>{items.map((item) => <SidebarMenuItem key={item.url}><SidebarMenuButton asChild tooltip={item.title} isActive={pathname === item.url || (item.url === "/projects" && pathname.startsWith("/projects/"))}><Link to={item.url} onClick={() => setOpenMobile(false)}><item.icon /><span>{item.title}</span></Link></SidebarMenuButton></SidebarMenuItem>)}</SidebarMenu>;
+  return <Sidebar collapsible="icon"><SidebarHeader className="border-b p-3"><Link to="/dashboard" className="flex h-9 items-center gap-2 overflow-hidden"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-primary font-display font-bold text-primary-foreground">P</span>{!collapsed && <span className="font-display text-xl font-semibold">Planz</span>}</Link></SidebarHeader><SidebarContent><SidebarGroup><DropdownMenu><DropdownMenuTrigger asChild><SidebarMenuButton tooltip="Switch workspace" className="h-12"><Layers3 /><div className="min-w-0 flex-1"><p className="truncate text-sm font-medium">Personal workspace</p><p className="truncate text-xs text-muted-foreground">{user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Your workspace"}</p></div><ChevronDown className="h-3 w-3" /></SidebarMenuButton></DropdownMenuTrigger><DropdownMenuContent align="start"><DropdownMenuItem disabled>Personal workspace · Current</DropdownMenuItem><DropdownMenuItem asChild><Link to="/projects">Browse workspace projects</Link></DropdownMenuItem></DropdownMenuContent></DropdownMenu></SidebarGroup><SidebarGroup><SidebarGroupLabel>Workspace</SidebarGroupLabel>{nav(workspaceNavigation)}</SidebarGroup><SidebarGroup><SidebarGroupLabel>Intelligence</SidebarGroupLabel>{nav([{ title: "AI Assistant", url: "/ai-assistant", icon: Sparkles }, { title: "Analyses & whiteboards", url: "/workspace", icon: Layers3 }])}</SidebarGroup></SidebarContent><SidebarFooter className="border-t p-2">{nav([{ title: "Settings", url: "/settings", icon: Settings }, { title: "Help & Support", url: "/help", icon: CircleHelp }, { title: "User Profile", url: "/profile", icon: UserCircle }])}<SidebarMenu><SidebarMenuItem><SidebarMenuButton tooltip="Logout" onClick={signOut}><LogOut /><span>Logout</span></SidebarMenuButton></SidebarMenuItem></SidebarMenu><Button variant="ghost" size="sm" className="hidden md:flex" aria-label="Collapse or expand navigation" onClick={toggleSidebar}><PanelLeftClose />{!collapsed && <span>Collapse sidebar</span>}</Button></SidebarFooter></Sidebar>;
+}

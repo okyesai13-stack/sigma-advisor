@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { creditAwareError, notifyCreditsChanged, OUT_OF_CREDITS, spendCredits } from "@/lib/credits";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Sparkles, Plus, Minus, Trash2, Printer, ExternalLink, Loader2, Hand, MousePointer2, Maximize, StickyNote, RotateCcw, Wand2, Download, RefreshCw, TrendingUp, Swords, FileText, DollarSign, Megaphone, Cpu, GripVertical, GitBranch, X, Undo2, Redo2, ListChecks, LayoutTemplate, ClipboardCheck, CheckCircle2, Circle, CircleDot, MoveDiagonal2 } from "lucide-react";
 import { record, undo as undoH, redo as redoH, nextStatus, TEMPLATES, type BoardTask, type History } from "@/lib/boardExtras";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,6 +83,7 @@ const layout = (b: Boxes): Note[] =>
 const CanvasPage = () => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { toast } = useToast();
   const { setBusiness, resultsVersion } = useResume();
   const [biz, setBiz] = useState<any>(null);
@@ -103,7 +104,7 @@ const CanvasPage = () => {
   const [connectionTarget, setConnectionTarget] = useState<string | null>(null);
   const [selectedConnection, setSelectedConnection] = useState<string | null>(null);
   const [tasks, setTasks] = useState<BoardTask[]>([]);
-  const [panel, setPanel] = useState<null | "tasks" | "review">(null);
+  const [panel, setPanel] = useState<null | "tasks" | "review">(searchParams.has("tasks") ? "tasks" : null);
   const [review, setReview] = useState<string[]>([]);
   type Snap = { removedSections: string[]; notes: Note[]; sections: Record<string, SectionRect>; connections: SectionConnection[]; tasks: BoardTask[] };
   const hist = useRef<History<Snap>>({ past: [], future: [] });
@@ -144,6 +145,7 @@ const CanvasPage = () => {
       ]);
       if (!b) { setLoading(false); return; }
       setBiz(b);
+      setBusiness(b);
       const filled = autofill({ mr: mr.data, ca: ca.data, bp: bp.data, fm: fm.data, ms: ms.data });
       setSource(filled);
       setResults({ mr: mr.data, ca: ca.data, bp: bp.data, fm: fm.data, ms: ms.data, aio: aio.data });
@@ -438,7 +440,7 @@ const CanvasPage = () => {
     if (error || data?.error) { toast(error ? creditAwareError(error, "Review failed") : { title: "Review failed", description: data?.error, variant: "destructive" }); return; }
     setReview(data?.suggestions || []);
   };
-  const jump = (section: string) => { if (biz) setBusiness(biz); navigate(`/dashboard#section-${section}`); };
+  const jump = (section: string) => { if (biz) setBusiness(biz); navigate(`/analysis#section-${section}`); };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

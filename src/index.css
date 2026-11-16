@@ -4,7 +4,51 @@
 
 /* Planz — Signal Orange command center */
 @layer base {
-  :root, .dark {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 220 15% 16%;
+    --card: 0 0% 100%;
+    --card-foreground: 220 15% 16%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 15% 16%;
+    --primary: 16 82% 42%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 16 82% 36%;
+    --primary-glow: 16 82% 48%;
+    --secondary: 210 16% 95%;
+    --secondary-foreground: 220 15% 22%;
+    --muted: 210 16% 94%;
+    --muted-foreground: 220 8% 43%;
+    --accent: 16 45% 95%;
+    --accent-foreground: 16 70% 32%;
+    --success: 153 66% 30%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 91% 34%;
+    --warning-foreground: 0 0% 100%;
+    --destructive: 0 72% 45%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 14% 89%;
+    --input: 210 14% 85%;
+    --ring: 16 82% 42%;
+    --radius: 0.5rem;
+    --gradient-hero: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
+    --gradient-subtle: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)));
+    --gradient-card: linear-gradient(145deg, hsl(var(--card)), hsl(var(--secondary)));
+    --shadow-sm: 0 1px 3px hsl(220 15% 16% / .04);
+    --shadow-md: 0 4px 16px hsl(220 15% 16% / .06);
+    --shadow-lg: 0 16px 40px hsl(220 15% 16% / .12);
+    --shadow-glow: 0 0 0 1px hsl(var(--primary) / .12), 0 3px 10px hsl(var(--primary) / .06);
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 220 12% 32%;
+    --sidebar-primary: 16 82% 42%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 16 55% 96%;
+    --sidebar-accent-foreground: 16 78% 35%;
+    --sidebar-border: 210 14% 89%;
+    --sidebar-ring: 16 82% 42%;
+    --overlay: 220 15% 10%;
+  }
+  .dark {
     --background: 120 3% 6%;
     --foreground: 45 33% 95%;
     --card: 120 4% 11%;
@@ -65,7 +109,7 @@
 @layer components {
   .panel-surface { @apply border border-border bg-card shadow-md; }
   .glass-surface { background: hsl(var(--card) / 0.78); backdrop-filter: blur(18px); }
-  .eyebrow { @apply text-[11px] font-semibold uppercase text-muted-foreground; letter-spacing: .14em; }
+  .eyebrow { @apply text-[11px] font-semibold uppercase text-muted-foreground; letter-spacing: 0; }
   .signal-dot { @apply inline-block h-2 w-2 rounded-full bg-primary; box-shadow: 0 0 18px hsl(var(--primary) / .65); }
   .interactive-panel { @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow; }
 }

@@ -139,7 +139,7 @@ const DashboardNoAuth = () => {
       <Seo
         title="Strategy Dashboard — Planz"
         description="Your complete AI-generated strategy dossier: market research, competitor analysis, business plan, financial model, marketing strategy, and AI operations blueprint."
-        path="/dashboard"
+        path="/analysis"
         noindex
       />
       {/* Header strip */}

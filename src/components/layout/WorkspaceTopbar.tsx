@@ -1,0 +1,34 @@
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Bell, ChevronRight, Plus, Search, Sparkles, LogOut, UserRound } from "lucide-react";
+import { SidebarTrigger } from "@/components/ui/sidebar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useResume } from "@/contexts/ResumeContext";
+import { isOverdue, localDay } from "@/lib/workspace";
+import CreditBadge from "@/components/CreditBadge";
+import { workspaceNavigation } from "./WorkspaceSidebar";
+export default function WorkspaceTopbar({ aiOpen, toggleAi, signOut }: { aiOpen: boolean; toggleAi: () => void; signOut: () => void }) {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { projects, tasks } = useWorkspace();
+  const { setBusiness } = useResume();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const id = pathname.match(/^\/(?:projects|workspace|roadmap|stress-test)\/([^/]+)/)?.[1];
+  const project = projects.find((p) => p.id === id);
+  const labels: Record<string, string> = { '/analysis': 'Strategy dossier', '/setup': 'Business brief', '/sigma': 'Agent session', '/workspace': 'Analyses & whiteboards', '/pricing': 'Pricing & credits', '/ai-assistant': 'AI Assistant', '/help': 'Help & Support', '/settings': 'Settings', '/profile': 'Profile' };
+  const title = workspaceNavigation.find((n) => n.url === pathname)?.title || project?.business_name || labels[pathname] || 'Workspace';
+  const overdue = tasks.filter((t) => isOverdue(t, localDay()));
+  const name = user?.user_metadata?.full_name || user?.email?.split("@")[0] || "You";
+  const matches = projects.filter((p) => `${p.business_name} ${p.pitch}`.toLowerCase().includes(query.toLowerCase()));
+  const taskMatches = query.trim() ? tasks.filter((t) => t.text.toLowerCase().includes(query.toLowerCase())) : [];
+  return <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b bg-card px-3 md:px-6"><div className="flex min-w-0 items-center gap-2"><SidebarTrigger aria-label="Toggle navigation" /><span className="hidden text-xs text-muted-foreground lg:block">Workspace</span><ChevronRight className="hidden h-3 w-3 shrink-0 text-muted-foreground lg:block" /><span className="truncate text-sm font-medium">{title}</span></div><div className="flex shrink-0 items-center gap-1 md:gap-2"><Button variant="ghost" size="sm" aria-label="Search workspace" onClick={() => setSearchOpen(true)}><Search /><span className="hidden text-muted-foreground lg:inline">Search anything</span></Button><DropdownMenu><DropdownMenuTrigger asChild><Button size="sm" aria-label="Quick create"><Plus /><span className="hidden sm:inline">Create</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={() => navigate('/setup')}>Create project</DropdownMenuItem><DropdownMenuItem onClick={() => navigate('/my-tasks?create=1')}>Create task</DropdownMenuItem></DropdownMenuContent></DropdownMenu><span className="hidden sm:block"><CreditBadge /></span><Popover><PopoverTrigger asChild><Button variant="ghost" size="icon" aria-label="Notifications" className="relative h-9 w-9"><Bell />{overdue.length > 0 && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-destructive" />}</Button></PopoverTrigger><PopoverContent align="end" className="w-80 max-w-[90vw]"><h2 className="mb-3 font-medium">Notifications</h2>{overdue.length ? <div className="max-h-80 space-y-2 overflow-y-auto">{overdue.map((t) => <Link key={`${t.projectId}-${t.id}`} to={`/workspace/${t.projectId}?tasks=1`} className="block rounded-md border p-3 hover:bg-muted"><p className="break-words text-sm">{t.text || 'Untitled task'}</p><p className="mt-1 text-xs text-destructive">Overdue · {t.due}</p></Link>)}</div> : <p className="py-5 text-sm text-muted-foreground">You're all caught up.</p>}</PopoverContent></Popover><Tooltip><TooltipTrigger asChild><Button variant={aiOpen ? 'secondary' : 'ghost'} size="icon" className="h-9 w-9" aria-label={aiOpen ? 'Close AI assistant' : 'Open AI assistant'} aria-pressed={aiOpen} onClick={toggleAi}><Sparkles className="text-primary" /></Button></TooltipTrigger><TooltipContent>{aiOpen ? 'Close AI assistant' : 'Open AI assistant'}</TooltipContent></Tooltip><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost" aria-label="User profile menu" className="h-9 w-9 rounded-full bg-secondary font-display text-xs">{name.slice(0, 2).toUpperCase()}</Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuLabel className="max-w-56 truncate">{name}</DropdownMenuLabel><DropdownMenuSeparator /><DropdownMenuItem onClick={() => navigate('/profile')}><UserRound className="mr-2 h-4 w-4" />Profile</DropdownMenuItem><DropdownMenuItem onClick={() => navigate('/settings')}>Settings</DropdownMenuItem><DropdownMenuItem onClick={() => navigate('/pricing')}>Pricing & credits</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem onClick={signOut}><LogOut className="mr-2 h-4 w-4" />Logout</DropdownMenuItem></DropdownMenuContent></DropdownMenu></div><Dialog open={searchOpen} onOpenChange={setSearchOpen}><DialogContent className="max-w-xl"><DialogTitle>Search workspace</DialogTitle><DialogDescription>Projects and saved tasks</DialogDescription><Input autoFocus value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search projects and tasks…" aria-label="Global search" /><div className="max-h-80 overflow-y-auto">{!matches.length && !taskMatches.length && <p className="py-6 text-sm text-muted-foreground">No matching projects or tasks.</p>}{matches.map((p) => <Button key={p.id} variant="ghost" className="w-full justify-start overflow-hidden" onClick={() => { setBusiness(p); setSearchOpen(false); navigate(`/projects/${p.id}/overview`); }}><span className="truncate">{p.business_name}</span></Button>)}{taskMatches.map((t) => <Button key={`${t.projectId}-${t.id}`} variant="ghost" className="w-full justify-start overflow-hidden" onClick={() => { setSearchOpen(false); navigate(`/workspace/${t.projectId}?tasks=1`); }}><span className="truncate">{t.text}</span></Button>)}</div></DialogContent></Dialog></header>;
+}

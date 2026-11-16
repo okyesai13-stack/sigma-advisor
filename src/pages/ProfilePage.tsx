@@ -141,7 +141,7 @@ const ProfilePage = () => {
               <p className="truncate font-medium">{b.business_name}</p>
               <p className="text-xs text-muted-foreground">{b.stage}{b.industry ? ` · ${b.industry}` : ""} · {new Date(b.created_at).toLocaleDateString()}</p>
             </div>
-            <Button size="icon" variant="ghost" title="Open" onClick={() => { const { created_at, updated_at, user_id, ...rest } = b; setBusiness(rest); navigate("/dashboard"); }}><ExternalLink /></Button>
+            <Button size="icon" variant="ghost" title="Open" onClick={() => { const { created_at, updated_at, user_id, ...rest } = b; setBusiness(rest); navigate("/analysis"); }}><ExternalLink /></Button>
             <AlertDialog>
               <AlertDialogTrigger asChild><Button size="icon" variant="ghost" title="Delete"><Trash2 className="text-destructive" /></Button></AlertDialogTrigger>
               <AlertDialogContent>

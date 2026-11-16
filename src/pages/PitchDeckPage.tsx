@@ -180,7 +180,7 @@ const PitchDeckPage = () => {
 
   useEffect(() => {
     if (!isReady) return;
-    if (!business) { navigate("/dashboard"); return; }
+    if (!business) { navigate("/analysis"); return; }
     (async () => {
       const [b, mr, ca, bp, fm] = await Promise.all([
         (supabase as Any).from("business_store").select("*").eq("id", business.id).maybeSingle(),
@@ -224,7 +224,7 @@ const PitchDeckPage = () => {
       <Seo title="Pitch Deck — Planz" description="Auto-generated investor pitch deck from your Planz strategy dossier." path="/deck" noindex />
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/dashboard")}><ArrowLeft /> Dashboard</Button>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/analysis")}><ArrowLeft /> Dashboard</Button>
           <span className="eyebrow hidden sm:inline">Pitch deck · {business?.business_name}</span>
         </div>
         <div className="flex items-center gap-1">

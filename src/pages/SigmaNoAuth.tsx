@@ -110,7 +110,7 @@ const SigmaNoAuth = () => {
         <div className="px-6 h-14 flex items-center justify-between">
           <span className="eyebrow">Step 2 of 2 — Strategy session</span>
           {allDone && (
-            <Button onClick={() => navigate("/dashboard")} size="sm">
+            <Button onClick={() => navigate("/analysis")} size="sm">
               Open dossier <ArrowRight className="w-3.5 h-3.5" />
             </Button>
           )}
@@ -157,7 +157,7 @@ const SigmaNoAuth = () => {
 
         {allDone && (
           <div className="mt-12 text-center">
-            <Button onClick={() => navigate("/dashboard")} size="lg">
+            <Button onClick={() => navigate("/analysis")} size="lg">
               Open the strategy dossier
               <ArrowRight className="w-4 h-4" />
             </Button>

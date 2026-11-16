@@ -119,7 +119,7 @@ const SetupNoAuth = () => {
             </Button>
             <span className="eyebrow hidden sm:block">Step 1 of 2 — Brief</span>
           </div>
-          <Button variant="outline" size="sm" onClick={() => navigate("/dashboard")}>
+          <Button variant="outline" size="sm" onClick={() => navigate("/analysis")}>
             View dashboard
           </Button>
         </div>
