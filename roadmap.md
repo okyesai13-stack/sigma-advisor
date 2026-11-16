@@ -1,5 +1,11 @@
 # Redesign roadmap
 
+- [x] Add Phase 2 workspace membership, project, task and activity tables with server-enforced permissions
+- [x] Implement workspace switching, project lifecycle and editable task board/list
+- [x] Connect real project/task progress and dashboard data while retaining legacy analyses
+- [x] Test permissions, relationships, concurrent updates and application health
+- [ ] Verify signed-in creation and persistence (blocked: externally managed authentication)
+
 - [x] Apply Phase 1 neutral design and collapsible project-first shell
 - [x] Add Overview and functional primary navigation backed by existing data
 - [x] Preserve legacy analysis routes and optional AI advisor

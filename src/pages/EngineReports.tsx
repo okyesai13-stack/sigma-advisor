@@ -1,0 +1,7 @@
+import { Link, useLocation } from 'react-router-dom';
+import { useProjectEngine } from '@/contexts/ProjectEngineContext';
+import { taskProgress } from '@/lib/projectEngine';
+import { PageHeader, EmptyState, LoadingState } from '@/components/workspace/WorkspacePrimitives';
+import { Progress } from '@/components/ui/progress';
+import Seo from '@/components/Seo';
+export default function EngineReports() {const engine=useProjectEngine();const {pathname}=useLocation();if(engine.loading&&!engine.projects.length)return <LoadingState />;return <div className="mx-auto max-w-6xl p-5 md:p-8"><Seo title="Reports — Planz" description="Actual project completion" path={pathname} noindex /><PageHeader title="Reports" description={engine.workspaces.find(w=>w.id===engine.activeId)?.name} />{engine.error&&<p role="alert" className="mb-4 text-destructive">{engine.error}</p>}{!engine.projects.length?<EmptyState title="No projects to report on" />:<div className="divide-y border-y">{engine.projects.map(p=>{const tasks=engine.tasks.filter(t=>t.project_id===p.id);return <section className="py-5" key={p.id}><div className="flex justify-between gap-3"><Link className="font-semibold hover:text-primary" to={`/projects/${p.id}/overview`}>{p.name}</Link><span className="text-sm text-muted-foreground">{p.status}</span></div><p className="mb-3 mt-3 text-sm">{tasks.filter(t=>t.status==='done').length} of {tasks.length} tasks completed · {taskProgress(tasks)}%</p><Progress className="h-2" value={taskProgress(tasks)} /></section>;})}</div>}</div>;}

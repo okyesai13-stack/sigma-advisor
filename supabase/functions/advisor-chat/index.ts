@@ -12,7 +12,16 @@ serve(async (req) => {
     const { business_id, message } = await req.json();
     if (!business_id || !message) return j({ error: "business_id and message required" }, 400);
 
-    const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const url = Deno.env.get("SUPABASE_URL");
+    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    if (!url || !serviceKey) throw new Error("Service configuration missing");
+    const supabase = createClient(url, serviceKey);
+    const authorization = req.headers.get("Authorization");
+    if (!authorization?.startsWith("Bearer ")) return j({ error: "Not authenticated" }, 401);
+    const { data: caller, error: authError } = await supabase.auth.getUser(authorization.slice(7));
+    if (authError || !caller.user) return j({ error: "Not authenticated" }, 401);
+    const { data: owned } = await supabase.from("business_store").select("id").eq("id", business_id).eq("user_id", caller.user.id).maybeSingle();
+    if (!owned) return j({ error: "Business unavailable" }, 403);
     const [biz, mr, ca, bp, fm, hist] = await Promise.all([
       supabase.from("business_store").select("*").eq("id", business_id).maybeSingle(),
       supabase.from("market_research_result").select("*").eq("business_id", business_id).order("created_at", { ascending: false }).limit(1).maybeSingle(),

@@ -26,10 +26,12 @@ import StressTestPage from "./pages/StressTestPage";
 import PricingPage from "./pages/PricingPage";
 import RoadmapPage from "./pages/RoadmapPage";
 
-import OverviewPage from "./pages/OverviewPage";
+import EngineOverview from "./pages/EngineOverview";
 import WorkspaceViews from "./pages/WorkspaceViews";
 import ProjectPage from "./pages/ProjectPage";
 import WorkspaceUtilityPages from "./pages/WorkspaceUtilityPages";
+import { EngineProjects, EngineProjectPage, EngineMyTasks, EngineTeam } from './pages/EnginePages';
+import EngineReports from './pages/EngineReports';
 
 const queryClient = new QueryClient();
 
@@ -55,15 +57,16 @@ const App = () => (
               }>
                 <Route path="/setup" element={<SetupNoAuth />} />
                 <Route path="/sigma" element={<SigmaNoAuth />} />
-                <Route path="/dashboard" element={<OverviewPage />} />
+                <Route path="/dashboard" element={<EngineOverview />} />
                 <Route path="/analysis" element={<DashboardNoAuth />} />
-                <Route path="/projects" element={<WorkspaceViews />} />
-                <Route path="/my-tasks" element={<WorkspaceViews />} />
+                <Route path="/projects" element={<EngineProjects />} />
+                <Route path="/my-tasks" element={<EngineMyTasks />} />
                 <Route path="/calendar" element={<WorkspaceViews />} />
-                <Route path="/team" element={<WorkspaceViews />} />
-                <Route path="/reports" element={<WorkspaceViews />} />
-                <Route path="/projects/:projectId/:view" element={<ProjectPage />} />
-                <Route path="/projects/:projectId" element={<ProjectPage />} />
+                <Route path="/team" element={<EngineTeam />} />
+                <Route path="/reports" element={<EngineReports />} />
+                <Route path="/projects/:projectId/:view" element={<EngineProjectPage />} />
+                <Route path="/projects/:projectId" element={<EngineProjectPage />} />
+                <Route path="/legacy-projects/:projectId/:view" element={<ProjectPage />} />
                 <Route path="/ai-assistant" element={<WorkspaceUtilityPages />} />
                 <Route path="/settings" element={<WorkspaceUtilityPages />} />
                 <Route path="/help" element={<WorkspaceUtilityPages />} />

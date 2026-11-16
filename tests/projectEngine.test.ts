@@ -1,0 +1,8 @@
+import { test, expect } from 'bun:test';
+import { canEdit, canManage, taskStatuses, projectStatuses, priorities, taskProgress, overdueTask, validDates } from '../src/lib/projectEngine';
+test('exactly five task stages are available',()=>expect(taskStatuses.map(s=>s.label)).toEqual(['Backlog','To Do','In Progress','In Review','Done']));
+test('project status and priority values match the brief',()=>{expect(projectStatuses).toEqual(['Planning','Active','On Hold','Completed','Archived']);expect(priorities).toEqual(['Low','Medium','High','Urgent']);});
+test('viewers and nonmembers cannot edit',()=>{expect(canEdit('viewer')).toBe(false);expect(canEdit(undefined)).toBe(false);expect(canEdit('member')).toBe(true);expect(canManage('member')).toBe(false);expect(canManage('admin')).toBe(true);});
+test('completion counts only done relational tasks',()=>{expect(taskProgress([])).toBe(0);expect(taskProgress([{status:'done'},{status:'review'},{status:'todo'}])).toBe(33);expect(taskProgress([{status:'done'}])).toBe(100);});
+test('overdue excludes done and current day tasks',()=>{expect(overdueTask({status:'todo',due_date:'2026-11-15'},'2026-11-16')).toBe(true);expect(overdueTask({status:'done',due_date:'2026-11-15'},'2026-11-16')).toBe(false);expect(overdueTask({status:'doing',due_date:'2026-11-16'},'2026-11-16')).toBe(false);});
+test('due dates cannot precede start',()=>{expect(validDates('2026-11-16','2026-11-15')).toBe(false);expect(validDates('2026-11-16','2026-11-16')).toBe(true);expect(validDates('','')).toBe(true);});

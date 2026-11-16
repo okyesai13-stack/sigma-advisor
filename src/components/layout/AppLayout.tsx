@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import AdvisorChatPanel from "@/components/advisor/AdvisorChatPanel";
 import WorkspaceSidebar from "./WorkspaceSidebar";
 import WorkspaceTopbar from "./WorkspaceTopbar";
+import { ProjectEngineProvider } from '@/contexts/ProjectEngineContext';
 function WorkspaceShell() {
   const [aiOpen, setAiOpen] = useState(false);
   const [wide, setWide] = useState(() => window.matchMedia("(min-width: 1280px)").matches);
@@ -37,4 +38,4 @@ function WorkspaceShell() {
   useEffect(() => { if (location.pathname === '/dashboard' && location.hash.startsWith('#section-')) navigate(`/analysis${location.hash}`, { replace: true }); }, [location.pathname, location.hash, navigate]);
   return <SidebarProvider className="h-dvh min-h-0"><WorkspaceSidebar signOut={() => void handleSignOut()} /><div className="flex min-w-0 flex-1 flex-col"><WorkspaceTopbar aiOpen={aiOpen} toggleAi={() => { if (location.pathname === '/ai-assistant') navigate('/projects'); else setAiOpen((open) => !open); }} signOut={() => void handleSignOut()} /><div className="flex min-h-0 flex-1"><main className="min-w-0 flex-1 overflow-auto"><Outlet /></main>{wide && aiOpen && <aside aria-label="AI Assistant" className="relative w-[360px] shrink-0 border-l"><Button size="icon" variant="ghost" aria-label="Close AI panel" className="absolute right-3 top-3 z-10 h-8 w-8" onClick={() => setAiOpen(false)}><X /></Button><AdvisorChatPanel /></aside>}</div></div>{!wide && <Sheet open={aiOpen} onOpenChange={setAiOpen}><SheetContent className="flex w-full flex-col gap-0 p-0 sm:max-w-[420px]" side="right"><SheetTitle className="sr-only">AI Assistant</SheetTitle><SheetDescription className="sr-only">Project strategy conversation</SheetDescription><AdvisorChatPanel /></SheetContent></Sheet>}</SidebarProvider>;
 }
-export default function AppLayout() { return <WorkspaceProvider><WorkspaceShell /></WorkspaceProvider>; }
+export default function AppLayout() { return <WorkspaceProvider><ProjectEngineProvider><WorkspaceShell /></ProjectEngineProvider></WorkspaceProvider>; }
