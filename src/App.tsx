@@ -1,3 +1,4 @@
+import PlanzAiPage from "@/pages/PlanzAiPage";
 import TeamPage from '@/pages/TeamPage';
 import {InvitationPage,NotificationsPage,NotificationSettings,WorkspaceActivityPage,TaskDetailPage} from '@/pages/CollaborationPages';
 import { Toaster } from "@/components/ui/toaster";
@@ -75,7 +76,8 @@ const App = () => (
                 <Route path="/projects/:projectId/:view" element={<EngineProjectPage />} />
                 <Route path="/projects/:projectId" element={<EngineProjectPage />} />
                 <Route path="/legacy-projects/:projectId/:view" element={<ProjectPage />} />
-                <Route path="/ai-assistant" element={<WorkspaceUtilityPages />} />
+                <Route path="/ai-assistant" element={<PlanzAiPage />} />
+                <Route path="/ai-assistant/:conversationId" element={<PlanzAiPage />} />
                 <Route path="/settings" element={<WorkspaceUtilityPages />} />
                 <Route path="/help" element={<WorkspaceUtilityPages />} />
                 <Route path="/profile" element={<ProfilePage />} />

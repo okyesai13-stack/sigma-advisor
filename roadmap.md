@@ -1,5 +1,11 @@
 # Redesign roadmap
 
+- [ ] Complete Stage 1 AI inventory and safest integration strategy
+- [ ] Prove a common contract and first existing capability through central orchestration
+- [ ] Integrate remaining capabilities, authorized context and unified conversation storage
+- [ ] Consolidate Planz AI interface and contextual entry points
+- [ ] Verify security, persistence, credits and regressions; report acceptance blockers honestly
+
 - [x] Add secure invitations, discussions/mentions, private attachments and collaboration activity
 - [x] Build team management, notification center/preferences and task collaboration screens
 - [x] Add backend event notifications, hourly scheduled reminders and email outbox integration scaffold

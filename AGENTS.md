@@ -10,7 +10,7 @@
 - Paginate Supabase execution reads in stable 500-row batches and list rendering in 25-row pages to avoid silent default query truncation; future large-workspace search should move to server query filters.
 - Use dnd-kit sensors for Kanban movement with optimistic version-checked persistence and rollback; never store board status only in browser state.
 - Preserve the strategy dossier at /analysis and support legacy /dashboard#section-* links while /dashboard displays the project overview; synchronize route project IDs into the business context so advisor queries use the opened project.
-- Use SidebarProvider for navigation and a closed-by-default right advisor panel on wide desktop or Sheet on smaller screens; main workspace width is never permanently reserved for AI.
+- Use SidebarProvider for navigation and contextual links to the single Planz AI conversation screen; main workspace width is never permanently reserved for AI and duplicate chat mounts are prohibited.
 - Relational planning uses milestones, milestone_tasks and task_dependencies in the execution context; all links are required, tasks may belong to multiple milestones in the same project, and progress is calculated rather than stored to stay current after task changes.
 - Milestone editing and link replacement run in one authorized save_milestone transaction with version checks; only workspace owners/admins may override incomplete linked tasks with a recorded reason.
 - Finish-to-Start is the active dependency type; backend project-locked cycle validation rejects invalid graphs, while date conflicts require explicit browser confirmation and never auto-reschedule successors.
@@ -23,3 +23,5 @@
 - Files use private workspace-files storage with server-reserved immutable paths, metadata matching and two-step authorized deletion; comments store validated member UUID mentions and server-generated deduplicated notification events.
 - Notification subscriptions are user-scoped and cleaned up; deadline reminders run hourly in Postgres with recipient timezone/preferences and event keys, independent of browser sessions.
 - Email delivery stays pending until provider configuration exists; the authenticated manager-only collaboration-email endpoint uses provider idempotency keys and never exposes outbox or credentials to clients.
+- Planz AI uses private route-addressed conversations and a server orchestrator with typed adapters around existing AI functions; execution project and owner-only business context stay distinct so workspace membership cannot expose another user's dossier.
+- AI request IDs and per-conversation server locks prevent duplicate generation; the registry charges only legacy generator batches while existing self-charging adapters retain their own debits, preserving original prices without a new balance system.

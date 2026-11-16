@@ -46,6 +46,108 @@ export type Database = {
           },
         ]
       }
+      ai_conversations: {
+        Row: {
+          business_id: string | null
+          busy_request: string | null
+          created_at: string
+          id: string
+          legacy_business_id: string | null
+          project_id: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          workspace_id: string | null
+        }
+        Insert: {
+          business_id?: string | null
+          busy_request?: string | null
+          created_at?: string
+          id?: string
+          legacy_business_id?: string | null
+          project_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id: string
+          workspace_id?: string | null
+        }
+        Update: {
+          business_id?: string | null
+          busy_request?: string | null
+          created_at?: string
+          id?: string
+          legacy_business_id?: string | null
+          project_id?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_conversations_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_conversations_project_id_workspace_id_fkey"
+            columns: ["project_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "workspace_id"]
+          },
+          {
+            foreignKeyName: "ai_conversations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_messages: {
+        Row: {
+          conversation_id: string
+          created_at: string
+          id: string
+          parts: Json
+          request_id: string | null
+          role: string
+          sdk_id: string
+          updated_at: string
+        }
+        Insert: {
+          conversation_id: string
+          created_at?: string
+          id?: string
+          parts: Json
+          request_id?: string | null
+          role: string
+          sdk_id: string
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string
+          created_at?: string
+          id?: string
+          parts?: Json
+          request_id?: string | null
+          role?: string
+          sdk_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_operations_result: {
         Row: {
           business_id: string
@@ -89,6 +191,50 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "business_store"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_requests: {
+        Row: {
+          capabilities: Json
+          conversation_id: string
+          created_at: string
+          error_message: string | null
+          id: string
+          intent: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          capabilities?: Json
+          conversation_id: string
+          created_at?: string
+          error_message?: string | null
+          id: string
+          intent?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          capabilities?: Json
+          conversation_id?: string
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          intent?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_requests_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "ai_conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -1628,6 +1774,10 @@ export type Database = {
       accept_workspace_invitation: {
         Args: { p_token: string }
         Returns: string
+      }
+      begin_ai_request: {
+        Args: { p_conversation: string; p_id: string; p_user: string }
+        Returns: boolean
       }
       claim_collaboration_emails: {
         Args: { p_limit?: number }
