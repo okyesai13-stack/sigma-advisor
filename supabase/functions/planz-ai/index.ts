@@ -37,7 +37,7 @@ Deno.serve(async req=>{
     const historyResult=await db.from("ai_messages").select("role,parts,sdk_id").eq("conversation_id",body.conversationId).order("created_at",{ascending:false}).order("id",{ascending:false}).limit(30);if(historyResult.error) throw fail("Could not load conversation history",500);
     const history=(historyResult.data||[]).reverse().map((m:any)=>({role:m.role,content:textOf(m)})).filter((m:any)=>m.content);
     const saved=await admin.from("ai_messages").insert({conversation_id:body.conversationId,sdk_id:last.id,role:"user",parts:[{type:"text",text:message}],request_id:body.requestId});if(saved.error) throw fail("Could not save your message",500);
-    const original:UIMessage[]=(historyResult.data||[]).map((m:any)=>({id:m.sdk_id,role:m.role,parts:m.parts})).concat([{id:last.id,role:"user",parts:[{type:"text",text:message}]}]);
+    const original:UIMessage[]=[...(historyResult.data||[])].reverse().map((m:any)=>({id:m.sdk_id,role:m.role,parts:m.parts})).concat([{id:last.id,role:"user",parts:[{type:"text",text:message}]}]);
     // Preserve the audited existing general-advice model and endpoint.
     const provider=createLovableAiGatewayProvider(key,undefined,{baseURL:"https://ai.gateway.lovable.dev/v1",structuredOutputs:true});
     let outcome:"Completed"|"Failed"|"Stopped"="Completed";let errorMessage:string|null=null;
@@ -54,8 +54,9 @@ Deno.serve(async req=>{
         const endpoints=capabilityPlan(decision.intent,decision.specialist);
         if(decision.execute||decision.edit) {
           if(!input.businessId) {writeText("Select the business brief for this request. Project records and business briefs are separate.");return;}
-          const memberRole=body.workspaceId?(await db.rpc("workspace_role",{p_workspace:body.workspaceId})).data:null;
-          if(body.workspaceId&&memberRole==="viewer") throw fail("Viewers can ask questions but cannot generate or change results in this workspace.",403);
+          const membership=body.workspaceId?await db.rpc("workspace_role",{p_workspace:body.workspaceId}):null;
+          if(body.workspaceId&&(membership?.error||!membership?.data)) throw fail("Workspace access unavailable",403);
+          if(body.workspaceId&&membership?.data==="viewer") throw fail("Viewers can ask questions but cannot generate or change results in this workspace.",403);
           const cost=decision.edit?1:decision.intent==="LEAN_CANVAS"?(decision.box?1:9):decision.intent==="BUSINESS_STRESS_TEST"?5:decision.intent==="STARTUP_ROADMAP"?3:endpoints.length===6?10:2;
           if(!body.confirmed) {writer.write({type:"data-confirmation",data:{message,cost}});writeText(`This will use ${cost} Planz AI credits${decision.intent==="STARTUP_ROADMAP"?" and replace the current roadmap and completion ticks":endpoints.length?" and generate new results":""}. Confirm to continue.`);return;}
           if(!endpoints.length&&!decision.edit) {writeText("There is no separate project-analysis agent yet. I can review the current project records and offer recommendations without changing them.");return;}
@@ -65,6 +66,7 @@ Deno.serve(async req=>{
             if(!validResult(result)) throw fail("AI returned an invalid capability result",502);
             writer.write({type:"tool-output-available",toolCallId:toolId,output:{summary:result.summary,warnings:result.warnings}});
             writer.write({type:"data-capability",data:result});writeText(result.summary||"Your request is complete.");
+            if(body.messages.length===1) await admin.from("ai_conversations").update({title:message.slice(0,160)}).eq("id",body.conversationId).eq("title","New conversation");
             await admin.from("ai_requests").update({capabilities:endpoints}).eq("id",body.requestId);
           } catch(e) {if(toolStarted)writer.write({type:"tool-output-error",toolCallId:toolId,errorText:e instanceof Error?e.message:"Request failed"});throw e;}
           return;

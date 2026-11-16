@@ -1,7 +1,9 @@
 import { describe, it, expect } from "bun:test";
 import { capabilityPlan, billingOwner, checkScope, validResult } from "../supabase/functions/_shared/planz-contract";
 import { readAdvisor } from "../supabase/functions/_shared/planz-advisor";
+import { mergeCanvasSuggestions } from "../src/lib/planzCanvas";
 describe("Planz AI integration rules", () => {
+  it("adds canvas suggestions as movable notes without losing board relationships",()=>{const result=mergeCanvasSuggestions({problem:["Existing"],__board:{notes:[{id:"n",text:"Existing",x:12,y:56,color:"orange"}],connections:[{id:"edge"}],tasks:[{id:"task"}]}},{problem:["New risk"]},()=>"new");const b=result.__board as any;expect(b.notes).toHaveLength(2);expect(b.notes[1].text).toBe("New risk");expect(b.connections).toEqual([{id:"edge"}]);expect(b.tasks).toEqual([{id:"task"}]);});
   it("preserves the first advisor integration's response and update event", async () => { const updates:unknown[]=[]; const res=new Response('data: {"type":"result_updated","field":"summary"}\n\ndata: {"choices":[{"delta":{"content":"Updated finance."}}]}\n\ndata: [DONE]\n\n'); expect(await readAdvisor(res,x=>updates.push(x))).toBe("Updated finance."); expect(updates).toEqual([{type:"result_updated",field:"summary"}]); });
   it("stops the advisor adapter on a terminal denial", async () => { await expect(readAdvisor(new Response('{"error":"Access denied"}',{status:403}),()=>{})).rejects.toThrow("Access denied"); });
   it("routes a Lean Canvas request only to the existing canvas capability", () => expect(capabilityPlan("LEAN_CANVAS", null)).toEqual(["canvas-assist"]));

@@ -1,10 +1,12 @@
 # Redesign roadmap
 
-- [ ] Complete Stage 1 AI inventory and safest integration strategy
-- [ ] Prove a common contract and first existing capability through central orchestration
-- [ ] Integrate remaining capabilities, authorized context and unified conversation storage
-- [ ] Consolidate Planz AI interface and contextual entry points
-- [ ] Verify security, persistence, credits and regressions; report acceptance blockers honestly
+- [x] Complete Stage 1 AI inventory and safest integration strategy
+- [x] Prove a common contract and first existing capability with advisor SSE/update tests
+- [x] Register existing capabilities, authorized context and private unified conversation storage
+- [x] Consolidate Planz AI interface and contextual entry points
+- [x] Verify routing/adapter rules, rollback conversation security, model intent call and responsive controls (66 tests; build OK)
+- [ ] Verify all populated signed-in AI scenarios, two-thread persistence, capability output, failures and exact ledger debits (blocked: externally managed authentication)
+- [ ] Complete Stage 1 acceptance and legacy AI billing/error hardening (blocked: signed-in capability verification; legacy generator debit bypass and failure semantics remain)
 
 - [x] Add secure invitations, discussions/mentions, private attachments and collaboration activity
 - [x] Build team management, notification center/preferences and task collaboration screens

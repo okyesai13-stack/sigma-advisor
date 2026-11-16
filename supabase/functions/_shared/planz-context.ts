@@ -17,7 +17,7 @@ export async function loadPlanzContext(db: any, conversation: any, intent: strin
   if(conversation.business_id && intent!=="GENERAL_CONVERSATION") {
     const b=await db.from("business_store").select("id,business_name,pitch,stage,industry,target_market,geography,raw_context,user_id").eq("id",conversation.business_id).eq("user_id",conversation.user_id).maybeSingle();
     if(b.error || !b.data) throw Object.assign(new Error("Business access unavailable"),{status:403}); context.business=b.data;
-    if(["PROJECT_STRATEGY","GENERAL_PROJECT_ADVICE","BUSINESS_ANALYSIS"].includes(intent)) {
+    if(["PROJECT_STRATEGY","GENERAL_PROJECT_ADVICE","BUSINESS_ANALYSIS","BUSINESS_STRESS_TEST","STARTUP_ROADMAP","LEAN_CANVAS"].includes(intent)) {
       const results:Record<string,unknown>={};
       await Promise.all(["market_research_result","competitor_analysis_result","business_plan_result","financial_model_result","marketing_strategy_result","ai_operations_result","lean_canvas","idea_stress_test","startup_roadmap"].map(async table=>{const r=await db.from(table).select("*").eq("business_id",conversation.business_id).order("created_at",{ascending:false}).limit(1).maybeSingle();if(r.error) throw new Error("Could not retrieve current business context");results[table]=r.data;})); context.results=results;
     }
