@@ -1,5 +1,12 @@
 # Redesign roadmap
 
+- [x] Audit actual Stage 1 code, live access policies, credit rules and regression tests for Stage 2
+- [ ] Review Stage 2 incremental implementation plan (waiting for plan approval)
+- [ ] Harden exact AI approvals, request recovery and legacy server billing before consequential execution
+- [ ] Add validated project intelligence, planning and workload capabilities to the existing orchestrator
+- [ ] Add evidence-based monitoring/reporting and editable, authorized action proposals
+- [ ] Verify Stage 2 persistence, permissions, idempotency, exports and regressions (signed-in UI checks unavailable with external authentication)
+
 - [x] Complete Stage 1 AI inventory and safest integration strategy
 - [x] Prove a common contract and first existing capability with advisor SSE/update tests
 - [x] Register existing capabilities, authorized context and private unified conversation storage
