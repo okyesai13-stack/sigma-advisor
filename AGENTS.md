@@ -15,3 +15,6 @@
 - Milestone editing and link replacement run in one authorized save_milestone transaction with version checks; only workspace owners/admins may override incomplete linked tasks with a recorded reason.
 - Finish-to-Start is the active dependency type; backend project-locked cycle validation rejects invalid graphs, while date conflicts require explicit browser confirmation and never auto-reschedule successors.
 - Calendar dates and timeline geometry use local date-only arithmetic; timeline pages contain at most 100 task rows and date writes retain task version checks and activity history.
+- Dashboard/report counts use the security-invoker workspace_analytics RPC with membership checks and RLS; these routes do not preload every task. Activity cohorts use UTC dates, schedule deadlines use local date-only today, and current project progress uses all existing tasks.
+- Task completion timestamps are trigger-owned, cleared on reopening and backfilled only from recorded completion events; missing historical timestamps never become invented trends.
+- Report exports page authorized filtered records in batches of 500, escape CSV formulas and HTML, and generate PDFs locally without privileged credentials.

@@ -1,5 +1,10 @@
 # Redesign roadmap
 
+- [x] Add authorized server-aggregated dashboard and report data
+- [x] Build project, task, team, milestone and risk analytics with filters
+- [x] Implement filtered CSV/PDF exports and verify calculation/security rules (50 tests, rollback database checks, empty export downloads, build OK)
+- [ ] Verify signed-in analytics acceptance (blocked: externally managed authentication)
+
 - [x] Add Phase 3 milestones, task links and dependency safeguards
 - [x] Implement milestone editor, live Gantt and project calendar
 - [x] Integrate scheduling warnings and dashboard deadlines

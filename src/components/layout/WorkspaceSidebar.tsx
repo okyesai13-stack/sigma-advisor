@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import WorkspaceManager from '@/components/workspace/WorkspaceManager';
 export const workspaceNavigation = [
-  { title: "Overview", url: "/dashboard", icon: LayoutDashboard },
+  { title: "Dashboard", url: "/dashboard", icon: LayoutDashboard },
   { title: "My Tasks", url: "/my-tasks", icon: ListTodo },
   { title: "Projects", url: "/projects", icon: FolderKanban },
   { title: "Calendar", url: "/calendar", icon: CalendarDays },

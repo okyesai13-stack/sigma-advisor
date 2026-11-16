@@ -1,0 +1,9 @@
+import {test,expect} from 'bun:test';
+import {dateRange,completionRate,completionSeries,csvDocument,escapeHtml} from '../src/lib/analytics';
+test('Today and 7/30/90-day ranges include the last day',()=>{expect(dateRange(1,'2026-11-16')).toEqual({from:'2026-11-16',to:'2026-11-16'});expect(dateRange(7,'2026-11-16').from).toBe('2026-11-10');expect(dateRange(30,'2026-11-16').from).toBe('2026-10-18');expect(dateRange(90,'2026-11-16').from).toBe('2026-08-19');});
+test('workspace completion follows existing done-only floor rule',()=>{expect(completionRate(1,3)).toBe(33);expect(completionRate(0,0)).toBe(0);expect(completionRate(2,2)).toBe(100);});
+test('completion trends use actual completion days with zero gaps',()=>{expect(completionSeries([{date:'2026-11-15',value:2}],'2026-11-14','2026-11-16','daily')).toEqual([{date:'2026-11-14',value:0},{date:'2026-11-15',value:2},{date:'2026-11-16',value:0}]);});
+test('weekly and monthly completion buckets aggregate without changing counts',()=>{const rows=[{date:'2026-11-14',value:2},{date:'2026-11-15',value:3}];expect(completionSeries(rows,'2026-11-14','2026-11-16','weekly')).toEqual([{date:'2026-11-09',value:5},{date:'2026-11-16',value:0}]);expect(completionSeries(rows,'2026-11-14','2026-11-16','monthly')).toEqual([{date:'2026-11-01',value:5}]);});
+test('CSV includes filtered rows only and escapes formulas and quotes',()=>{const csv=csvDocument('Task report','2026-11-16',['Task','Done'],[['=danger',1],['A "quote"',0]],'1 completed');expect(csv).toContain('"\'=danger","1"');expect(csv).toContain('"A ""quote""","0"');expect(csv).toContain('"Generated","2026-11-16"');expect(csv).not.toContain('unfiltered task');});
+test('empty CSV still contains headers and metadata',()=>{expect(csvDocument('Empty','today',['Task'],[],'0 tasks')).toContain('"Summary","0 tasks"\r\n\r\n"Task"');});
+test('PDF report text is HTML-escaped',()=>expect(escapeHtml('<script>"&')).toBe('&lt;script&gt;&quot;&amp;'));

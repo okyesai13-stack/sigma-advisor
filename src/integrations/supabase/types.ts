@@ -961,6 +961,7 @@ export type Database = {
         Row: {
           actual_effort: number | null
           assignee_id: string | null
+          completed_at: string | null
           created_at: string
           created_by: string
           description: string
@@ -980,6 +981,7 @@ export type Database = {
         Insert: {
           actual_effort?: number | null
           assignee_id?: string | null
+          completed_at?: string | null
           created_at?: string
           created_by?: string
           description?: string
@@ -999,6 +1001,7 @@ export type Database = {
         Update: {
           actual_effort?: number | null
           assignee_id?: string | null
+          completed_at?: string | null
           created_at?: string
           created_by?: string
           description?: string
@@ -1250,6 +1253,21 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      workspace_analytics: {
+        Args: {
+          p_from: string
+          p_limit?: number
+          p_member?: string
+          p_offset?: number
+          p_priority?: string
+          p_project?: string
+          p_status?: string
+          p_to: string
+          p_today: string
+          p_workspace: string
+        }
+        Returns: Json
       }
       workspace_role: { Args: { p_workspace: string }; Returns: string }
       workspace_roster: {

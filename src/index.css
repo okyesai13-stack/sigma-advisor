@@ -168,3 +168,13 @@
 .deck-print { background: hsl(var(--slide-bg)); }
 @page { size: 1920px 1080px; margin: 0; }
 @media print { .deck-print-page { break-after: page; page-break-after: always; } }
+
+/* Local report export surface uses the same semantic palette. */
+.report-print { width: 1450px; padding: 24px; background: hsl(var(--card)); color: hsl(var(--foreground)); font-size: 12px; }
+.report-print h1 { font-size: 24px; margin-bottom: 12px; }
+.report-print h2 { font-size: 18px; margin: 20px 0 10px; }
+.report-print p { margin: 8px 0; }
+.report-print table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.report-print th, .report-print td { border: 1px solid hsl(var(--border)); padding: 6px; text-align: left; overflow-wrap: anywhere; }
+.report-print th { background: hsl(var(--muted)); }
+.report-print tr { break-inside: avoid; }

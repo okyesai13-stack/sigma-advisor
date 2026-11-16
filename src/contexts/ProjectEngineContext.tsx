@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './AuthContext';
 import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase/types';
@@ -11,6 +12,8 @@ const Context = createContext<State | undefined>(undefined);
 async function allRows<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) { const rows: T[] = []; for (let offset = 0; ; offset += 500) { const result = await fetchPage(offset, offset + 499); if (result.error) throw new Error(result.error.message); rows.push(...result.data || []); if ((result.data?.length || 0) < 500) return rows; } }
 export function ProjectEngineProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  const aggregateOnly = pathname === '/dashboard' || pathname === '/reports';
   const [workspaces, setWorkspaces] = useState<Tables<'workspaces'>[]>([]);
   const [activeId, setActiveId] = useState('');
   const [members, setMembers] = useState<Member[]>([]);
@@ -38,7 +41,7 @@ export function ProjectEngineProvider({ children }: { children: ReactNode }) {
       if (!selected) { setProjects([]); setTasks([]); setMembers([]); setActivity([]); setProjectMembers([]); return; }
       const [ps, ts, roster, logs, pm, ms, ml, ds, sa] = await Promise.all([
         allRows<EngineProject>((a,b) => supabase.from('projects').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).order('id').range(a,b)),
-        allRows<EngineTask>((a,b) => supabase.from('tasks').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).order('id').range(a,b)),
+        aggregateOnly ? Promise.resolve([] as EngineTask[]) : allRows<EngineTask>((a,b) => supabase.from('tasks').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).order('id').range(a,b)),
         supabase.rpc('workspace_roster',{ p_workspace:selected }),
         supabase.from('task_activity_logs').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).limit(100),
         allRows<Tables<'project_members'>>((a,b) => supabase.from('project_members').select('*').eq('workspace_id',selected).order('id').range(a,b)),
@@ -54,7 +57,7 @@ export function ProjectEngineProvider({ children }: { children: ReactNode }) {
       setProjects(ps); setTasks(ts); setMembers(roster.data || []); setActivity(logs.data || []); setProjectMembers(pm);
     } catch(e) { if(seq===request.current) setError(e instanceof Error ? e.message : 'Could not load workspace'); }
     finally { if(seq===request.current) setLoading(false); }
-  },[user,activeId]);
+  },[user,activeId,aggregateOnly]);
   useEffect(() => { void reload(); },[reload]);
   const switchWorkspace = (id: string) => { setMilestones([]);setMilestoneLinks([]);setDependencies([]);setScheduleActivity([]);setProjects([]); setTasks([]); setMembers([]); setActivity([]); setProjectMembers([]); setActiveId(id); };
   const createWorkspace = async (name:string,kind:string) => { const r = await supabase.rpc('create_workspace',{p_name:name,p_kind:kind}); if(r.error) throw new Error(r.error.message); switchWorkspace(r.data); };
