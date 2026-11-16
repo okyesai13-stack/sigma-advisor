@@ -1,3 +1,5 @@
+import TeamPage from '@/pages/TeamPage';
+import {InvitationPage,NotificationsPage,NotificationSettings,WorkspaceActivityPage,TaskDetailPage} from '@/pages/CollaborationPages';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -48,6 +50,7 @@ const App = () => (
               {/* Public routes */}
               <Route path="/" element={<LandingNoAuth />} />
               <Route path="/auth" element={<AuthPage />} />
+              <Route path="/invite" element={<InvitationPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
 
               {/* Protected routes with two-panel layout */}
@@ -63,7 +66,11 @@ const App = () => (
                 <Route path="/projects" element={<EngineProjects />} />
                 <Route path="/my-tasks" element={<EngineMyTasks />} />
                 <Route path="/calendar" element={<ProjectCalendar />} />
-                <Route path="/team" element={<EngineTeam />} />
+                <Route path="/team" element={<TeamPage />} />
+                <Route path="/notifications" element={<NotificationsPage />} />
+                <Route path="/settings/notifications" element={<NotificationSettings />} />
+                <Route path="/activity" element={<WorkspaceActivityPage />} />
+                <Route path="/projects/:projectId/tasks/:taskId" element={<TaskDetailPage />} />
                 <Route path="/reports" element={<EngineReports />} />
                 <Route path="/projects/:projectId/:view" element={<EngineProjectPage />} />
                 <Route path="/projects/:projectId" element={<EngineProjectPage />} />

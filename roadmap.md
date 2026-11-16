@@ -1,5 +1,12 @@
 # Redesign roadmap
 
+- [x] Add secure invitations, discussions/mentions, private attachments and collaboration activity
+- [x] Build team management, notification center/preferences and task collaboration screens
+- [x] Add backend event notifications, hourly scheduled reminders and email outbox integration scaffold
+- [x] Verify collaboration rules and preservation (54 tests, rollback database assertions, build OK)
+- [ ] Verify populated collaboration/file/realtime acceptance (blocked: externally managed authentication)
+- [ ] Configure and verify email delivery (blocked: email provider credential and verified sender unavailable)
+
 - [x] Add authorized server-aggregated dashboard and report data
 - [x] Build project, task, team, milestone and risk analytics with filters
 - [x] Implement filtered CSV/PDF exports and verify calculation/security rules (50 tests, rollback database checks, empty export downloads, build OK)

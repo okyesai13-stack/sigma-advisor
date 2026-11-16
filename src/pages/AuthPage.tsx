@@ -1,3 +1,4 @@
+import {safeReturnPath} from '@/lib/collaboration';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,6 +27,9 @@ const AuthPage = () => {
   }, [user]);
 
   const checkExistingBusiness = async (uid: string) => {
+    const returnTo=new URLSearchParams(window.location.search).get('returnTo');
+    if(returnTo){navigate(safeReturnPath(returnTo),{replace:true});return;}
+
     try {
       const { data, error } = await supabase
         .from('business_store')
@@ -92,7 +96,7 @@ const AuthPage = () => {
       const { error } = await supabase.auth.signUp({
         email: signupEmail,
         password: signupPassword,
-        options: { data: { full_name: signupName }, emailRedirectTo: window.location.origin },
+        options: { data: { full_name: signupName }, emailRedirectTo: window.location.origin + safeReturnPath(new URLSearchParams(window.location.search).get('returnTo')) },
       });
       if (error) throw error;
       toast({ title: 'Account created', description: 'Check your email or sign in directly.' });

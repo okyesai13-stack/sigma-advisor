@@ -93,6 +93,73 @@ export type Database = {
           },
         ]
       }
+      attachments: {
+        Row: {
+          byte_size: number
+          created_at: string
+          file_name: string
+          id: string
+          mime_type: string
+          project_id: string
+          status: string
+          storage_path: string
+          task_id: string | null
+          updated_at: string
+          uploaded_by: string
+          workspace_id: string
+        }
+        Insert: {
+          byte_size: number
+          created_at?: string
+          file_name: string
+          id?: string
+          mime_type: string
+          project_id: string
+          status?: string
+          storage_path: string
+          task_id?: string | null
+          updated_at?: string
+          uploaded_by: string
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number
+          created_at?: string
+          file_name?: string
+          id?: string
+          mime_type?: string
+          project_id?: string
+          status?: string
+          storage_path?: string
+          task_id?: string | null
+          updated_at?: string
+          uploaded_by?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attachments_project_id_workspace_id_fkey"
+            columns: ["project_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "workspace_id"]
+          },
+          {
+            foreignKeyName: "attachments_task_id_project_id_fkey"
+            columns: ["task_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "project_id"]
+          },
+          {
+            foreignKeyName: "attachments_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       business_plan_result: {
         Row: {
           business_id: string
@@ -181,6 +248,80 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      collaboration_activity: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          entity_id: string | null
+          entity_type: string
+          id: string
+          metadata: Json
+          project_id: string | null
+          task_id: string | null
+          title: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type: string
+          id?: string
+          metadata?: Json
+          project_id?: string | null
+          task_id?: string | null
+          title: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          entity_id?: string | null
+          entity_type?: string
+          id?: string
+          metadata?: Json
+          project_id?: string | null
+          task_id?: string | null
+          title?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaboration_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_activity_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_activity_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaboration_activity_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       competitor_analysis_result: {
         Row: {
@@ -595,6 +736,179 @@ export type Database = {
           },
         ]
       }
+      notification_outbox: {
+        Row: {
+          attempts: number
+          body: string
+          category: string
+          created_at: string
+          error: string | null
+          event_key: string
+          id: string
+          link: string
+          next_attempt_at: string
+          provider_id: string | null
+          recipient_email: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string | null
+          workspace_id: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          category: string
+          created_at?: string
+          error?: string | null
+          event_key: string
+          id?: string
+          link: string
+          next_attempt_at?: string
+          provider_id?: string | null
+          recipient_email: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id?: string | null
+          workspace_id: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          category?: string
+          created_at?: string
+          error?: string | null
+          event_key?: string
+          id?: string
+          link?: string
+          next_attempt_at?: string
+          provider_id?: string | null
+          recipient_email?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string | null
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_outbox_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_outbox_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_preferences: {
+        Row: {
+          created_at: string
+          email: Json
+          in_app: Json
+          milestone_reminder_days: number
+          project_reminder_days: number
+          task_reminder_days: number
+          timezone: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: Json
+          in_app?: Json
+          milestone_reminder_days?: number
+          project_reminder_days?: number
+          task_reminder_days?: number
+          timezone?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: Json
+          in_app?: Json
+          milestone_reminder_days?: number
+          project_reminder_days?: number
+          task_reminder_days?: number
+          timezone?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_preferences_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string
+          category: string
+          created_at: string
+          event_key: string
+          id: string
+          link: string
+          read_at: string | null
+          title: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          body?: string
+          category: string
+          created_at?: string
+          event_key: string
+          id?: string
+          link: string
+          read_at?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          body?: string
+          category?: string
+          created_at?: string
+          event_key?: string
+          id?: string
+          link?: string
+          read_at?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -895,6 +1209,77 @@ export type Database = {
           },
         ]
       }
+      task_comments: {
+        Row: {
+          author_id: string
+          content: string
+          created_at: string
+          edited: boolean
+          id: string
+          mention_ids: string[]
+          parent_id: string | null
+          project_id: string
+          task_id: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          author_id: string
+          content: string
+          created_at?: string
+          edited?: boolean
+          id?: string
+          mention_ids?: string[]
+          parent_id?: string | null
+          project_id: string
+          task_id: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          author_id?: string
+          content?: string
+          created_at?: string
+          edited?: boolean
+          id?: string
+          mention_ids?: string[]
+          parent_id?: string | null
+          project_id?: string
+          task_id?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_comments_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_comments_parent_id_task_id_fkey"
+            columns: ["parent_id", "task_id"]
+            isOneToOne: false
+            referencedRelation: "task_comments"
+            referencedColumns: ["id", "task_id"]
+          },
+          {
+            foreignKeyName: "task_comments_project_id_workspace_id_fkey"
+            columns: ["project_id", "workspace_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id", "workspace_id"]
+          },
+          {
+            foreignKeyName: "task_comments_task_id_project_id_fkey"
+            columns: ["task_id", "project_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id", "project_id"]
+          },
+        ]
+      }
       task_dependencies: {
         Row: {
           created_at: string
@@ -1088,6 +1473,73 @@ export type Database = {
         }
         Relationships: []
       }
+      workspace_invitations: {
+        Row: {
+          accepted_by: string | null
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          message: string
+          role: string
+          status: string
+          token_hash: string
+          updated_at: string
+          workspace_id: string
+        }
+        Insert: {
+          accepted_by?: string | null
+          created_at?: string
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by: string
+          message?: string
+          role: string
+          status?: string
+          token_hash: string
+          updated_at?: string
+          workspace_id: string
+        }
+        Update: {
+          accepted_by?: string | null
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          message?: string
+          role?: string
+          status?: string
+          token_hash?: string
+          updated_at?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workspace_invitations_accepted_by_fkey"
+            columns: ["accepted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_invitations_invited_by_fkey"
+            columns: ["invited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workspace_invitations_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       workspace_members: {
         Row: {
           created_at: string
@@ -1132,6 +1584,7 @@ export type Database = {
       }
       workspaces: {
         Row: {
+          attachment_limit_bytes: number
           created_at: string
           id: string
           kind: string
@@ -1140,6 +1593,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachment_limit_bytes?: number
           created_at?: string
           id?: string
           kind?: string
@@ -1148,6 +1602,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachment_limit_bytes?: number
           created_at?: string
           id?: string
           kind?: string
@@ -1170,12 +1625,56 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      accept_workspace_invitation: {
+        Args: { p_token: string }
+        Returns: string
+      }
+      claim_collaboration_emails: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          body: string
+          category: string
+          created_at: string
+          error: string | null
+          event_key: string
+          id: string
+          link: string
+          next_attempt_at: string
+          provider_id: string | null
+          recipient_email: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string | null
+          workspace_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "notification_outbox"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       create_workspace: {
         Args: { p_kind?: string; p_name: string }
         Returns: string
       }
       credit_cost: { Args: { p_action: string }; Returns: number }
       duplicate_project: { Args: { p_project: string }; Returns: string }
+      enqueue_notification: {
+        Args: {
+          p_body: string
+          p_category: string
+          p_key: string
+          p_link: string
+          p_title: string
+          p_user: string
+          p_workspace: string
+        }
+        Returns: undefined
+      }
+      finish_attachment: { Args: { p_id: string }; Returns: undefined }
       get_my_credits: {
         Args: never
         Returns: {
@@ -1197,10 +1696,24 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      invite_workspace_member: {
+        Args: {
+          p_email: string
+          p_message?: string
+          p_role: string
+          p_workspace: string
+        }
+        Returns: Json
+      }
       manage_workspace_member: {
         Args: { p_email: string; p_role: string; p_workspace: string }
         Returns: undefined
       }
+      mark_notifications: {
+        Args: { p_id?: string; p_read?: boolean }
+        Returns: undefined
+      }
+      process_deadline_reminders: { Args: never; Returns: number }
       redeem_coupon: { Args: { p_code: string }; Returns: undefined }
       refresh_credits: {
         Args: { p_user: string }
@@ -1223,7 +1736,44 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      remove_attachment: {
+        Args: { p_finish?: boolean; p_id: string }
+        Returns: undefined
+      }
       request_upgrade: { Args: never; Returns: undefined }
+      reserve_attachment: {
+        Args: {
+          p_mime: string
+          p_name: string
+          p_project: string
+          p_size: number
+          p_task: string
+        }
+        Returns: {
+          byte_size: number
+          created_at: string
+          file_name: string
+          id: string
+          mime_type: string
+          project_id: string
+          status: string
+          storage_path: string
+          task_id: string | null
+          updated_at: string
+          uploaded_by: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "attachments"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      revoke_workspace_invitation: {
+        Args: { p_id: string }
+        Returns: undefined
+      }
       save_milestone: {
         Args: {
           p_id?: string
@@ -1253,6 +1803,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      team_directory: {
+        Args: { p_workspace: string }
+        Returns: {
+          avatar_url: string
+          email: string
+          full_name: string
+          joined_at: string
+          role: string
+          user_id: string
+        }[]
       }
       workspace_analytics: {
         Args: {

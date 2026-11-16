@@ -12,6 +12,7 @@ export const workspaceNavigation = [
   { title: "Calendar", url: "/calendar", icon: CalendarDays },
   { title: "Team", url: "/team", icon: Users },
   { title: "Reports", url: "/reports", icon: BarChart3 },
+  { title: "Activity", url: "/activity", icon: ListTodo },
 ];
 export default function WorkspaceSidebar({ signOut }: { signOut: () => void }) {
   const { pathname } = useLocation();

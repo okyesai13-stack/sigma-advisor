@@ -6,7 +6,7 @@ import type { Tables, TablesInsert, TablesUpdate } from '@/integrations/supabase
 import { dateChangeWarnings } from '@/lib/planning';
 import type { Milestone, MilestoneLink, Dependency } from '@/lib/planning';
 import type { EngineProject, EngineTask } from '@/lib/projectEngine';
-export interface Member { user_id: string; role: string; full_name: string | null; email: string | null }
+export interface Member { user_id: string; role: string; full_name: string | null; email: string | null; avatar_url?:string|null;joined_at?:string }
 interface State { milestones: Milestone[]; milestoneLinks: MilestoneLink[]; dependencies: Dependency[]; scheduleActivity: Tables<'project_schedule_activity'>[]; workspaces: Tables<'workspaces'>[]; activeId: string; switchWorkspace: (id: string) => void; members: Member[]; role?: string; projects: EngineProject[]; tasks: EngineTask[]; activity: Tables<'task_activity_logs'>[]; projectMembers: Tables<'project_members'>[]; loading: boolean; error: string; reload: () => Promise<void>; createWorkspace: (name: string, kind: string) => Promise<void>; saveProject: (values: TablesInsert<'projects'>, id?: string) => Promise<string>; saveTask: (values: TablesInsert<'tasks'>, task?: EngineTask) => Promise<void>; updateTask: (task: EngineTask, patch: TablesUpdate<'tasks'>) => Promise<void>; deleteTask: (task: EngineTask) => Promise<void> }
 const Context = createContext<State | undefined>(undefined);
 async function allRows<T>(fetchPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>) { const rows: T[] = []; for (let offset = 0; ; offset += 500) { const result = await fetchPage(offset, offset + 499); if (result.error) throw new Error(result.error.message); rows.push(...result.data || []); if ((result.data?.length || 0) < 500) return rows; } }
@@ -35,14 +35,15 @@ export function ProjectEngineProvider({ children }: { children: ReactNode }) {
     setLoading(true); setError('');
     try {
       const ws = await allRows<Tables<'workspaces'>>((a,b) => supabase.from('workspaces').select('*').order('created_at').order('id').range(a,b));
-      const selected = ws.find(w => w.id === activeId)?.id || ws[0]?.id || '';
+      const invited = new URLSearchParams(window.location.search).get('workspace');
+      const selected = ws.find(w => w.id === invited)?.id || ws.find(w => w.id === activeId)?.id || ws[0]?.id || '';
       if (seq !== request.current) return;
       setWorkspaces(ws); setActiveId(selected);
       if (!selected) { setProjects([]); setTasks([]); setMembers([]); setActivity([]); setProjectMembers([]); return; }
       const [ps, ts, roster, logs, pm, ms, ml, ds, sa] = await Promise.all([
         allRows<EngineProject>((a,b) => supabase.from('projects').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).order('id').range(a,b)),
         aggregateOnly ? Promise.resolve([] as EngineTask[]) : allRows<EngineTask>((a,b) => supabase.from('tasks').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).order('id').range(a,b)),
-        supabase.rpc('workspace_roster',{ p_workspace:selected }),
+        supabase.rpc('team_directory',{ p_workspace:selected }),
         supabase.from('task_activity_logs').select('*').eq('workspace_id',selected).order('created_at',{ascending:false}).limit(100),
         allRows<Tables<'project_members'>>((a,b) => supabase.from('project_members').select('*').eq('workspace_id',selected).order('id').range(a,b)),
         allRows<Milestone>((a,b)=>supabase.from('milestones').select('*').eq('workspace_id',selected).order('id').range(a,b)),

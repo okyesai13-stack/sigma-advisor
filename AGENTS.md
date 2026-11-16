@@ -18,3 +18,8 @@
 - Dashboard/report counts use the security-invoker workspace_analytics RPC with membership checks and RLS; these routes do not preload every task. Activity cohorts use UTC dates, schedule deadlines use local date-only today, and current project progress uses all existing tasks.
 - Task completion timestamps are trigger-owned, cleared on reopening and backfilled only from recorded completion events; missing historical timestamps never become invented trends.
 - Report exports page authorized filtered records in batches of 500, escape CSV formulas and HTML, and generate PDFs locally without privileged credentials.
+- Collaboration reuses workspace roles and composite project/task membership checks; public invoker RPC wrappers call non-exposed collaboration_private implementations so privileged invitation/file transitions remain server-authorized.
+- Invitation secrets are hashed in membership records, expire after seven days and require explicit matching confirmed-email acceptance; raw links exist only in the server email outbox and immediate creator response.
+- Files use private workspace-files storage with server-reserved immutable paths, metadata matching and two-step authorized deletion; comments store validated member UUID mentions and server-generated deduplicated notification events.
+- Notification subscriptions are user-scoped and cleaned up; deadline reminders run hourly in Postgres with recipient timezone/preferences and event keys, independent of browser sessions.
+- Email delivery stays pending until provider configuration exists; the authenticated manager-only collaboration-email endpoint uses provider idempotency keys and never exposes outbox or credentials to clients.
