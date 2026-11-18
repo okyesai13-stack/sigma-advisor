@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Check, AlertTriangle, ArrowRight, Radar, BarChart3, Bot, LineChart, RotateCcw, Megaphone, Cpu } from "lucide-react";
 import Seo from "@/components/Seo";
+import SessionView from "@/components/strategy/SessionView";
 import { notifyCreditsChanged } from "@/lib/credits";
 
 type Status = "pending" | "running" | "completed" | "error";
@@ -97,7 +98,7 @@ const SigmaNoAuth = () => {
   return (
     <div className="min-h-full bg-background">
       <Seo
-        title="Strategy Console — Planz"
+        title="AI Strategy Command Centre — Planz"
         description="Watch the six Planz AI agents — market research, competitor analysis, business plan, financial model, marketing strategy, and AI operations — work in parallel."
         path="/sigma"
         noindex
@@ -113,53 +114,7 @@ const SigmaNoAuth = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-5 py-12 md:px-12 md:py-16">
-        <div className="mb-10 animate-slide-up">
-          <div className="mb-5 flex items-center gap-2"><span className="signal-dot animate-pulse" /><p className="eyebrow text-primary">Agents in session</p></div>
-          <h1 className="font-display text-4xl font-semibold leading-tight md:text-6xl">The office is convened.</h1>
-          {business && (
-            <p className="text-muted-foreground text-lg max-w-2xl leading-relaxed">
-              Five agents are working on <strong className="font-medium text-foreground">{business.business_name}</strong>. Each runs in parallel to brief their findings.
-            </p>
-          )}
-        </div>
-
-        <div className="grid gap-3">
-          {AGENTS.map((a) => {
-            const s = status[a.id];
-            return (
-              <div key={a.id} className={`grid grid-cols-[auto_1fr] items-center gap-4 rounded-lg border p-5 transition-all md:grid-cols-[auto_1fr_auto] ${s === 'running' ? 'border-primary/50 bg-primary/5 shadow-glow' : 'border-border bg-card'}`}>
-                <div className="grid h-11 w-11 place-items-center rounded-md bg-background text-primary"><a.icon className="h-5 w-5" /></div>
-                <div>
-                  <div className="mb-1 flex items-center gap-3"><span className="text-xs text-muted-foreground">{a.num}</span><h3 className="font-display text-lg font-semibold">{a.name}</h3></div>
-                  <p className="text-sm text-muted-foreground">{a.desc}</p>
-                  {s === "error" && (
-                    <Button onClick={() => retry(a.id)} variant="ghost" size="sm" className="mt-2 text-destructive"><RotateCcw /> Retry agent</Button>
-                  )}
-                </div>
-                <div className="col-span-2 flex items-center justify-end gap-2 md:col-span-1">
-                  <StatusIcon s={s} />
-                  <span className="eyebrow">
-                    {s === "pending" && "Queued"}
-                    {s === "running" && "Working"}
-                    {s === "completed" && "Filed"}
-                    {s === "error" && "Failed"}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {allDone && (
-          <div className="mt-12 text-center">
-            <Button onClick={() => navigate("/analysis")} size="lg">
-              Open the strategy dossier
-              <ArrowRight className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
-      </main>
+      <SessionView agents={AGENTS} status={status} businessName={business?.business_name} allDone={allDone} retry={id=>void retry(id as AgentId)} openReport={()=>navigate('/analysis')} openFindings={id=>navigate(`/analysis#section-${({market_research:'market',competitor_analysis:'comp',business_plan:'plan',financial_model:'fin',marketing_strategy:'mkt',ai_operations:'aio'} as Record<string,string>)[id]}`)} />
     </div>
   );
 };

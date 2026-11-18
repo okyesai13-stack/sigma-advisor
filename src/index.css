@@ -1,8 +1,13 @@
+@import '@fontsource/geist/400.css';
+@import '@fontsource/geist/500.css';
+@import '@fontsource/geist/600.css';
+@import '@fontsource/geist/700.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Planz — Signal Orange command center */
+/* Planz — charcoal surfaces and restrained AI violet */
 @layer base {
   :root {
     --background: 210 20% 98%;
@@ -11,16 +16,16 @@
     --card-foreground: 220 15% 16%;
     --popover: 0 0% 100%;
     --popover-foreground: 220 15% 16%;
-    --primary: 16 82% 42%;
+    --primary: 251 89% 59%;
     --primary-foreground: 0 0% 100%;
-    --primary-hover: 16 82% 36%;
-    --primary-glow: 16 82% 48%;
+    --primary-hover: 251 70% 49%;
+    --primary-glow: 251 89% 65%;
     --secondary: 210 16% 95%;
     --secondary-foreground: 220 15% 22%;
     --muted: 210 16% 94%;
     --muted-foreground: 220 8% 43%;
-    --accent: 16 45% 95%;
-    --accent-foreground: 16 70% 32%;
+    --accent: 251 100% 97%;
+    --accent-foreground: 251 65% 43%;
     --success: 153 66% 30%;
     --success-foreground: 0 0% 100%;
     --warning: 38 91% 34%;
@@ -29,7 +34,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 210 14% 89%;
     --input: 210 14% 85%;
-    --ring: 16 82% 42%;
+    --ring: 251 89% 59%;
     --radius: 0.5rem;
     --gradient-hero: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)));
@@ -40,67 +45,70 @@
     --shadow-glow: 0 0 0 1px hsl(var(--primary) / .12), 0 3px 10px hsl(var(--primary) / .06);
     --sidebar-background: 0 0% 100%;
     --sidebar-foreground: 220 12% 32%;
-    --sidebar-primary: 16 82% 42%;
+    --sidebar-primary: 251 89% 59%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 16 55% 96%;
-    --sidebar-accent-foreground: 16 78% 35%;
+    --sidebar-accent: 251 100% 97%;
+    --sidebar-accent-foreground: 251 65% 43%;
     --sidebar-border: 210 14% 89%;
-    --sidebar-ring: 16 82% 42%;
+    --sidebar-ring: 251 89% 59%;
     --overlay: 220 15% 10%;
+    --command: 225 15% 11%;
+    --command-foreground: 220 15% 96%;
+    --command-muted: 220 10% 72%;
   }
   .dark {
-    --background: 120 3% 6%;
-    --foreground: 45 33% 95%;
-    --card: 120 4% 11%;
-    --card-foreground: 45 33% 95%;
-    --popover: 120 4% 11%;
-    --popover-foreground: 45 33% 95%;
-    --primary: 16 100% 60%;
-    --primary-foreground: 120 3% 6%;
-    --primary-hover: 16 100% 66%;
-    --primary-glow: 20 100% 62%;
-    --secondary: 120 4% 14%;
-    --secondary-foreground: 45 33% 95%;
-    --muted: 120 3% 15%;
-    --muted-foreground: 60 4% 63%;
-    --accent: 120 4% 18%;
-    --accent-foreground: 45 33% 95%;
+    --background: 225 15% 9%;
+    --foreground: 220 15% 95%;
+    --card: 224 15% 14%;
+    --card-foreground: 220 15% 95%;
+    --popover: 224 15% 14%;
+    --popover-foreground: 220 15% 95%;
+    --primary: 251 95% 75%;
+    --primary-foreground: 225 15% 9%;
+    --primary-hover: 251 95% 80%;
+    --primary-glow: 251 95% 75%;
+    --secondary: 224 12% 17%;
+    --secondary-foreground: 220 15% 95%;
+    --muted: 224 12% 18%;
+    --muted-foreground: 220 10% 69%;
+    --accent: 224 12% 21%;
+    --accent-foreground: 220 15% 95%;
     --success: 142 72% 48%;
-    --success-foreground: 120 3% 6%;
+    --success-foreground: 225 15% 9%;
     --warning: 43 96% 56%;
-    --warning-foreground: 120 3% 6%;
+    --warning-foreground: 225 15% 9%;
     --destructive: 0 78% 58%;
-    --destructive-foreground: 45 33% 95%;
-    --border: 60 4% 21%;
-    --input: 60 4% 24%;
-    --ring: 16 100% 60%;
+    --destructive-foreground: 220 15% 95%;
+    --border: 224 10% 25%;
+    --input: 224 10% 29%;
+    --ring: 251 95% 75%;
     --radius: 0.5rem;
     --gradient-hero: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-glow)));
     --gradient-subtle: linear-gradient(180deg, hsl(var(--card)), hsl(var(--background)));
-    --gradient-card: linear-gradient(145deg, hsl(120 4% 14%), hsl(120 4% 10%));
+    --gradient-card: linear-gradient(145deg, hsl(224 12% 17%), hsl(120 4% 10%));
     --shadow-sm: 0 1px 2px hsl(120 3% 2% / 0.35);
     --shadow-md: 0 12px 30px hsl(120 3% 2% / 0.28);
     --shadow-lg: 0 24px 70px hsl(120 3% 2% / 0.45);
     --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 16px 40px hsl(var(--primary) / 0.16);
-    --sidebar-background: 120 4% 8%;
-    --sidebar-foreground: 45 33% 95%;
-    --sidebar-primary: 16 100% 60%;
-    --sidebar-primary-foreground: 120 3% 6%;
-    --sidebar-accent: 120 4% 15%;
-    --sidebar-accent-foreground: 45 33% 95%;
-    --sidebar-border: 60 4% 19%;
-    --sidebar-ring: 16 100% 60%;
+    --sidebar-background: 224 15% 11%;
+    --sidebar-foreground: 220 15% 95%;
+    --sidebar-primary: 251 95% 75%;
+    --sidebar-primary-foreground: 225 15% 9%;
+    --sidebar-accent: 224 12% 18%;
+    --sidebar-accent-foreground: 220 15% 95%;
+    --sidebar-border: 224 10% 23%;
+    --sidebar-ring: 251 95% 75%;
   }
 
   * { @apply border-border; }
   html { scroll-behavior: smooth; background: hsl(var(--background)); }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Geist', system-ui, sans-serif;
     font-feature-settings: "ss01", "cv11";
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Geist', system-ui, sans-serif;
     letter-spacing: 0;
   }
   button, a, input, textarea { -webkit-tap-highlight-color: transparent; }
@@ -110,7 +118,7 @@
   .panel-surface { @apply border border-border bg-card shadow-md; }
   .glass-surface { background: hsl(var(--card) / 0.78); backdrop-filter: blur(18px); }
   .eyebrow { @apply text-[11px] font-semibold uppercase text-muted-foreground; letter-spacing: 0; }
-  .signal-dot { @apply inline-block h-2 w-2 rounded-full bg-primary; box-shadow: 0 0 18px hsl(var(--primary) / .65); }
+  .signal-dot { @apply inline-block h-2 w-2 rounded-full bg-primary;  }
   .interactive-panel { @apply transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-glow; }
 }
 
@@ -178,3 +186,8 @@
 .report-print th, .report-print td { border: 1px solid hsl(var(--border)); padding: 6px; text-align: left; overflow-wrap: anywhere; }
 .report-print th { background: hsl(var(--muted)); }
 .report-print tr { break-inside: avoid; }
+
+.command-surface { background: hsl(var(--command)); color: hsl(var(--command-foreground)); }
+.command-muted { color: hsl(var(--command-muted)); }
+.marketing-hero { background: hsl(var(--card)); }
+.form-step { animation: slideUp .22s ease-out both; }

@@ -23,6 +23,7 @@ const SetupNoAuth = () => {
   const { user } = useAuth();
   const { setBusiness } = useResume();
 
+  const [step, setStep] = useState(0);
   const [businessName, setBusinessName] = useState("");
   const [pitch, setPitch] = useState("");
   const [stage, setStage] = useState("idea");
@@ -125,70 +126,17 @@ const SetupNoAuth = () => {
         </div>
       </header>
 
-      <main className="mx-auto max-w-4xl px-5 py-12 md:px-12 md:py-16">
-        <div className="mb-10 animate-slide-up">
-          <div className="mb-5 flex items-center gap-2"><span className="signal-dot" /><p className="eyebrow text-primary">{editId ? "Update & re-run" : "New strategy session"}</p></div>
-          <h1 className="font-display text-4xl font-semibold leading-tight md:text-6xl">{editId ? "Update your brief." : "Brief the strategy office."}</h1>
-          <p className="text-muted-foreground text-lg max-w-xl leading-relaxed">
-            Tell us what you're building. The four agents will use this brief to convene a strategy session.
-          </p>
-        </div>
-
-        <div className="panel-surface animate-slide-up space-y-8 rounded-lg p-5 delay-100 md:p-8">
-          <div className="grid gap-3 border-b border-border pb-6 sm:grid-cols-4">
-            {[['Business', Building2], ['Position', Target], ['Market', Globe2], ['Context', Layers3]].map(([name, Icon], i) => (
-              <div key={String(name)} className="flex items-center gap-2 text-xs text-muted-foreground"><span className="grid h-7 w-7 place-items-center rounded bg-primary/10 text-primary">{i === 0 ? <Check className="h-3.5 w-3.5" /> : <Icon className="h-3.5 w-3.5" />}</span>{String(name)}</div>
-            ))}
-          </div>
-          <Field label="Business name">
-            <Input value={businessName} onChange={(e) => setBusinessName(e.target.value)} placeholder="e.g., Northwind Coffee Roasters" className="h-12 bg-background text-base" />
-          </Field>
-
-          <Field label="One-line pitch">
-            <Textarea value={pitch} onChange={(e) => setPitch(e.target.value)} placeholder="What it is, who it's for, and why it matters." className="min-h-[100px] resize-none bg-background text-base" />
-          </Field>
-
-          <Field label="Stage">
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {STAGES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setStage(s.id)}
-                  className={`rounded-md border py-4 text-xs font-semibold transition-all ${
-                    stage === s.id ? "border-primary bg-primary text-primary-foreground shadow-glow" : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
-                  }`}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-          </Field>
-
-          <div className="grid md:grid-cols-2 gap-10">
-            <Field label="Industry">
-              <Input value={industry} onChange={(e) => setIndustry(e.target.value)} placeholder="e.g., Specialty food & beverage" className="h-11 bg-background" />
-            </Field>
-            <Field label="Target market">
-              <Input value={targetMarket} onChange={(e) => setTargetMarket(e.target.value)} placeholder="e.g., Urban professionals 25-45" className="h-11 bg-background" />
-            </Field>
-          </div>
-
-          <Field label="Geography" hint="optional">
-            <Input value={geography} onChange={(e) => setGeography(e.target.value)} placeholder="e.g., North America, India, Global" className="h-11 bg-background" />
-          </Field>
-
-          <Field label="Additional context" hint="optional — existing notes, traction, constraints">
-            <Textarea value={rawContext} onChange={(e) => setRawContext(e.target.value)} placeholder="Anything else the agents should know..." className="min-h-[120px] resize-none bg-background" />
-          </Field>
-
-          <div className="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted-foreground">Required: name, pitch, industry, and target market</p>
-            <Button onClick={handleSubmit} disabled={!canSubmit || isSubmitting} size="lg" className="w-full sm:w-auto">
-              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowRight className="w-4 h-4" />}
-              {editId ? "Update & re-run agents" : "Convene the agents"}
-            </Button>
-          </div>
-        </div>
+      <main className="mx-auto grid max-w-6xl gap-10 px-5 py-8 md:px-8 md:py-12 lg:grid-cols-[230px_1fr]">
+        <aside><p className="text-xl font-semibold">Planz</p><p className="eyebrow mt-6 text-primary">{editId ? "Update & re-run" : "New strategy session"}</p><nav className="mt-6 grid grid-cols-3 gap-2 lg:grid-cols-1 lg:gap-3" aria-label="Brief progress">{["Your business", "Your market", "Review & context"].map((title,i) => <Button key={title} variant={step===i ? "secondary" : "ghost"} className="h-auto min-h-12 justify-start whitespace-normal px-3 py-3 text-left text-xs sm:text-sm" disabled={i>step} onClick={() => setStep(i)}><span className={`grid h-6 w-6 shrink-0 place-items-center rounded-full ${step===i ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>{i<step ? <Check className="h-3 w-3" /> : i+1}</span>{title}</Button>)}</nav><p className="mt-8 hidden text-sm leading-relaxed text-muted-foreground lg:block">A clear brief is the foundation of your strategy.</p></aside>
+        <section className="min-w-0"><div className="mb-8"><p className="eyebrow">Brief · {step+1} of 3</p><h1 className="mt-3 text-3xl font-semibold md:text-4xl">{[editId ? "Refine your business brief." : "What are you building?", "Find your place in the market.", "Ready to brief your strategy team?"][step]}</h1><p className="mt-4 text-muted-foreground">{["Start with the idea and where you are today.", "Define the industry and audience your business serves.", "Review your brief and add any context your agents should know."][step]}</p><div role="progressbar" aria-label="Brief progress" aria-valuenow={step+1} aria-valuemin={0} aria-valuemax={3} className="mt-6 flex gap-2">{[0,1,2].map(i=><span key={i} className={`h-1 flex-1 rounded-full transition-colors ${i<=step ? "bg-primary" : "bg-muted"}`} />)}</div></div>
+          <form onSubmit={e=>{e.preventDefault(); if(step<2)setStep(step+1); else void handleSubmit();}}>
+            <div key={step} className="form-step space-y-6">
+              {step===0 && <><Field label="Business name"><Input id="business-name" aria-label="Business name" required value={businessName} onChange={e=>setBusinessName(e.target.value)} placeholder="e.g., Northwind Coffee Roasters" className="h-12 bg-card" /></Field><Field label="One-line pitch"><Textarea aria-label="One-line pitch" required value={pitch} onChange={e=>setPitch(e.target.value)} placeholder="What it is, who it’s for, and why it matters." className="min-h-[110px] bg-card" /></Field><Field label="Stage"><div className="grid grid-cols-3 gap-2">{STAGES.map(s=><Button key={s.id} type="button" variant={stage===s.id ? "default" : "outline"} aria-pressed={stage===s.id} onClick={()=>setStage(s.id)} className="h-12 px-2 text-xs">{s.label}</Button>)}</div></Field></>}
+              {step===1 && <><Field label="Industry"><Input aria-label="Industry" required value={industry} onChange={e=>setIndustry(e.target.value)} placeholder="e.g., Specialty food & beverage" className="h-12 bg-card" /></Field><Field label="Target market"><Input aria-label="Target market" required value={targetMarket} onChange={e=>setTargetMarket(e.target.value)} placeholder="e.g., Urban professionals 25–45" className="h-12 bg-card" /></Field><Field label="Geography" hint="optional"><Input aria-label="Geography" value={geography} onChange={e=>setGeography(e.target.value)} placeholder="e.g., North America, India, Global" className="h-12 bg-card" /></Field></>}
+              {step===2 && <><dl className="divide-y divide-border border-y border-border">{[["Business",businessName],["Pitch",pitch],["Stage",STAGES.find(s=>s.id===stage)?.label],["Industry",industry],["Target market",targetMarket],["Geography",geography||"Not specified"]].map(([label,value])=><div key={label} className="grid gap-1 py-3 sm:grid-cols-[130px_1fr]"><dt className="text-sm text-muted-foreground">{label}</dt><dd className="break-words text-sm font-medium">{value}</dd></div>)}</dl><Field label="Additional context" hint="optional"><Textarea aria-label="Additional context" value={rawContext} onChange={e=>setRawContext(e.target.value)} placeholder="Existing notes, traction or constraints…" className="min-h-[120px] bg-card" /></Field></>}
+            </div><div className="mt-8 flex items-center justify-between gap-3 border-t border-border pt-6"><Button type="button" variant="ghost" disabled={step===0 || isSubmitting} onClick={()=>setStep(step-1)}><ArrowLeft />Back</Button><Button type="submit" disabled={isSubmitting || (step===0 && (!businessName.trim() || !pitch.trim())) || (step===1 && (!industry.trim() || !targetMarket.trim())) || (step===2 && !canSubmit)}>{isSubmitting ? <Loader2 className="animate-spin" /> : <ArrowRight />}{step<2 ? "Continue" : editId ? "Update & re-run agents" : "Convene the agents"}</Button></div>
+          </form>
+        </section>
       </main>
     </div>
   );

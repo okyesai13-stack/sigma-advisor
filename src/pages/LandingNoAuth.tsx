@@ -1,124 +1,42 @@
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowRight, ArrowUpRight, BarChart3, Bot, CircleCheck, LineChart, Radar, Sparkles } from "lucide-react";
-import Seo from "@/components/Seo";
-
-const agents = [
-  { num: "01", icon: Radar, name: "Market Research", desc: "Market sizing, trend signals, audience segments, and emerging opportunities." },
-  { num: "02", icon: BarChart3, name: "Competitor Analysis", desc: "Competitive maps, positioning gaps, SWOT, and defendable differentiation." },
-  { num: "03", icon: Bot, name: "Business Plan", desc: "Value proposition, business model, go-to-market, milestones, and risks." },
-  { num: "04", icon: LineChart, name: "Financial Model", desc: "Revenue, cost structure, projections, unit economics, runway, and funding." },
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { ArrowRight, ArrowUpRight, LayoutGrid, CalendarDays, Users, Sparkles, Check, Menu, X, ChartNoAxesCombined, ListChecks, Milestone, ShieldCheck } from 'lucide-react';
+import Seo from '@/components/Seo';
+import WorkspacePreview from '@/components/brand/WorkspacePreview';
+import preview from '@/assets/planz-workspace-preview.jpg';
+const features = [
+  { icon: LayoutGrid, title: 'Project management', desc: 'Bring projects, tasks, milestones and deadlines into one shared workspace.' },
+  { icon: ListChecks, title: 'Smart planning', desc: 'Turn ideas into structured plans and actionable work, then review the next move.' },
+  { icon: Sparkles, title: 'AI project manager', desc: 'Understand progress, spot risks and get recommendations grounded in your project.' },
+  { icon: Users, title: 'Team collaboration', desc: 'Keep everyone aligned with shared workspaces, discussions and private files.' },
 ];
-
-const LandingNoAuth = () => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="min-h-screen overflow-hidden bg-background text-foreground">
-      <Seo title="Planz — AI Business Strategy Agents" description="Four AI agents turn your idea into an investor-ready business strategy." path="/" />
-
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-border/70 bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5 md:px-8">
-          <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="flex items-center gap-3" aria-label="Planz home">
-            <span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-sm font-bold text-primary-foreground">P</span>
-            <span className="font-display text-xl font-semibold">Planz</span>
-          </button>
-          <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-            <a href="#agents" className="transition-colors hover:text-foreground">Agents</a>
-            <a href="#method" className="transition-colors hover:text-foreground">How it works</a>
-            <a href="#audience" className="transition-colors hover:text-foreground">Who it’s for</a>
-          </nav>
-          <Button variant="ghost" size="sm" onClick={() => navigate("/auth")}>Sign in <ArrowUpRight /></Button>
+const links = [['Product', '#product'], ['Features', '#features'], ['AI Project Manager', '#ai'], ['Solutions', '#solutions'], ['Pricing', '/pricing']];
+export default function LandingNoAuth() {
+  const navigate = useNavigate(); const [menu, setMenu] = useState(false);
+  return <div className="min-h-screen bg-background text-foreground">
+    <Seo title="Planz — AI-powered Project Management" description="Plan projects, manage tasks, collaborate with your team and let Planz AI help you stay ahead of every deadline." path="/" />
+    <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-sm"><div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-5 px-5 lg:px-8">
+      <Link to="/" className="flex items-center gap-2.5 font-display text-xl font-bold"><span className="grid h-8 w-8 place-items-center rounded-md bg-primary text-primary-foreground">P</span>Planz</Link>
+      <nav className="hidden items-center gap-6 text-sm text-muted-foreground lg:flex">{links.map(([name,url]) => <a key={name} href={url} className="transition-colors hover:text-foreground">{name}</a>)}</nav>
+      <div className="flex items-center gap-2"><Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>Sign in</Button><Button size="sm" className="hidden sm:inline-flex" onClick={() => navigate('/auth?mode=signup')}>Get started <ArrowUpRight /></Button><Button variant="ghost" size="icon" className="lg:hidden" aria-label={menu ? 'Close menu' : 'Open menu'} aria-expanded={menu} onClick={() => setMenu(!menu)}>{menu ? <X /> : <Menu />}</Button></div>
+    </div>{menu && <nav className="grid gap-1 border-t border-border bg-card p-4 lg:hidden">{links.map(([name,url]) => <a key={name} href={url} className="rounded-md p-3 text-sm hover:bg-accent" onClick={() => setMenu(false)}>{name}</a>)}<Button onClick={() => navigate('/auth?mode=signup')}>Get started <ArrowRight /></Button></nav>}</header>
+    <main>
+      <section className="marketing-hero relative isolate overflow-hidden border-b border-border px-5 pb-10 pt-14 md:pt-20">
+        <img src={preview} alt="" aria-hidden="true" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-[0.06]" width={1536} height={1024} />
+        <div className="mx-auto max-w-6xl text-center animate-slide-up"><p className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Your AI-powered project management workspace</p>
+          <h1 className="mx-auto max-w-4xl text-balance font-display text-4xl font-semibold leading-[1.12] md:text-6xl">Planz.<br />Your projects. One intelligent workspace.</h1>
+          <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">Plan projects, manage tasks, collaborate with your team and let AI help you stay ahead of every deadline.</p>
+          <div className="mt-7 flex flex-wrap justify-center gap-3"><Button size="lg" onClick={() => navigate('/auth?mode=signup')}>Start for free <ArrowRight /></Button><Button variant="outline" size="lg" onClick={() => document.getElementById('product')?.scrollIntoView({ behavior: 'smooth' })}>Explore Planz</Button></div>
+          <p className="mt-5 text-xs text-muted-foreground">Plan smarter. Execute faster. Stay in control.</p>
+          <WorkspacePreview priority className="mx-auto mt-10 max-w-4xl animate-scale-in" />
         </div>
-      </header>
-
-      <main>
-        <section className="relative flex min-h-[92vh] items-center border-b border-border/70 px-5 pb-16 pt-28 md:px-8">
-          <div className="mx-auto grid w-full max-w-7xl items-center gap-14 lg:grid-cols-12">
-            <div className="animate-slide-up lg:col-span-7">
-              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                <span className="signal-dot" /> Four specialist agents. One strategy.
-              </div>
-              <h1 className="max-w-4xl font-display text-5xl font-semibold leading-[1.02] md:text-7xl lg:text-8xl">
-                The plan for <span className="text-primary">what’s next.</span>
-              </h1>
-              <p className="mt-7 max-w-2xl text-lg leading-relaxed text-muted-foreground md:text-xl">
-                Turn a business idea into market evidence, competitive positioning, a practical plan, and a financial model—without assembling a consulting team.
-              </p>
-              <div className="mt-9 flex flex-wrap items-center gap-3">
-                <Button size="lg" onClick={() => navigate("/auth")}>Start strategy session <ArrowRight /></Button>
-                <Button variant="outline" size="lg" onClick={() => document.getElementById("agents")?.scrollIntoView({ behavior: "smooth" })}>Meet the agents</Button>
-              </div>
-              <div className="mt-10 flex flex-wrap gap-x-7 gap-y-3 text-sm text-muted-foreground">
-                {["Built for real business questions", "Parallel AI analysis", "One connected dossier"].map((item) => (
-                  <span key={item} className="flex items-center gap-2"><CircleCheck className="h-4 w-4 text-primary" />{item}</span>
-                ))}
-              </div>
-            </div>
-
-            <div className="relative animate-scale-in delay-200 lg:col-span-5">
-              <div className="panel-surface overflow-hidden rounded-lg shadow-lg">
-                <div className="flex h-12 items-center justify-between border-b border-border px-4">
-                  <div className="flex items-center gap-2"><span className="signal-dot" /><span className="eyebrow">Strategy engine</span></div>
-                  <span className="text-xs text-muted-foreground">Live session</span>
-                </div>
-                <div className="space-y-3 p-4 md:p-6">
-                  <div className="rounded-md border border-primary/30 bg-primary/10 p-4">
-                    <p className="eyebrow text-primary">Business brief</p>
-                    <p className="mt-2 font-display text-lg">AI-native finance workspace for growing teams</p>
-                  </div>
-                  {agents.map((agent, index) => (
-                    <div key={agent.num} className="group flex items-center gap-4 rounded-md border border-border bg-secondary/50 p-4 transition-all hover:border-primary/40 hover:bg-accent">
-                      <span className="grid h-9 w-9 place-items-center rounded-md bg-background text-primary"><agent.icon className="h-4 w-4" /></span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-3"><p className="truncate text-sm font-semibold">{agent.name}</p><span className="text-xs text-success">Ready</span></div>
-                        <div className="mt-2 h-1 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary" style={{ width: `${92 - index * 7}%` }} /></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="border-t border-border bg-secondary/40 p-4 text-center text-xs text-muted-foreground">All agents synchronize into one decision-ready dossier</div>
-              </div>
-              <div className="absolute -bottom-5 -left-5 hidden items-center gap-3 rounded-md border border-border bg-card px-4 py-3 shadow-lg md:flex">
-                <Sparkles className="h-5 w-5 text-primary" /><div><p className="text-sm font-semibold">Analysis ready</p><p className="text-xs text-muted-foreground">Four perspectives aligned</p></div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section id="agents" className="border-b border-border px-5 py-24 md:px-8">
-          <div className="mx-auto max-w-7xl">
-            <div className="mb-12 max-w-2xl"><p className="eyebrow text-primary">The agent team</p><h2 className="mt-4 font-display text-4xl font-semibold md:text-5xl">Specialists that work in parallel.</h2><p className="mt-4 text-lg text-muted-foreground">Each agent studies the same brief from a different business-critical angle.</p></div>
-            <div className="grid gap-3 md:grid-cols-2">
-              {agents.map((agent) => (
-                <article key={agent.num} className="interactive-panel rounded-lg border border-border bg-card p-6 md:p-8">
-                  <div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-md bg-primary/10 text-primary"><agent.icon /></span><span className="font-display text-sm text-muted-foreground">{agent.num}</span></div>
-                  <h3 className="mt-8 font-display text-2xl font-semibold">{agent.name}</h3><p className="mt-3 max-w-md leading-relaxed text-muted-foreground">{agent.desc}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="method" className="border-b border-border bg-card/30 px-5 py-24 md:px-8">
-          <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[.8fr_1.2fr]">
-            <div><p className="eyebrow text-primary">How it works</p><h2 className="mt-4 font-display text-4xl font-semibold md:text-5xl">From uncertainty to a clear next move.</h2></div>
-            <div className="space-y-3">
-              {[['01','Brief your idea','Share your stage, audience, market, and what makes the idea matter.'],['02','Agents investigate','Four specialists work simultaneously, with progress you can follow.'],['03','Use the dossier','Review evidence, challenge assumptions, and continue with your resident advisor.']].map(([n,t,d]) => (
-                <div key={n} className="flex gap-5 rounded-lg border border-border bg-background p-5 md:p-6"><span className="font-display text-sm text-primary">{n}</span><div><h3 className="font-display text-xl font-semibold">{t}</h3><p className="mt-2 text-muted-foreground">{d}</p></div></div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section id="audience" className="px-5 py-24 md:px-8"><div className="mx-auto max-w-7xl"><p className="eyebrow text-primary">Built for decisive teams</p><div className="mt-8 grid gap-px overflow-hidden rounded-lg border border-border bg-border md:grid-cols-3">{[['Founders','Pressure-test demand before committing time and capital.'],['Early-stage teams','Sharpen positioning, go-to-market, and fundraising assumptions.'],['Established operators','Evaluate new markets and product lines with a shared strategic view.']].map(([t,d]) => <div key={t} className="bg-card p-7"><h3 className="font-display text-2xl font-semibold">{t}</h3><p className="mt-3 text-muted-foreground">{d}</p></div>)}</div></div></section>
-
-        <section className="border-y border-border bg-primary px-5 py-20 text-primary-foreground md:px-8"><div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-8 md:flex-row md:items-center"><div><p className="text-sm font-semibold">Your next strategic decision starts here.</p><h2 className="mt-2 max-w-3xl font-display text-4xl font-semibold md:text-5xl">Give your idea a strategy team.</h2></div><Button size="lg" variant="secondary" onClick={() => navigate('/auth')}>Start now <ArrowRight /></Button></div></section>
-      </main>
-
-      <footer className="px-5 py-8 md:px-8"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-3 text-sm text-muted-foreground md:flex-row"><p>Planz — AI business strategy agents</p><p>© 2026 Planz</p></div></footer>
-    </div>
-  );
-};
-
-export default LandingNoAuth;
+      </section>
+      <section id="features" className="px-5 py-16 md:py-24"><div className="mx-auto max-w-6xl"><p className="eyebrow text-primary">Clarity at every stage</p><h2 className="mt-3 max-w-2xl text-3xl font-semibold md:text-4xl">Everything your team needs to move forward.</h2><div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">{features.map(f => <article key={f.title} className="interactive-panel rounded-lg border border-border bg-card p-6"><f.icon className="h-6 w-6 text-primary" /><h3 className="mt-7 text-lg font-semibold">{f.title}</h3><p className="mt-3 text-sm leading-relaxed text-muted-foreground">{f.desc}</p></article>)}</div></div></section>
+      <section id="ai" className="command-surface px-5 py-16 md:py-24"><div className="mx-auto grid max-w-6xl items-center gap-12 lg:grid-cols-2"><div><p className="eyebrow command-muted">Planz AI</p><h2 className="mt-4 text-3xl font-semibold md:text-4xl">Meet your intelligent project partner.</h2><p className="command-muted mt-5 max-w-lg leading-relaxed">A clearer view of your work. Planz AI reads your project context, explains the evidence and helps you decide what comes next.</p><div className="mt-7 space-y-3 text-sm">{['Recommendations grounded in your records', 'Review and approve changes before they happen', 'Your existing business tools, connected'].map(t => <p key={t} className="flex items-center gap-3"><Check className="h-4 w-4 text-primary" />{t}</p>)}</div><Button className="mt-8" onClick={() => navigate('/auth?returnTo=/ai-assistant')}>Meet Planz AI <ArrowRight /></Button></div><div className="rounded-lg border border-border bg-card p-6 text-foreground"><div className="flex items-center gap-3 border-b border-border pb-5"><Sparkles className="text-primary" /><div><h3 className="font-semibold">Planz AI</h3><p className="text-xs text-muted-foreground">Your intelligent project partner</p></div></div><h3 className="mb-5 mt-7 text-xl font-semibold">What would you like to move forward?</h3><div className="space-y-2">{['Plan my new project', 'What should I work on next?', 'Identify project risks', "Analyse my team’s workload", 'Generate a weekly project report'].map(prompt => <Button key={prompt} variant="outline" className="h-auto min-h-11 w-full justify-between whitespace-normal text-left font-normal" onClick={() => navigate(`/auth?returnTo=${encodeURIComponent('/ai-assistant?prompt='+encodeURIComponent(prompt))}`)}>{prompt}<ArrowUpRight /></Button>)}</div></div></div></section>
+      <section id="solutions" className="border-b border-border px-5 py-16"><div className="mx-auto max-w-6xl"><p className="eyebrow text-primary">From the first idea to delivery</p><h2 className="mt-3 text-3xl font-semibold">A connected way to work.</h2><ol className="mt-10 grid grid-cols-2 gap-6 md:grid-cols-6">{['Idea','Plan','Organize','Execute','Monitor','Deliver'].map((t,i) => <li key={t} className="border-t-2 border-border pt-5"><span className="text-xs text-primary">0{i+1}</span><p className="mt-3 flex items-center justify-between font-medium">{t}{i<5 && <ArrowRight className="h-4 w-4 text-muted-foreground" />}</p></li>)}</ol></div></section>
+      <section id="product" className="px-5 py-16 md:py-24"><div className="mx-auto max-w-6xl"><div className="flex flex-col justify-between gap-5 md:flex-row md:items-end"><div><p className="eyebrow text-primary">One workspace, a complete picture</p><h2 className="mt-3 text-3xl font-semibold md:text-4xl">See the work. Shape the next move.</h2></div><Button variant="outline" onClick={() => navigate('/auth')}>Explore your workspace <ArrowUpRight /></Button></div><div className="mt-9 grid gap-10 lg:grid-cols-[1.4fr_1fr]"><WorkspacePreview /><div className="divide-y divide-border">{[{icon:LayoutGrid,title:'Project boards',desc:'Move from a list of ideas to organized, actionable tasks.'},{icon:Milestone,title:'Timeline & Gantt',desc:'Keep milestones and task dependencies in view.'},{icon:CalendarDays,title:'Calendar',desc:'Understand what’s coming up across your projects.'},{icon:Users,title:'Team collaboration',desc:'Discuss work, share files and stay aligned.'},{icon:ChartNoAxesCombined,title:'Analytics & reports',desc:'Read measured progress and export project reports.'},{icon:ShieldCheck,title:'AI project intelligence',desc:'Review risks and proposed actions without giving up control.'}].map(f => <div key={f.title} className="flex gap-4 py-5 first:pt-0"><f.icon className="mt-1 h-5 w-5 shrink-0 text-primary" /><div><h3 className="font-medium">{f.title}</h3><p className="mt-1 text-sm leading-relaxed text-muted-foreground">{f.desc}</p></div></div>)}</div></div></div></section>
+      <section className="border-y border-border bg-accent px-5 py-16 text-center"><h2 className="text-3xl font-semibold md:text-4xl">Bring clarity to every project.</h2><p className="mt-4 text-muted-foreground">One workspace. One intelligent project partner. Better execution.</p><Button size="lg" className="mt-7" onClick={() => navigate('/auth?mode=signup')}>Get started with Planz <ArrowRight /></Button></section>
+    </main><footer className="bg-card px-5 py-10"><div className="mx-auto flex max-w-6xl flex-col justify-between gap-6 sm:flex-row"><div><Link to="/" className="text-xl font-semibold">Planz</Link><p className="mt-2 text-xs text-muted-foreground">© 2026 Planz · Your intelligent workspace</p></div><nav className="flex flex-wrap gap-6 text-sm text-muted-foreground"><a href="#product">Product</a><a href="#features">Features</a><Link to="/pricing">Pricing</Link><a href="#ai">Planz AI</a><Link to="/auth">Sign in</Link></nav></div></footer>
+  </div>;
+}

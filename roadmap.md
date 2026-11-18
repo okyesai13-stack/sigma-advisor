@@ -1,5 +1,9 @@
 # Redesign roadmap
 
+- [ ] Redesign landing, authentication/recovery, setup and Sigma with the premium Planz design language
+- [ ] Verify public interactions, guided form behavior, actual session-state presentation and mobile/desktop layouts
+- [ ] Verify signed-in authentication, saved briefs and live specialist findings (blocked: externally managed authentication)
+
 - [x] Audit actual Stage 1 code, live access policies, credit rules and regression tests for Stage 2
 - [x] Review Stage 2 incremental implementation plan
 - [x] Bind exact approvals, add conservative request reconciliation and one-use legacy server billing

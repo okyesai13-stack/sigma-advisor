@@ -27,3 +27,5 @@
 - AI requests use conversation locks; specialists claim one-use paid runs (full/single) server-side, while other self-charging adapters retain their debits so caller-side charges cannot bypass or duplicate billing.
 - Project intelligence computes measured evidence from complete authorized project reads before bounded model interpretation; missing baselines, capacity and skills remain unknown rather than inferred.
 - Consequential AI changes require immutable scoped proposals and transactional authorized execution receipts; approvals execute the saved plan without reclassification, and task edits retain version checks.
+
+- Public product previews are labelled illustrations, never live metrics; guided brief steps retain the existing save contract so presentation cannot change analysis inputs.

@@ -71,13 +71,13 @@ const ResetPasswordPage = () => {
         path="/reset-password"
         noindex
       />
-      <div className="panel-surface w-full max-w-md animate-slide-up rounded-lg p-6 md:p-8">
+      <div className="w-full max-w-md animate-slide-up py-10">
         <div className="pb-6 text-center">
           <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-md bg-primary/10">
             <Sparkles className="h-6 w-6 text-primary" />
           </div>
           <p className="eyebrow text-primary">Account recovery</p>
-          <h1 className="mt-2 font-display text-3xl font-semibold">Reset password</h1>
+          <h1 className="mt-2 font-display text-3xl font-semibold">Reset your password.</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {isSuccess ? 'Your password has been updated' : 'Enter your new password below'}
           </p>
