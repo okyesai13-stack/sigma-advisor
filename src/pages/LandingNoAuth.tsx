@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, ArrowUpRight, LayoutGrid, CalendarDays, Users, Sparkles, Check, Menu, X, ChartNoAxesCombined, ListChecks, Milestone, ShieldCheck } from 'lucide-react';
 import Seo from '@/components/Seo';
 import WorkspacePreview from '@/components/brand/WorkspacePreview';
-import preview from '@/assets/planz-workspace-preview.jpg';
+import preview from '@/assets/planz-workspace-preview.jpg.asset.json';
 const features = [
   { icon: LayoutGrid, title: 'Project management', desc: 'Bring projects, tasks, milestones and deadlines into one shared workspace.' },
   { icon: ListChecks, title: 'Smart planning', desc: 'Turn ideas into structured plans and actionable work, then review the next move.' },
@@ -23,7 +23,7 @@ export default function LandingNoAuth() {
     </div>{menu && <nav className="grid gap-1 border-t border-border bg-card p-4 lg:hidden">{links.map(([name,url]) => <a key={name} href={url} className="rounded-md p-3 text-sm hover:bg-accent" onClick={() => setMenu(false)}>{name}</a>)}<Button onClick={() => navigate('/auth?mode=signup')}>Get started <ArrowRight /></Button></nav>}</header>
     <main>
       <section className="marketing-hero relative isolate overflow-hidden border-b border-border px-5 pb-10 pt-14 md:pt-20">
-        <img src={preview} alt="" aria-hidden="true" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-[0.06]" width={1536} height={1024} />
+        <img src={preview.url} alt="" aria-hidden="true" className="absolute inset-0 -z-20 h-full w-full object-cover opacity-[0.06]" width={1536} height={1024} />
         <div className="mx-auto max-w-6xl text-center animate-slide-up"><p className="mb-5 inline-flex items-center gap-2 text-sm font-medium text-primary"><Sparkles className="h-4 w-4" /> Your AI-powered project management workspace</p>
           <h1 className="mx-auto max-w-4xl text-balance font-display text-4xl font-semibold leading-[1.12] md:text-6xl">Planz.<br />Your projects. One intelligent workspace.</h1>
           <p className="mx-auto mt-6 max-w-2xl text-base leading-relaxed text-muted-foreground md:text-lg">Plan projects, manage tasks, collaborate with your team and let AI help you stay ahead of every deadline.</p>

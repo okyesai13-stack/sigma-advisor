@@ -115,13 +115,13 @@ const AuthPage = () => {
       <Seo title="Sign In — Planz" description="Sign in or create your Planz account to plan projects and collaborate with your team." path="/auth" noindex />
       <header className="absolute inset-x-0 top-0 z-10">
         <div className="mx-auto flex h-16 max-w-7xl items-center px-5 md:px-8">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/')}><ArrowLeft /> Back to Planz</Button>
+          <Button variant="ghost" size="sm" className="lg:command-muted" onClick={() => navigate('/')}><ArrowLeft /> Back to Planz</Button>
         </div>
       </header>
       <main className="grid min-h-screen lg:grid-cols-2">
         <section className="command-surface hidden overflow-hidden p-12 pt-24 lg:flex lg:flex-col lg:justify-center">
           <div className="mb-10 flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-md bg-primary font-bold text-primary-foreground">P</span><span className="text-xl font-semibold">Planz</span></div>
-          <div className="max-w-xl animate-slide-up"><p className="eyebrow command-muted">Your intelligent workspace</p><h1 className="mt-4 text-4xl font-semibold leading-tight">Less scattered work.<br />More forward motion.</h1><p className="command-muted mt-5 text-lg leading-relaxed">Plan smarter. Execute faster. Stay in control.</p><WorkspacePreview className="mt-10" /><p className="command-muted mt-7 flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4" />Your workspace stays private.</p></div>
+          <div className="max-w-xl animate-slide-up"><p className="eyebrow command-muted">Your intelligent workspace</p><h1 className="mt-4 text-4xl font-semibold leading-tight">Less scattered work.<br />More forward motion.</h1><p className="command-muted mt-5 text-lg leading-relaxed">Plan smarter. Execute faster. Stay in control.</p><WorkspacePreview className="mt-10 [&_figcaption]:command-muted" /><p className="command-muted mt-7 flex items-center gap-2 text-sm"><ShieldCheck className="h-4 w-4" />Your workspace stays private.</p></div>
         </section>
         <section className="flex items-center justify-center px-5 py-24 md:px-10">
           <div className="w-full max-w-md animate-slide-up">
